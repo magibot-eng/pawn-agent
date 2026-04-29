@@ -65,3 +65,148 @@ button {
   border: 1px solid rgba(212, 175, 55, 0.35);
   background: linear-gradient(180deg, rgba(74, 54, 41, 0.32), rgba(31, 28, 11, 0.45));
 }
+
+.merchant-scene {
+  background:
+    radial-gradient(circle at 50% 16%, rgba(255, 220, 120, 0.24), transparent 16%),
+    radial-gradient(circle at 50% 78%, rgba(255, 186, 78, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(74, 54, 34, 0.9) 0%, rgba(35, 23, 14, 0.96) 54%, rgba(17, 14, 2, 1) 100%);
+  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.12), inset 0 -48px 96px rgba(0, 0, 0, 0.5);
+}
+
+.merchant-scene__glow,
+.merchant-scene__window,
+.merchant-scene__shelf,
+.merchant-scene__counter,
+.merchant-scene__merchant,
+.merchant-scene__cargo {
+  pointer-events: none;
+  position: absolute;
+}
+
+.merchant-scene__glow {
+  inset: 0;
+  background: radial-gradient(circle at 50% 22%, rgba(255, 214, 120, 0.22), transparent 28%);
+}
+
+.merchant-scene__window {
+  top: 1.2rem;
+  left: 50%;
+  height: 8.75rem;
+  width: 12.5rem;
+  transform: translateX(-50%);
+  border: 2px solid rgba(212, 175, 55, 0.3);
+  background: linear-gradient(180deg, rgba(84, 126, 152, 0.34), rgba(13, 25, 36, 0.08));
+  box-shadow: 0 0 40px rgba(91, 152, 196, 0.1);
+}
+
+.merchant-scene__shelf {
+  top: 5rem;
+  height: 8.5rem;
+  width: 4.2rem;
+  border: 1px solid rgba(212, 175, 55, 0.14);
+  background: linear-gradient(180deg, rgba(53, 38, 27, 0.82), rgba(28, 19, 12, 0.9));
+  opacity: 0.72;
+}
+
+.merchant-scene__shelf--left {
+  left: 1.25rem;
+}
+
+.merchant-scene__shelf--right {
+  right: 1.25rem;
+}
+
+.merchant-scene__counter {
+  right: 0;
+  bottom: 3.6rem;
+  left: 0;
+  height: 6.8rem;
+  border-top: 1px solid rgba(212, 175, 55, 0.28);
+  background: linear-gradient(180deg, rgba(118, 80, 46, 0.94), rgba(56, 31, 16, 0.98));
+  box-shadow: inset 0 10px 22px rgba(255, 230, 160, 0.08), 0 -18px 48px rgba(0, 0, 0, 0.22);
+}
+
+.merchant-scene__merchant {
+  bottom: 9rem;
+  left: 50%;
+  height: 12.5rem;
+  width: 8.2rem;
+  transform: translateX(-50%);
+  border-radius: 9999px 9999px 1.4rem 1.4rem;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255, 228, 170, 0.18), transparent 15%),
+    linear-gradient(180deg, rgba(39, 78, 80, 0.78), rgba(19, 32, 33, 0.96));
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.26);
+  filter: saturate(0.82);
+}
+
+.merchant-scene__cargo {
+  bottom: 5.3rem;
+  left: 15%;
+  height: 3.6rem;
+  width: 9.8rem;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  border-radius: 0.45rem;
+  background: linear-gradient(180deg, rgba(137, 98, 61, 0.92), rgba(72, 47, 27, 0.98));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  transform: perspective(120px) rotateX(24deg);
+}
+
+.merchant-dialogue {
+  border: 1px solid rgba(212, 175, 55, 0.38);
+  background:
+    linear-gradient(180deg, rgba(36, 27, 18, 0.96), rgba(22, 16, 8, 0.98)),
+    linear-gradient(90deg, rgba(212, 175, 55, 0.06), transparent 30%, transparent 70%, rgba(212, 175, 55, 0.06));
+  box-shadow: inset 0 1px 0 rgba(255, 230, 180, 0.06);
+}
+
+@media (max-width: 640px) {
+  .merchant-scene__window {
+    width: 8rem;
+    height: 6rem;
+  }
+
+  .merchant-scene__merchant {
+    height: 9rem;
+    width: 6rem;
+    bottom: 10rem;
+  }
+
+  .merchant-scene__cargo {
+    left: 8%;
+    width: 7rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .merchant-scene__glow {
+    animation: merchantGlow 8s ease-in-out infinite;
+  }
+
+  .merchant-scene__merchant {
+    animation: merchantBob 6s ease-in-out infinite;
+  }
+}
+
+@keyframes merchantGlow {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes merchantBob {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  50% {
+    transform: translateX(-50%) translateY(-4px);
+  }
+}
