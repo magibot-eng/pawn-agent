@@ -1,0 +1,62 @@
+# Environment
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+.eggs/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Databases and local app state
+*.db
+*.sqlite
+*.sqlite3
+*.pid
+
+# Node / frontend
+node_modules/
+.next/
+out/
+coverage/
+.npm/
+.pnpm-store/
+
+# Contracts / Foundry
+cache/
+out/
+broadcast/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local secrets / generated env files
+backend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
