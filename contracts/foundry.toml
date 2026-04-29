@@ -1,5 +1,5 @@
-# Legacy exploratory Foundry config from the earlier loan-first scaffold.
-# The buyout-first contract flow may replace or revise this as implementation begins.
+# Foundry config for Pawn Agent buyout settlement contracts.
+# Legacy loan-era config updated for buyout-first settlement flow.
 
 [profile.default]
 src = "src"
@@ -10,14 +10,23 @@ optimizer = true
 optimizer_runs = 200
 via_ir = false
 
+remappings = [
+    "forge-std/=lib/forge-std/",
+    "ds-test/=lib/ds-test/src/",
+    "@openzeppelin/contracts/=lib/openzeppelin/contracts/",
+    "openzeppelin/=lib/openzeppelin/",
+]
+
 [profile.ci]
 fuzz_runs = 1000
 verbosity = 4
 
 [rpc_endpoints]
+base_sepolia = "${BASE_SEPOLIA_RPC_URL}"
 sepolia = "${ETH_RPC_URL}"
 mainnet = "${ETH_RPC_URL}"
 
 [etherscan]
 mainnet = { key = "${ETHERSCAN_API_KEY}" }
+base_sepolia = { key = "${ETHERSCAN_API_KEY}" }
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
