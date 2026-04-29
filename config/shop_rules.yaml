@@ -1,0 +1,122 @@
+# =============================================================================
+# Pawn Agent — Shop Rules Configuration
+# =============================================================================
+# Legacy exploratory loan-era rules scaffold.
+# The canonical MVP direction is now buyout-first on Base Sepolia.
+# This file is published for public history and will be replaced by a structured
+# merchant rules model during implementation.
+# NO CODE CHANGES NEEDED — the agent reads this at startup in the old scaffold.
+# =============================================================================
+
+version: 1
+
+# =============================================================================
+# COLLATERAL ACCEPTANCE
+# =============================================================================
+# Currently only ERC-20 is supported (MVP).
+# ERC-721 (NFT) support is planned.
+# =============================================================================
+
+collateral:
+  erc20:
+    accepted:
+      - symbol: "USDC"
+        address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+        chainlink_feed: "0x8fFfFfd4eB1282a2f0bEbD6c4b3C0d4fD8a3aF1b"
+        decimals: 6
+
+      - symbol: "WETH"
+        address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+        chainlink_feed: "0x5f4eC3Df9cbd43714FE2740f5E3617235C2392d5"
+        decimals: 18
+
+      - symbol: "DAI"
+        address: "0x6B175474E89094C44Da98b954EedeAE5BeB3E2cC6"
+        chainlink_feed: "0xAed3c2E2560dAF3f3E6b0b5D4E4C6a5F1e8E3A4b"
+        decimals: 18
+
+# =============================================================================
+# LOAN TERMS
+# =============================================================================
+
+loan_terms:
+  # Loan size limits (in USD equivalent)
+  max_principal_usd: 5000
+  min_principal_usd: 50
+
+  # Loan-to-value ratio (what % of collateral value will we lend?)
+  max_ltv: 0.70        # 70% — won't lend more than 70% of oracle value
+  min_ltv: 0.10        # 10% — won't lend against highly illiquid assets
+
+  # Interest rate
+  interest_rate_annual: 0.24    # 24% APR
+  # Interest is calculated as: principal * rate * (duration_days / 365)
+
+  # Loan duration
+  max_duration_days: 30
+  min_duration_hours: 1
+
+# =============================================================================
+# RISK LIMITS
+# =============================================================================
+
+risk:
+  # Maximum outstanding exposure per token (USD)
+  max_exposure_per_token: 5000
+
+  # Total maximum exposure across all outstanding loans (USD)
+  max_total_exposure: 10000
+
+  # Alert threshold: if oracle price drops this much since loan was made, flag it
+  price_drop_alert_threshold: 0.15   # 15% price drop
+
+  # Auto-reject loans below this collateral value (USD)
+  min_collateral_usd: 50
+
+# =============================================================================
+# LIQUIDATION SETTINGS
+# =============================================================================
+
+liquidation:
+  # Automatically execute liquidation when a loan expires and is unpaid?
+  auto_liquidate_on_default: true
+
+  # Uniswap slippage tolerance (decimal)
+  slippage_tolerance: 0.02    # 2% — reject swaps with worse execution
+
+  # Uniswap pool fee tier to use
+  # 100 = 0.01% | 500 = 0.05% | 3000 = 0.30% | 10000 = 1.00%
+  uniswap_pool_fee_tier: 3000
+
+  # Minimum profit (USD) below which we skip liquidation (gas not worth it)
+  min_liquidation_profit_usd: 5
+
+# =============================================================================
+# NOTIFICATION SETTINGS
+# =============================================================================
+
+notifications:
+  notify_on:
+    - loan_proposed      # New loan proposal received
+    - loan_accepted      # Loan accepted by agent
+    - loan_rejected      # Loan rejected by agent
+    - loan_repaid        # Borrower repaid successfully
+    - loan_defaulted     # Loan expired without repayment
+    - liquidation_done   # Liquidation executed via Uniswap
+    - profit_withdrawn   # Owner withdrew profits
+    - price_alert        # Collateral price dropped significantly
+    - new_loan_initiated # Borrower proposed a loan (info only)
+
+# =============================================================================
+# AGENT SETTINGS
+# =============================================================================
+
+agent:
+  # How often to poll for new events (seconds)
+  poll_interval_seconds: 15
+
+  # LLM temperature for decision reasoning (0 = deterministic, 1 = creative)
+  llm_temperature: 0.3
+
+  # Enable debug logging?
+  debug: false

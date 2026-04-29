@@ -1,0 +1,23 @@
+# Legacy exploratory Foundry config from the earlier loan-first scaffold.
+# The buyout-first contract flow may replace or revise this as implementation begins.
+
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+
+[profile.ci]
+fuzz_runs = 1000
+verbosity = 4
+
+[rpc_endpoints]
+sepolia = "${ETH_RPC_URL}"
+mainnet = "${ETH_RPC_URL}"
+
+[etherscan]
+mainnet = { key = "${ETHERSCAN_API_KEY}" }
+sepolia = { key = "${ETHERSCAN_API_KEY}" }

@@ -1,0 +1,38 @@
+# Pawn Agent — Python Dependencies
+# Legacy exploratory dependency list from the earlier loan-first scaffold.
+# The implementation plan now targets a frontend/backend/contracts monorepo and
+# this file will be replaced or narrowed as the real backend package is introduced.
+
+# Ethereum / Smart Contract interaction
+web3>=6.0.0
+eth-account>=0.9.0
+
+# Uniswap
+uniswap-python>=0.12.0
+# Alternatively: swap-router-sdk (official Uniswap SDK)
+
+# ENS
+ens>=5.0.0
+web3-ens>=3.0.0
+
+# LLM Clients
+openai>=1.0.0
+anthropic>=0.20.0
+
+# HTTP / API
+requests>=2.31.0
+httpx>=0.26.0
+
+# Database
+aiosqlite>=0.19.0
+
+# Notifications
+python-telegram-bot>=20.0
+discord.py>=2.3.0
+
+# Config
+pyyaml>=6.0.1
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.0.0
