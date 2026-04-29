@@ -2,11 +2,15 @@
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, backref
 
 from app.models.base import Base
+
+if TYPE_CHECKING:
+    from app.models.shop import Shop
 
 
 class ProviderKey(Base):
@@ -47,3 +51,7 @@ class ProviderKey(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+    # Relationship — uses string reference to avoid circular import.
+    # Shop.provider_keys uses back_populates="shop", which matches this.
+    shop: Mapped["Shop"] = relationship(back_populates="provider_keys")

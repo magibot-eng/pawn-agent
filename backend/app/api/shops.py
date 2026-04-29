@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db import get_db
 from app.models.shop import Shop, ShopStatus
@@ -37,7 +38,11 @@ async def create_shop(
     )
     db.add(shop)
     await db.flush()
-    await db.refresh(shop)
+    # Eager-load ens_identities for response serialization
+    result = await db.execute(
+        select(Shop).where(Shop.id == shop.id).options(selectinload(Shop.ens_identities))
+    )
+    shop = result.scalar_one()
     return shop
 
 
@@ -56,7 +61,7 @@ async def list_shops(
         query = query.where(Shop.ens_name == ens_name)
     if status:
         query = query.where(Shop.status == status)
-    query = query.order_by(Shop.created_at.desc())
+    query = query.options(selectinload(Shop.ens_identities)).order_by(Shop.created_at.desc())
 
     result = await db.execute(query)
     shops = result.scalars().all()
@@ -69,7 +74,9 @@ async def get_shop(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get a single shop by ID."""
-    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    result = await db.execute(
+        select(Shop).where(Shop.id == shop_id).options(selectinload(Shop.ens_identities))
+    )
     shop = result.scalar_one_or_none()
     if shop is None:
         raise HTTPException(status_code=404, detail="Shop not found")
@@ -92,7 +99,11 @@ async def update_shop(
         setattr(shop, field, value)
 
     await db.flush()
-    await db.refresh(shop)
+    # Eager-load ens_identities for response serialization
+    result = await db.execute(
+        select(Shop).where(Shop.id == shop_id).options(selectinload(Shop.ens_identities))
+    )
+    shop = result.scalar_one()
     return shop
 
 

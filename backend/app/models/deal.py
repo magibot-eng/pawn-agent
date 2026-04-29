@@ -5,8 +5,13 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING
 
 from app.models.base import Base
+
+if TYPE_CHECKING:
+    from app.models.shop import Shop
+    from app.models.negotiation import NegotiationSession
 
 
 class DealOffer(Base):
@@ -39,6 +44,13 @@ class DealOffer(Base):
         server_default=func.now(),
     )
 
+    # Relationships — use backref for the NegotiationSession side to avoid circular config order.
+    shop: Mapped["Shop"] = relationship(back_populates="deals")
+    negotiation: Mapped["NegotiationSession"] = relationship(
+        backref="deals",
+        foreign_keys=[negotiation_id],
+    )
+
 
 class Execution(Base):
     """Record of a completed or failed on-chain settlement."""
@@ -68,3 +80,6 @@ class Execution(Base):
         nullable=False,
         server_default=func.now(),
     )
+
+    # Relationship — uses string reference to avoid circular import.
+    shop: Mapped["Shop"] = relationship(back_populates="executions")
