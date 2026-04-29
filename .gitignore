@@ -35,10 +35,14 @@ coverage/
 .npm/
 .pnpm-store/
 
-# Contracts / Foundry
+# Foundry
 cache/
 out/
 broadcast/
+lib/
+
+# TypeScript
+tsconfig.tsbuildinfo
 
 # IDE
 .vscode/
