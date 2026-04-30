@@ -23,6 +23,33 @@ type RuntimeStatus = {
   error?: string | null;
 };
 
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+function isEthLikeToken(token: string | null | undefined): boolean {
+  const normalized = (token ?? '').trim().toLowerCase();
+  return normalized === 'eth' || normalized === ZERO_ADDRESS;
+}
+
+function formatTokenLabel(token: string | null | undefined): string {
+  if (isEthLikeToken(token)) return 'ETH';
+  return token || '—';
+}
+
+function formatPayoutDisplay(amount: string | null | undefined, token: string | null | undefined): string {
+  if (!amount) return '—';
+  return `${amount} ${formatTokenLabel(token)}`;
+}
+
+function formatWeiDisplay(wei: string | null | undefined): string {
+  if (!wei) return '—';
+  const digits = wei.replace(/\D/g, '');
+  if (!digits) return wei;
+  const padded = digits.padStart(19, '0');
+  const whole = padded.slice(0, -18).replace(/^0+(?=\d)/, '') || '0';
+  const fraction = padded.slice(-18).replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction} ETH` : `${whole} ETH`;
+}
+
 const FALLBACK_MESSAGES: Message[] = [
   {
     id: 'fallback-1',
@@ -96,9 +123,7 @@ function QuoteCard({
         <div>
           <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant Offers</p>
           <p className="mt-1 text-base text-[#f5e9c9]">
-            {quote.payout_amount
-              ? `${Number(quote.payout_amount).toLocaleString()} ${quote.payout_token}`
-              : '—'}
+            {formatPayoutDisplay(quote.payout_amount, quote.payout_token)}
           </p>
           {quote.expiry && (
             <p className="text-[11px] text-[#a08050]">Expires: {quote.expiry}</p>
@@ -114,7 +139,7 @@ function QuoteCard({
             value={counterInput}
             onChange={(e) => onCounterInputChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onCounterSubmit()}
-            placeholder="Your counter offer (e.g. 16000 USDC)"
+            placeholder="Your counter offer (e.g. 0.0001 ETH)"
             className="merchant-inset flex-1 rounded-panel border border-outline bg-surfaceLowest px-3 py-2 text-sm text-[#f5e9c9] placeholder:text-[#7a6040] focus:outline-none focus:ring-1 focus:ring-[#d4af37]/60"
           />
           <button
@@ -337,7 +362,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
       setNegotiationState(resp.negotiation.negotiation_state ?? null);
       setTyping({
         active: true,
-        text: `⚓ Terms accepted. Settlement ${resp.execution.state}. Tx ${resp.execution.tx_hash ?? 'pending'}.`,
+        text: `⚓ Terms accepted. Base Sepolia settlement ${resp.execution.state}. Tx ${resp.execution.tx_hash ?? 'pending'}.`,
         charIndex: 0,
       });
     } catch (err) {
@@ -526,7 +551,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
                 <div className="flex justify-between">
                   <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Payout</dt>
                   <dd className="text-xs text-[#f5e9c9]">
-                    {activeQuote.payout_amount} {activeQuote.payout_token}
+                    {formatPayoutDisplay(activeQuote.payout_amount, activeQuote.payout_token)}
                   </dd>
                 </div>
                 <div className="flex justify-between">
@@ -546,6 +571,10 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
               <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Settlement</p>
               <dl className="mt-3 space-y-2">
                 <div className="flex justify-between gap-3">
+                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Chain</dt>
+                  <dd className="text-xs text-[#f5e9c9]">Base Sepolia</dd>
+                </div>
+                <div className="flex justify-between gap-3">
                   <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">State</dt>
                   <dd className="text-xs text-[#f5e9c9]">{executionRecord.state}</dd>
                 </div>
@@ -555,8 +584,14 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Payout sent</dt>
-                  <dd className="text-xs text-[#f5e9c9]">{executionRecord.payout_sent_wei ?? '—'}</dd>
+                  <dd className="text-xs text-[#f5e9c9]">{formatWeiDisplay(executionRecord.payout_sent_wei)}</dd>
                 </div>
+                {executionRecord.error_message && (
+                  <div className="space-y-1">
+                    <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Error</dt>
+                    <dd className="text-xs text-amber-300">{executionRecord.error_message}</dd>
+                  </div>
+                )}
               </dl>
             </div>
           )}

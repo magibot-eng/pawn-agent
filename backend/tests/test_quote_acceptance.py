@@ -1,4 +1,5 @@
 import uuid
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -8,6 +9,8 @@ import app.config as config_module
 import app.db as db_module
 from app.db import init_db
 from app.main import create_app
+from app.services import settlements as settlement_service
+from app.services import wallets as wallet_service
 
 
 @pytest.fixture
@@ -76,15 +79,51 @@ async def _create_negotiation(client: httpx.AsyncClient, shop_id: str) -> dict:
 
 
 @pytest.mark.asyncio
-async def test_accept_quote_creates_offer_and_execution(client):
+async def test_accept_quote_submits_base_sepolia_eth_settlement(client, monkeypatch):
+    monkeypatch.setattr(
+        wallet_service,
+        "get_settings",
+        lambda: SimpleNamespace(
+            cdp_wallet_live_enabled=True,
+            cdp_wallet_fallback_to_stub=False,
+            cdp_wallet_chain="base-sepolia",
+            cdp_wallet_cli_command="npx awal",
+        ),
+    )
+    monkeypatch.setattr(settlement_service, "get_settings", wallet_service.get_settings)
+
+    awal_calls: list[list[str]] = []
+
+    def fake_run_awal(args: list[str]) -> str:
+        awal_calls.append(args)
+        if args == ["status"]:
+            return "Wallet Server\n✓ Running\n\nAuthentication\n✓ Authenticated\nLogged in as: agent@example.com"
+        if args == ["address", "--chain", "base-sepolia"]:
+            return "0x1234567890abcdef1234567890abcdef12345678"
+        if args == [
+            "send",
+            "0.0001",
+            "0x1111111111111111111111111111111111111111",
+            "--chain",
+            "base-sepolia",
+            "--asset",
+            "ETH",
+            "--json",
+        ]:
+            return '{"status":"submitted","transactionHash":"0xabc123"}'
+        raise AssertionError(f"Unexpected args: {args}")
+
+    monkeypatch.setattr(wallet_service, "_run_awal", fake_run_awal)
+    monkeypatch.setattr(settlement_service, "_run_awal", fake_run_awal)
+
     shop = await _create_shop_with_wallet(client)
     negotiation = await _create_negotiation(client, shop["id"])
 
     response = await client.post(
         f"/negotiations/{negotiation['id']}/accept",
         json={
-            "payout_token": "USDC",
-            "payout_amount": "15300",
+            "payout_token": "ETH",
+            "payout_amount": "0.0001",
             "expiry": "5m",
         },
     )
@@ -98,19 +137,60 @@ async def test_accept_quote_creates_offer_and_execution(client):
     assert data["deal_offer"]["seller"] == negotiation["seller_address"]
     assert data["deal_offer"]["input_token"] == "TIDE"
     assert data["deal_offer"]["input_amount"] == "18000"
-    assert data["deal_offer"]["payout_amount"] == "15300"
+    assert data["deal_offer"]["payout_amount"] == "0.0001"
     assert data["execution"]["shop_id"] == shop["id"]
     assert data["execution"]["deal_offer_id"] == data["deal_offer"]["id"]
-    assert data["execution"]["state"] == "confirmed"
-    assert data["execution"]["tx_hash"].startswith("0x")
-    assert data["execution"]["payout_sent_wei"] == "15300"
+    assert data["execution"]["state"] == "submitted"
+    assert data["execution"]["tx_hash"] == "0xabc123"
+    assert data["execution"]["payout_sent_wei"] == "100000000000000"
     assert data["execution"]["tokens_received"] == "18000"
+    assert any(call[:1] == ["send"] for call in awal_calls)
 
     updated_negotiation = await client.get(f"/negotiations/{negotiation['id']}")
     assert updated_negotiation.status_code == 200, updated_negotiation.text
     negotiation_data = updated_negotiation.json()
     assert negotiation_data["settled"] is True
-    assert negotiation_data["agreed_payout"] == "15300"
+    assert negotiation_data["agreed_payout"] == "0.0001"
+
+
+@pytest.mark.asyncio
+async def test_accept_quote_rejects_non_eth_payout_for_live_settlement(client, monkeypatch):
+    monkeypatch.setattr(
+        wallet_service,
+        "get_settings",
+        lambda: SimpleNamespace(
+            cdp_wallet_live_enabled=True,
+            cdp_wallet_fallback_to_stub=False,
+            cdp_wallet_chain="base-sepolia",
+            cdp_wallet_cli_command="npx awal",
+        ),
+    )
+    monkeypatch.setattr(settlement_service, "get_settings", wallet_service.get_settings)
+
+    def fake_run_awal(args: list[str]) -> str:
+        if args == ["status"]:
+            return "Wallet Server\n✓ Running\n\nAuthentication\n✓ Authenticated\nLogged in as: agent@example.com"
+        if args == ["address", "--chain", "base-sepolia"]:
+            return "0x1234567890abcdef1234567890abcdef12345678"
+        raise AssertionError(f"Unexpected args: {args}")
+
+    monkeypatch.setattr(wallet_service, "_run_awal", fake_run_awal)
+    monkeypatch.setattr(settlement_service, "_run_awal", fake_run_awal)
+
+    shop = await _create_shop_with_wallet(client)
+    negotiation = await _create_negotiation(client, shop["id"])
+
+    response = await client.post(
+        f"/negotiations/{negotiation['id']}/accept",
+        json={
+            "payout_token": "USDC",
+            "payout_amount": "15.3",
+            "expiry": "5m",
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "eth" in response.text.lower()
 
 
 @pytest.mark.asyncio
