@@ -8,10 +8,12 @@
 Pawn Agent is no longer in a planning-only state.
 
 The current repo already supports a real prototype loop:
-- create/load a demo ENS shop
+- connect a wallet and detect a primary ENS name when available
+- override with a manual ENS/subdomain for storefront identity
+- create/load a wallet-bound store
 - edit merchant-facing shop settings
 - save encrypted provider API keys
-- open negotiation sessions
+- open a dedicated storefront chat page by ENS route
 - chat with the merchant runtime
 - inspect a structured negotiation summary beside the chat
 - visibly distinguish live LLM, scripted fallback, provider-error fallback, and disconnected demo mode
@@ -33,14 +35,19 @@ Important note:
 
 ### Frontend
 - `frontend/app/page.tsx`
-  - combined owner-config + live seller chat demo surface
-  - creates/loads demo shop
-  - can create fresh negotiation sessions
-  - can save provider keys
+  - wallet-first storefront setup
+  - detects primary ENS from connected wallet when available
+  - accepts manual ENS/subdomain override
+  - creates/loads stores bound to `owner_address + ens_name`
 - `frontend/app/owner/page.tsx`
   - dedicated owner dashboard
+  - loads the selected wallet/ENS-bound store
   - edits merchant persona, buying preferences, pricing posture, refusal rules, welcome line
   - saves provider keys
+- `frontend/app/shop/[ens]/page.tsx`
+  - dedicated storefront chat page
+  - loads a shop by ENS route
+  - creates/loads a negotiation session for that storefront
 - `frontend/components/MerchantChat.tsx`
   - loads persisted chat history
   - sends seller messages to backend chat route

@@ -3,11 +3,14 @@
 ## Overall: **active**
 
 ## Current Phase
-Hackathon MVP is in active implementation.
+Post-hackathon. MVP prototype is working and now includes wallet-first ENS setup plus a dedicated storefront chat page. Current focus is turning the negotiation loop into a real offer/execution workflow.
 
 The repo is no longer at planning-only stage. It now contains a working frontend/backend prototype for:
+- wallet-first store setup
+- ENS-tied store identity (primary ENS detect + manual ENS/subdomain input)
 - owner-side shop configuration
 - persisted encrypted provider-key storage
+- dedicated seller storefront chat page
 - seller-side merchant chat
 - structured negotiation state extraction and display
 - runtime-status visibility for live AI vs fallback behavior
@@ -35,9 +38,10 @@ The MVP remains:
 | Component | Status | Notes |
 |-----------|--------|-------|
 | `frontend/` | ✅ Working prototype | Seller storefront + owner setup screens exist |
-| `frontend/app/page.tsx` | ✅ Implemented | Combined owner-config + live merchant chat demo surface |
-| `frontend/app/owner/page.tsx` | ✅ Implemented | Dedicated owner dashboard for shop fields + provider-key save |
-| `frontend/components/MerchantChat.tsx` | ✅ Implemented | Shows runtime mode and a live negotiation-state panel beside chat |
+| `frontend/app/page.tsx` | ✅ Implemented | Wallet-first store setup with primary ENS detect + manual ENS/subdomain input |
+| `frontend/app/owner/page.tsx` | ✅ Implemented | Owner dashboard now loads the selected wallet/ENS-bound store |
+| `frontend/app/shop/[ens]/page.tsx` | ✅ Implemented | Dedicated storefront chat page for seller-facing merchant interaction |
+| `frontend/components/MerchantChat.tsx` | ✅ Implemented | Clean merchant chat UI with runtime status and negotiation-state panel |
 | `backend/app/main.py` | ✅ Implemented | FastAPI app boots, initializes DB, serves `/health` |
 | `backend/app/api/shops.py` | ✅ Implemented | Shop CRUD + ENS identity subresource |
 | `backend/app/api/provider_keys.py` | ✅ Implemented | Encrypted provider-key save/list endpoints |

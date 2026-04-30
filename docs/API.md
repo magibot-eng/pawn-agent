@@ -10,6 +10,7 @@
 The backend currently supports:
 - shop creation and editing
 - ENS-linked shop records
+- wallet-bound shop records via `owner_address`
 - encrypted LLM provider-key management
 - negotiation session persistence
 - persisted structured negotiation summaries
@@ -41,6 +42,8 @@ These were verified during the 2026-04-30 audit.
 - `PATCH /shops/{shop_id}`
 - `POST /shops/{shop_id}/ens-identities`
 - `GET /shops/{shop_id}/ens-identities`
+
+Frontend currently uses `GET /shops?owner_address=...&ens_name=...` as the minimal wallet + ENS storefront binding lookup.
 
 ### Negotiations
 - `POST /negotiations`

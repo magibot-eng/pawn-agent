@@ -25,8 +25,11 @@ See:
 ## What Exists Today
 
 The repo already includes a working prototype loop for:
+- wallet-first store setup
+- ENS-tied store identity using detected primary ENS or manual ENS/subdomain input
 - owner-side shop configuration
 - encrypted provider-key save/list
+- dedicated storefront chat page at `/shop/[ens]`
 - seller-side merchant chat
 - runtime visibility for live AI vs fallback behavior
 - persisted negotiation sessions
@@ -39,9 +42,9 @@ Pawn Agent is an **ENS-branded autonomous token buyout platform**.
 
 Each merchant can:
 - connect a wallet
-- prove ownership of a root ENS name
+- resolve a primary ENS name from that wallet when available
 - create a shop tied to that ENS identity
-- optionally add a shop subdomain later
+- optionally override with a subdomain string for storefront naming
 - define hard buyout rules and negotiation preferences
 - store an encrypted LLM provider key
 - launch a storefront
@@ -136,9 +139,7 @@ Treat these as pre-refactor scaffolds, not the final MVP architecture.
 
 ## Current Recommended Next Step
 
-Add **structured negotiation state** to the chat flow and show it in the UI.
-
-That is the fastest path to making the prototype feel like a product instead of just a styled conversation demo.
+Turn the working wallet/ENS storefront flow into a real commerce workflow by bridging negotiation state into `DealOffer` creation.
 
 ## Source of Truth
 
