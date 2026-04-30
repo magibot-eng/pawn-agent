@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_db
-from app.models.shop import Shop, ShopStatus
+from app.models.shop import Shop, ShopStatus, ShopEnsIdentity
 from app.schemas.shop import (
     ShopCreate,
     ShopUpdate,
@@ -33,6 +33,11 @@ async def create_shop(
         ens_name=data.ens_name,
         display_name=data.display_name,
         description=data.description,
+        merchant_persona=data.merchant_persona,
+        buying_preferences=data.buying_preferences,
+        pricing_style=data.pricing_style,
+        refusal_rules=data.refusal_rules,
+        welcome_message=data.welcome_message,
         payout_token=data.payout_token,
         merchant_address=data.merchant_address,
     )

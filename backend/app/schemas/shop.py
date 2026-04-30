@@ -40,6 +40,11 @@ class ShopCreate(BaseModel):
     ens_name: Annotated[str, Field(max_length=256, description="Primary ENS name for this shop")]
     display_name: Annotated[str, Field(max_length=256, description="Human-readable shop name")]
     description: str | None = None
+    merchant_persona: str | None = None
+    buying_preferences: str | None = None
+    pricing_style: str | None = None
+    refusal_rules: str | None = None
+    welcome_message: str | None = None
     payout_token: Annotated[
         str,
         Field(
@@ -54,6 +59,11 @@ class ShopCreate(BaseModel):
 class ShopUpdate(BaseModel):
     display_name: Annotated[str | None, Field(max_length=256)] = None
     description: str | None = None
+    merchant_persona: str | None = None
+    buying_preferences: str | None = None
+    pricing_style: str | None = None
+    refusal_rules: str | None = None
+    welcome_message: str | None = None
     status: str | None = Field(
         default=None,
         description="One of: draft, published, paused, closed",
@@ -70,6 +80,11 @@ class ShopResponse(BaseModel):
     ens_name: str
     display_name: str
     description: str | None
+    merchant_persona: str | None
+    buying_preferences: str | None
+    pricing_style: str | None
+    refusal_rules: str | None
+    welcome_message: str | None
     status: str
     contract_address: str | None
     payout_token: str

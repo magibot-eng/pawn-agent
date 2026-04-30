@@ -38,6 +38,12 @@ class Shop(Base):
     display_name: Mapped[str] = mapped_column(String(256), nullable=False)
     # Short tagline / description
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Plain-language merchant behavior fields for the owner-facing setup UI
+    merchant_persona: Mapped[str | None] = mapped_column(Text, nullable=True)
+    buying_preferences: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pricing_style: Mapped[str | None] = mapped_column(Text, nullable=True)
+    refusal_rules: Mapped[str | None] = mapped_column(Text, nullable=True)
+    welcome_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default=ShopStatus.DRAFT, index=True
     )

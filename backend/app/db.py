@@ -57,8 +57,32 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+SHOP_COLUMN_MIGRATIONS = {
+    "merchant_persona": "TEXT",
+    "buying_preferences": "TEXT",
+    "pricing_style": "TEXT",
+    "refusal_rules": "TEXT",
+    "welcome_message": "TEXT",
+}
+
+
+def _ensure_sqlite_shop_columns(sync_conn) -> None:
+    if sync_conn.dialect.name != "sqlite":
+        return
+
+    existing_columns = {
+        row[1] for row in sync_conn.exec_driver_sql("PRAGMA table_info(shops)").fetchall()
+    }
+    for column_name, column_type in SHOP_COLUMN_MIGRATIONS.items():
+        if column_name not in existing_columns:
+            sync_conn.exec_driver_sql(
+                f"ALTER TABLE shops ADD COLUMN {column_name} {column_type}"
+            )
+
+
 async def init_db() -> None:
     """Create all tables. Call once on app startup."""
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_ensure_sqlite_shop_columns)
