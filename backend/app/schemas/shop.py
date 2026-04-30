@@ -57,6 +57,7 @@ class ShopCreate(BaseModel):
 
 
 class ShopUpdate(BaseModel):
+    ens_name: Annotated[str | None, Field(max_length=256)] = None
     display_name: Annotated[str | None, Field(max_length=256)] = None
     description: str | None = None
     merchant_persona: str | None = None

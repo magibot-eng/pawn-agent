@@ -55,6 +55,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
           text: string;
           timestamp: string;
         }>;
+        setConnected(true);
         if (log.length > 0) {
           setMessages(
             log.map((entry, i) => ({
@@ -66,11 +67,13 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
                 : '',
             }))
           );
-          setConnected(true);
+        } else {
+          setMessages([]);
         }
       } catch {
         // Backend not available — use fallback static messages
         setConnected(false);
+        setMessages(FALLBACK_MESSAGES);
       }
     }
     loadHistory();

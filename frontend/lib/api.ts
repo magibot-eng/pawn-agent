@@ -34,6 +34,11 @@ export interface Shop {
   ens_name: string;
   display_name: string;
   description: string | null;
+  merchant_persona: string | null;
+  buying_preferences: string | null;
+  pricing_style: string | null;
+  refusal_rules: string | null;
+  welcome_message: string | null;
   status: string;
   contract_address: string | null;
   payout_token: string;
@@ -58,6 +63,11 @@ export interface CreateShop {
   ens_name: string;
   display_name: string;
   description?: string;
+  merchant_persona?: string;
+  buying_preferences?: string;
+  pricing_style?: string;
+  refusal_rules?: string;
+  welcome_message?: string;
   payout_token?: string;
   merchant_address: string;
 }
