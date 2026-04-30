@@ -2,150 +2,266 @@
 
 ENS-native AI token buyout storefronts on Base Sepolia.
 
-Pawn Agent lets an ENS holder launch a configurable AI-powered token buyout shop, define merchant behavior, securely connect an LLM API key, and publish a storefront where sellers negotiate discounted token exits with an autonomous merchant agent.
+Pawn Agent lets an ENS holder launch a configurable AI-powered token buyout shop, define merchant behavior, connect an LLM provider key, provision a separate merchant wallet, and publish a storefront where sellers negotiate discounted token exits with an autonomous merchant agent.
 
 ## Status
 
 - **Phase:** Active hackathon MVP prototype
-- **Execution:** In progress
-- **Prize focus:** ENS only
 - **MVP chain:** Base Sepolia
 - **Product model:** Buyout-first, not collateralized lending first
-- **Current reality:** frontend/backend prototype live; contracts still incomplete
-
-See:
-- `PROJECT.md` — concise project brief + resume context
-- `STATUS.md` — top-level snapshot
-- `TASKS.md` — current next-work queue
-- `ROADMAP.md` — milestone view
-- `docs/DESIGN.md` — canonical product design source of truth
-- `docs/STATE.md` — current implementation-state summary
-- `docs/API.md` — backend API surface
+- **Current reality:** frontend + backend prototype is live locally; contracts are still incomplete relative to the full long-term vision
+- **Real settlement path today:** accepted quotes can submit **live Base Sepolia ETH** payouts through a CDP Agentic Wallet (`awal`) flow when the merchant wallet is live-authenticated and funded with faucet ETH
 
 ## What Exists Today
 
-The repo already includes a working prototype loop for:
-- wallet-first store setup
-- ENS-tied store identity using detected primary ENS or manual ENS/subdomain input
-- owner-side shop configuration
-- encrypted provider-key save/list
-- dedicated storefront chat page at `/shop/[ens]`
-- seller-side merchant chat
-- runtime visibility for live AI vs fallback behavior
-- persisted negotiation sessions
+Pawn Agent is already beyond planning. The current repo supports a real prototype loop for:
 
-This means the project has moved beyond planning/scaffolding, but it is **not** yet a complete buyout product.
+- wallet-first storefront setup
+- ENS-tied store identity using detected primary ENS or manual `.eth` route input
+- owner-side merchant configuration
+- encrypted provider-key save/list/test flow
+- separate managed merchant wallet provisioning
+- storefront chat page at `/shop/[ens]`
+- seller ↔ merchant negotiation with live LLM or fallback behavior
+- quote presentation in the storefront UI
+- quote acceptance from the storefront
+- execution/deal record creation
+- **real Base Sepolia ETH submission** for accepted quotes through the live merchant wallet path
+
+This is enough for a meaningful end-to-end MVP demo, but it is **not yet** a complete production buyout product.
 
 ## What Pawn Agent Is
 
 Pawn Agent is an **ENS-branded autonomous token buyout platform**.
 
 Each merchant can:
-- connect a wallet
+- connect an owner wallet
 - resolve a primary ENS name from that wallet when available
 - create a shop tied to that ENS identity
-- optionally override with a subdomain string for storefront naming
-- define hard buyout rules and negotiation preferences
+- optionally override the storefront route with a manual `.eth` name
+- define merchant behavior and hard buyout preferences
 - store an encrypted LLM provider key
-- launch a storefront
+- provision a separate merchant wallet for automated settlement
+- publish a storefront
 - let the AI merchant negotiate within merchant boundaries
 
 Each seller can:
 - visit a storefront
 - negotiate a discounted exit for a token position
-- accept or reject the merchant's offer
-- eventually complete settlement onchain
+- receive a quote
+- accept or counter the quote
+- trigger settlement submission when the merchant wallet is live and funded
 
-## MVP Scope
+## Current Product Flow
 
-The MVP is intentionally narrow.
+### 1. Setup / create store
+On the home page:
+1. connect the **owner wallet**
+2. choose the `.eth` route for the store
+3. create or load the shop
 
-### In scope
-- ENS-first merchant identity
-- Base Sepolia only
-- ERC-20 only
-- buyout-first merchant flow
-- persisted encrypted LLM API key storage
-- autonomous execution inside hard merchant rules
-- lightweight immersive storefront UI
+This creates a shop record tied to:
+- `owner_address`
+- `ens_name`
 
-### Out of scope for MVP
+At this stage the merchant wallet is still unprovisioned.
+
+### 2. Owner dashboard
+On `/owner`:
+1. edit merchant persona / buying preferences / pricing style / refusal rules / welcome line
+2. save a provider key
+3. test the provider key
+4. provision the merchant wallet
+
+Important distinction:
+- the **owner wallet** is the admin wallet
+- the **merchant wallet** is the operational wallet used for automated settlement
+
+### 3. Storefront chat
+On `/shop/[ens]`:
+1. the app loads the shop by ENS route
+2. it creates or reuses a negotiation session
+3. seller messages go to the backend merchant runtime
+4. the UI shows:
+   - chat history
+   - runtime mode (`live_llm`, `scripted_fallback`, `provider_error_fallback`, or local demo/disconnected state)
+   - structured negotiation summary
+   - active quote card when present
+
+### 4. Quote acceptance
+When a quote is shown, the seller can:
+- **Accept**
+- **Counter**
+
+Accepting a quote currently:
+1. validates the negotiation and merchant wallet state
+2. creates a `DealOffer`
+3. creates an `Execution`
+4. marks the negotiation accepted / settled
+5. if the merchant wallet is live, submits a **real Base Sepolia ETH** transfer through `awal send`
+6. returns execution state + tx hash back to the storefront UI
+
+## What Is Testable Right Now
+
+### A. UI / owner / storefront flow
+You can test:
+- connect wallet
+- create or load a shop
+- open owner dashboard
+- edit merchant settings
+- save/test provider key
+- open storefront chat
+- negotiate with merchant
+- see quote / negotiation state / execution state in UI
+
+### B. Real settlement flow
+You can also test a meaningful real settlement path now:
+1. create/load shop
+2. provision merchant wallet
+3. negotiate a quote
+4. accept the quote
+5. see:
+   - deal created
+   - execution created
+   - negotiation marked accepted/settled
+   - tx hash returned
+   - Base Sepolia settlement status shown in the storefront
+
+## Real Base Sepolia Settlement Requirements
+
+For real settlement to work today, **all** of these must be true:
+
+1. backend is running
+2. frontend is running
+3. merchant wallet is provisioned in **live** mode, not stub mode
+4. `awal` is authenticated locally
+5. the merchant wallet has **Base Sepolia faucet ETH**
+6. the payout quote is in **ETH**
+
+### Current settlement constraints
+- **Chain:** Base Sepolia only
+- **Asset:** ETH payouts only for the live path
+- **Wallet mode:** live `cdpwa_live_*` wallet required
+- **Funding source:** faucet ETH is expected for testing
+
+If the wallet is still stubbed or unfunded, the product flow is still usable, but real settlement submission will fail.
+
+## Local Run Instructions
+
+### Backend
+From `backend/`:
+
+```bash
+source .venv/bin/activate
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+### Frontend
+From `frontend/`:
+
+```bash
+npm run build
+PORT=3011 npm run start
+```
+
+Typical local URLs:
+- frontend: `http://localhost:3011/`
+- backend: `http://localhost:8000/`
+
+On LAN, the frontend can be loaded from another device, e.g.:
+- `http://<your-local-ip>:3011/`
+
+### Frontend/backend connection model
+The frontend defaults to same-origin `/api` calls and uses a Next.js rewrite proxy to forward to the backend.
+
+Current rewrite target default:
+- `http://127.0.0.1:8000`
+
+So if you change backend host/port behavior, keep `frontend/next.config.ts` aligned.
+
+## Suggested End-to-End Test Script
+
+### Test 1: happy-path shop creation
+1. open the frontend
+2. connect wallet
+3. enter a `.eth` route
+4. create the store
+5. confirm owner dashboard opens successfully
+
+### Test 2: provider + merchant runtime
+1. save an LLM provider key
+2. run active-key test
+3. go to storefront
+4. send a seller message
+5. confirm merchant responds and runtime badge reflects the right mode
+
+### Test 3: live settlement path
+1. ensure `awal` is authenticated
+2. provision or re-provision merchant wallet from owner page
+3. verify wallet is **live**, not stub
+4. fund the merchant wallet with Base Sepolia faucet ETH
+5. negotiate or present an **ETH** quote
+   - example: `0.0001 ETH`
+6. click **Accept**
+7. verify:
+   - execution state is returned
+   - tx hash appears
+   - payout sent shows in ETH
+   - negotiation is marked settled
+
+## Known Current Limitations
+
+This repo is still an MVP prototype. Important limitations:
+
+- contracts are not yet the source of truth for the full buyout lifecycle
+- rule system is still mostly plain-language config, not fully normalized policy logic
+- settlement path currently targets **ETH only** on Base Sepolia for real execution
+- execution lifecycle does not yet provide robust post-submit confirmation tracking/polling
+- ENS ownership verification is not yet production-grade
+- the current prototype is local-first and operationally coupled to the machine running `awal`
+
+## What Is Not Done Yet
+
+Out of scope / not complete yet:
 - NFT collateral support
-- collateralized lending lifecycle as the main product
+- collateralized lending as the main product
 - cross-chain support
 - generalized multi-agent systems
 - production-grade liquidation routing
+- full contract-backed lifecycle replacing all app-level orchestration
+- hardened execution safety policy / confirmation monitoring / retries
 
-## Core Product Thesis
-
-Pawn Agent turns an ENS name into a persistent onchain merchant identity.
-
-The differentiator is not just AI plus DeFi. It is the combination of:
-- ENS identity
-- merchant-configured autonomy
-- an immersive storefront experience
-- rule-bounded AI negotiation
-- onchain settlement on Base Sepolia
-
-## Identity Model
-
-### Canonical identity
-The merchant's **root ENS name** is the canonical shop identity.
-
-Example:
-- `ted.eth` is the merchant identity
-- the storefront and agent are associated with `ted.eth`
-
-### Optional subdomain support
-Shop-specific naming like:
-- `pawn.ted.eth`
-- `shop.ted.eth`
-
-may be added as an enhancement.
-
-Durin / Namestone is treated as an **optional convenience layer**, not a core dependency for MVP identity.
-
-## Technical Direction
-
-The active monorepo shape is:
+## Repo Shape
 
 - `frontend/` — Next.js storefront and owner UI prototype
-- `backend/` — FastAPI app for shop config, encrypted secrets, negotiation, and early deal tracking
-- `contracts/` — Foundry contract area, still incomplete relative to current MVP shell
+- `backend/` — FastAPI app for shop config, encrypted secrets, negotiation, wallet flow, and settlement records
+- `contracts/` — Foundry contract area, still incomplete relative to the current MVP shell
 - `config/` — rules/config examples
 - `docs/` — design, implementation, API, and state docs
 
-## Repository Rules
+## Source of Truth
 
-This repo is intended to remain:
-- **public**
-- **open source**
-- easy for third parties to inspect and verify
+If docs drift, use this order:
+1. `docs/DESIGN.md`
+2. `docs/STATE.md`
+3. `docs/API.md`
+4. `TASKS.md`
+5. `ROADMAP.md`
+6. codebase
 
-Development rules for this project:
-- use version control from the start
-- commit frequently
-- keep commits small and scoped
-- avoid large change dumps hidden in a few commits
+## Important Notes for Reviewers
 
-## Current Repo Reality
-
-The repo still contains some legacy exploratory scaffolds from the earlier loan-first concept:
-- `contracts/src/PawnShop.sol`
-- `config/shop_rules.yaml`
-- `.env.example`
-
-Treat these as pre-refactor scaffolds, not the final MVP architecture.
+- this repo is intended to remain **public** and **open source**
+- the most trustworthy current surface is the **frontend/backend prototype loop**, not the older contract-first scaffolds
+- some files under `contracts/`, `config/`, and older root-level planning docs may reflect earlier exploratory architecture and should be read as legacy scaffolds where they conflict with the current implemented flow
 
 ## Current Recommended Next Step
 
-Turn the working wallet/ENS storefront flow into a real commerce workflow by bridging negotiation state into `DealOffer` creation.
+The highest-value next slice after the current flow is:
+- **add confirmation-aware settlement tracking** for submitted Base Sepolia txs
 
-## Source of Truth
+That would turn the current result from:
+- “submitted and recorded”
 
-If docs ever drift, follow this order:
-1. `docs/DESIGN.md`
-2. `docs/STATE.md`
-3. `TASKS.md`
-4. `ROADMAP.md`
-5. `docs/API.md`
+into:
+- “submitted, tracked, and clearly confirmed/failed onchain”
