@@ -117,6 +117,10 @@ export interface ChatResponse {
   merchant_response: string;
   success: boolean;
   error: string | null;
+  response_mode: string | null;
+  provider: string | null;
+  model: string | null;
+  used_fallback: boolean;
 }
 
 export const Negotiations = {

@@ -199,7 +199,8 @@ export default function HomePage() {
       setProviderNotice('Provider key saved and activated.');
     } catch (err) {
       console.error(err);
-      setProviderNotice('Failed to save provider key. Check the backend encryption key.');
+      const message = err instanceof Error ? err.message : 'Failed to save provider key.';
+      setProviderNotice(message);
     } finally {
       setSavingProvider(false);
     }
@@ -259,7 +260,7 @@ export default function HomePage() {
                 Shop: {shopForm.ens_name}
               </div>
               <div className="merchant-inset rounded-panel px-3 py-2 text-onSurfaceVariant">
-                Status: {activeKey ? 'Live AI ready' : 'Scripted fallback'}
+                Status: {activeKey ? 'AI configured' : 'Scripted fallback'}
               </div>
               <div className="merchant-inset rounded-panel px-3 py-2 text-onSurfaceVariant">
                 Provider: {activeKey?.provider ?? 'None'}
@@ -423,7 +424,7 @@ export default function HomePage() {
                 <p className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Current AI status</p>
                 <p className="mt-2">
                   {activeKey
-                    ? `${activeKey.provider} • ${activeKey.model ?? 'default model'} • live`
+                    ? `${activeKey.provider} • ${activeKey.model ?? 'default model'} • configured for live calls`
                     : 'No active key saved yet. Chat will use scripted fallback responses.'}
                 </p>
               </div>
@@ -510,7 +511,7 @@ export default function HomePage() {
                     <h2 className="mt-1 text-lg text-onSurface sm:text-xl">Live seller ↔ merchant loop</h2>
                   </div>
                   <p className="text-xs text-[#f0dfb4]">
-                    {activeKey ? 'Using saved merchant LLM config.' : 'Using scripted fallback until an API key is saved.'}
+                    {activeKey ? 'Saved provider config detected. Chat panel below shows actual runtime mode.' : 'Using scripted fallback until an API key is saved.'}
                   </p>
                 </div>
 

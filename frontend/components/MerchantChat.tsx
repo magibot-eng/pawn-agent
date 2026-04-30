@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Negotiations } from '../lib/api';
+import { Negotiations, type ChatResponse } from '../lib/api';
 
 type Message = {
   id: string;
@@ -14,6 +14,13 @@ type TypingState = {
   active: boolean;
   text: string;
   charIndex: number;
+};
+
+type RuntimeStatus = {
+  mode: 'demo_disconnected' | 'scripted_fallback' | 'live_llm' | 'provider_error_fallback';
+  provider?: string | null;
+  model?: string | null;
+  error?: string | null;
 };
 
 const FALLBACK_MESSAGES: Message[] = [
@@ -41,6 +48,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
   const [inputValue, setInputValue] = useState('');
   const [typing, setTyping] = useState<TypingState>({ active: false, text: '', charIndex: 0 });
   const [connected, setConnected] = useState(false);
+  const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus>({ mode: 'demo_disconnected' });
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -56,6 +64,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
           timestamp: string;
         }>;
         setConnected(true);
+        setRuntimeStatus({ mode: 'scripted_fallback' });
         if (log.length > 0) {
           setMessages(
             log.map((entry, i) => ({
@@ -73,6 +82,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
       } catch {
         // Backend not available — use fallback static messages
         setConnected(false);
+        setRuntimeStatus({ mode: 'demo_disconnected' });
         setMessages(FALLBACK_MESSAGES);
       }
     }
@@ -105,6 +115,29 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
     return () => clearTimeout(timer);
   }, [typing]);
 
+  function describeRuntimeStatus(status: RuntimeStatus): string {
+    if (status.mode === 'live_llm') {
+      return `Live AI: ${status.provider ?? 'provider'}${status.model ? ` • ${status.model}` : ''}`;
+    }
+    if (status.mode === 'provider_error_fallback') {
+      return `Provider fallback: ${status.provider ?? 'configured provider'} failed${status.error ? ` — ${status.error}` : ''}`;
+    }
+    if (status.mode === 'scripted_fallback') {
+      return 'Scripted fallback: no active provider key is being used yet.';
+    }
+    return 'Demo mode: backend unavailable, showing local placeholder chat.';
+  }
+
+  function statusStyles(status: RuntimeStatus): string {
+    if (status.mode === 'live_llm') {
+      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+    }
+    if (status.mode === 'provider_error_fallback') {
+      return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
+    }
+    return 'border-[#d4af37]/30 bg-[rgba(212,175,55,0.08)] text-[#d4af37]';
+  }
+
   const handleSend = useCallback(async () => {
     const text = inputValue.trim();
     if (!text) return;
@@ -123,6 +156,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
 
     if (!connected) {
       // No backend — simulated merchant reply
+      setRuntimeStatus({ mode: 'demo_disconnected' });
       setTyping({
         active: true,
         text: '⚓ The house hears you. Show me your cargo manifest and I will quote accordingly.',
@@ -134,9 +168,16 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
     // Call backend
     try {
       setTyping({ active: true, text: '⚓ The harbormaster is thinking…', charIndex: 0 });
-      const resp = await Negotiations.chat(negotiationId, text);
+      const resp: ChatResponse = await Negotiations.chat(negotiationId, text);
+      setRuntimeStatus({
+        mode: (resp.response_mode as RuntimeStatus['mode']) || 'scripted_fallback',
+        provider: resp.provider,
+        model: resp.model,
+        error: resp.error,
+      });
       setTyping({ active: true, text: resp.merchant_response, charIndex: 0 });
     } catch {
+      setRuntimeStatus({ mode: 'demo_disconnected' });
       setTyping({
         active: true,
         text: '⚓ The harbor signal is lost. Try again when the fog clears.',
@@ -154,15 +195,13 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
 
   return (
     <div className="flex h-full flex-col">
-      {/* Connection badge */}
-      {!connected && (
-        <div className="mb-3 flex items-center gap-2 rounded-panel border border-[#d4af37]/30 bg-[rgba(212,175,55,0.08)] px-3 py-2">
-          <span className="h-2 w-2 rounded-full bg-yellow-500" />
-          <p className="text-[11px] uppercase tracking-widest text-[#d4af37]">
-            Demo mode — connect backend for live AI
-          </p>
-        </div>
-      )}
+      {/* Runtime badge */}
+      <div className={`mb-3 flex items-center gap-2 rounded-panel border px-3 py-2 ${statusStyles(runtimeStatus)}`}>
+        <span className="h-2 w-2 rounded-full bg-current" />
+        <p className="text-[11px] uppercase tracking-widest">
+          {describeRuntimeStatus(runtimeStatus)}
+        </p>
+      </div>
 
       {/* Message List */}
       <div

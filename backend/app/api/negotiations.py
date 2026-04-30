@@ -113,6 +113,10 @@ class ChatResponse(BaseModel):
     merchant_response: str
     success: bool
     error: str | None = None
+    response_mode: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    used_fallback: bool = False
 
 
 @router.post("/{negotiation_id}/chat", response_model=ChatResponse)

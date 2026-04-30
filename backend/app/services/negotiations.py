@@ -51,51 +51,60 @@ async def process_seller_message(
     except Exception:
         chat_log = []
 
+    response_mode = "scripted_fallback"
+    response_provider = None
+    response_model = None
+    response_error = None
+    used_fallback = False
+
     if provider_key is None:
         # No provider key — return a scripted response for prototype
         merchant_text = _scripted_response(seller_message, shop, negotiation)
+        used_fallback = True
     else:
+        response_provider = provider_key.provider
+        response_model = provider_key.model
         # Decrypt API key
         try:
             api_key_plaintext = decrypt(provider_key.encrypted_key)
         except EncryptionError:
-            return {
-                "merchant_response": "⚓ The house is unable to access its cipher books right now. Try again shortly.",
-                "success": False,
-                "error": "Failed to decrypt provider key",
-            }
-
-        # Call LLM
-        try:
-            merchant_text = await run_merchant_response(
-                provider=provider_key.provider,
-                api_key=api_key_plaintext,
-                model=provider_key.model,
-                shop={
-                    "display_name": shop.display_name,
-                    "ens_name": shop.ens_name,
-                    "description": shop.description,
-                    "merchant_persona": shop.merchant_persona,
-                    "buying_preferences": shop.buying_preferences,
-                    "pricing_style": shop.pricing_style,
-                    "refusal_rules": shop.refusal_rules,
-                    "welcome_message": shop.welcome_message,
-                    "contract_address": shop.contract_address,
-                    "payout_token": shop.payout_token,
-                },
-                negotiation={
-                    "input_token": negotiation.input_token,
-                    "input_amount": negotiation.input_amount,
-                },
-                chat_history=chat_log,
-                seller_message=seller_message,
-            )
-        except NegotiationError as e:
-            return {
-                "merchant_response": "⚓ The house is unable to hear you through the fog. Please try again.",
-                "success": False,
-                "error": str(e),
-            }
+            merchant_text = _scripted_response(seller_message, shop, negotiation)
+            response_mode = "provider_error_fallback"
+            response_error = "Failed to decrypt provider key"
+            used_fallback = True
+        else:
+            # Call LLM
+            try:
+                merchant_text = await run_merchant_response(
+                    provider=provider_key.provider,
+                    api_key=api_key_plaintext,
+                    model=provider_key.model,
+                    shop={
+                        "display_name": shop.display_name,
+                        "ens_name": shop.ens_name,
+                        "description": shop.description,
+                        "merchant_persona": shop.merchant_persona,
+                        "buying_preferences": shop.buying_preferences,
+                        "pricing_style": shop.pricing_style,
+                        "refusal_rules": shop.refusal_rules,
+                        "welcome_message": shop.welcome_message,
+                        "contract_address": shop.contract_address,
+                        "payout_token": shop.payout_token,
+                    },
+                    negotiation={
+                        "input_token": negotiation.input_token,
+                        "input_amount": negotiation.input_amount,
+                    },
+                    chat_history=chat_log,
+                    seller_message=seller_message,
+                )
+                response_mode = "live_llm"
+                provider_key.last_used_at = datetime.now(timezone.utc)
+            except NegotiationError as e:
+                merchant_text = _scripted_response(seller_message, shop, negotiation)
+                response_mode = "provider_error_fallback"
+                response_error = str(e)
+                used_fallback = True
 
     # Append messages to chat log
     timestamp = datetime.now(timezone.utc).isoformat()
@@ -110,6 +119,11 @@ async def process_seller_message(
         "merchant_response": merchant_text,
         "success": True,
         "chat_log": chat_log,
+        "response_mode": response_mode,
+        "provider": response_provider,
+        "model": response_model,
+        "used_fallback": used_fallback,
+        "error": response_error,
     }
 
 

@@ -1,6 +1,7 @@
 """AES-256-GCM encryption utilities using the application master key."""
 
 import base64
+import hashlib
 import os
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -14,11 +15,15 @@ class EncryptionError(Exception):
 def _load_key() -> bytes:
     """Load and validate the 32-byte master key from settings."""
     from app.config import get_settings
-    key_hex = get_settings().master_encryption_key
+
+    settings = get_settings()
+    key_hex = settings.master_encryption_key or os.getenv("PAWN_AGENT_MASTER_ENCRYPTION_KEY", "")
     if not key_hex:
+        if settings.debug or "sqlite" in settings.database_url:
+            return hashlib.sha256(b"pawn-agent-debug-master-key").digest()
         raise EncryptionError(
-            "PAWN_AGENT_MASTER_ENCRYPTION_KEY is not set. "
-            "Set it to a 64-character hex string (32 bytes) in your .env file."
+            "MASTER_ENCRYPTION_KEY is not set. "
+            "Set MASTER_ENCRYPTION_KEY or PAWN_AGENT_MASTER_ENCRYPTION_KEY to a 64-character hex string."
         )
     try:
         key = bytes.fromhex(key_hex)
