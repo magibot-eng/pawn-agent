@@ -7,10 +7,11 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.negotiator import call_llm, NegotiationError
 from app.crypto import encrypt, decrypt, EncryptionError
 from app.db import get_db
 from app.models.provider_key import ProviderKey
-from app.schemas.provider_key import ProviderKeyCreate, ProviderKeyResponse
+from app.schemas.provider_key import ProviderKeyCreate, ProviderKeyResponse, ProviderKeyTestResponse
 
 
 async def save_key(
@@ -66,3 +67,51 @@ async def decrypt_key(key_id: str, db: AsyncSession) -> str:
         return decrypt(key.encrypted_key)
     except EncryptionError as e:
         raise HTTPException(status_code=500, detail=f"Decryption failed: {e}")
+
+
+async def test_active_key(
+    shop_id: str,
+    db: AsyncSession,
+) -> ProviderKeyTestResponse:
+    """Run a lightweight probe against the active provider key for a shop."""
+    result = await db.execute(
+        select(ProviderKey)
+        .where(ProviderKey.shop_id == shop_id, ProviderKey.is_active == True)
+        .order_by(ProviderKey.created_at.desc())
+    )
+    key = result.scalar_one_or_none()
+    if key is None:
+        raise HTTPException(status_code=404, detail="No active provider key found for this shop")
+
+    try:
+        api_key = decrypt(key.encrypted_key)
+    except EncryptionError as e:
+        return ProviderKeyTestResponse(
+            ok=False,
+            provider=key.provider,
+            model=key.model,
+            error=f"Could not decrypt stored key: {e}",
+        )
+
+    try:
+        message = await call_llm(
+            provider=key.provider,
+            api_key=api_key,
+            model=key.model or "",
+            system_prompt="You are a provider connection probe. Reply with a very short confirmation that the API call worked.",
+            user_message="ping",
+            chat_history=[],
+        )
+        return ProviderKeyTestResponse(
+            ok=True,
+            provider=key.provider,
+            model=key.model,
+            message=message,
+        )
+    except NegotiationError as e:
+        return ProviderKeyTestResponse(
+            ok=False,
+            provider=key.provider,
+            model=key.model,
+            error=str(e),
+        )

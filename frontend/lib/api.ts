@@ -171,6 +171,14 @@ export interface ProviderKey {
   updated_at: string;
 }
 
+export interface ProviderKeyTestResult {
+  ok: boolean;
+  provider: string;
+  model: string | null;
+  message: string | null;
+  error: string | null;
+}
+
 export interface CreateProviderKey {
   provider: "openai" | "anthropic" | "openrouter";
   encrypted_key: string;
@@ -187,4 +195,9 @@ export const ProviderKeys = {
 
   list: (shopId: string) =>
     request<ProviderKey[]>(`/shops/${shopId}/provider-keys`),
+
+  testActive: (shopId: string) =>
+    request<ProviderKeyTestResult>(`/shops/${shopId}/provider-keys/test-active`, {
+      method: "POST",
+    }),
 };

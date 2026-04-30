@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { ProviderKeys, Shops, type CreateProviderKey, type ProviderKey, type Shop } from '../../lib/api';
+import { ProviderKeys, Shops, type CreateProviderKey, type ProviderKey, type ProviderKeyTestResult, type Shop } from '../../lib/api';
 
 const STORAGE_KEY = 'pawn-agent:selected-store';
 
@@ -26,17 +26,34 @@ const EMPTY_FORM: OwnerForm = {
   welcome_message: '',
 };
 
+const PROVIDER_DEFAULTS: Record<CreateProviderKey['provider'], { model: string; help: string }> = {
+  openai: {
+    model: 'gpt-4.1-mini',
+    help: 'Best for the current live-path test. Recommended default: gpt-4.1-mini.',
+  },
+  anthropic: {
+    model: 'claude-3-5-sonnet-20241022',
+    help: 'Use a Claude Messages API key. Recommended default: claude-3-5-sonnet-20241022.',
+  },
+  openrouter: {
+    model: 'openai/gpt-4o-mini',
+    help: 'Use an OpenRouter key and include the full model slug.',
+  },
+};
+
 export default function OwnerPage() {
   const [shop, setShop] = useState<Shop | null>(null);
   const [form, setForm] = useState<OwnerForm>(EMPTY_FORM);
   const [providerKeys, setProviderKeys] = useState<ProviderKey[]>([]);
   const [provider, setProvider] = useState<CreateProviderKey['provider']>('openai');
-  const [model, setModel] = useState('gpt-4.1-mini');
+  const [model, setModel] = useState(PROVIDER_DEFAULTS.openai.model);
   const [label, setLabel] = useState('Owner dashboard');
   const [apiKey, setApiKey] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [keySaving, setKeySaving] = useState(false);
+  const [keyTesting, setKeyTesting] = useState(false);
+  const [keyTestResult, setKeyTestResult] = useState<ProviderKeyTestResult | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
@@ -122,6 +139,34 @@ export default function OwnerPage() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function updateProvider(nextProvider: CreateProviderKey['provider']) {
+    const currentDefault = PROVIDER_DEFAULTS[provider].model;
+    setProvider(nextProvider);
+    setModel((current) => (current.trim() === '' || current === currentDefault ? PROVIDER_DEFAULTS[nextProvider].model : current));
+  }
+
+  async function runActiveKeyTest() {
+    if (!shop || !activeKey) return;
+
+    try {
+      setKeyTesting(true);
+      setNotice(null);
+      setError(null);
+      const result = await ProviderKeys.testActive(shop.id);
+      setKeyTestResult(result);
+      setNotice(result.ok ? 'Active provider key responded successfully.' : null);
+      if (!result.ok) {
+        setError(null);
+      }
+    } catch (err) {
+      console.error(err);
+      setKeyTestResult(null);
+      setError(err instanceof Error ? err.message : 'Could not test the active provider key.');
+    } finally {
+      setKeyTesting(false);
+    }
+  }
+
   async function saveShopSettings() {
     if (!shop) return;
     try {
@@ -147,6 +192,7 @@ export default function OwnerPage() {
       setKeySaving(true);
       setNotice(null);
       setError(null);
+      setKeyTestResult(null);
       await ProviderKeys.add(shop.id, {
         provider,
         model: model.trim() || undefined,
@@ -156,7 +202,7 @@ export default function OwnerPage() {
       const keys = await ProviderKeys.list(shop.id);
       setProviderKeys(keys);
       setApiKey('');
-      setNotice('Provider key saved. New chats will use it when available.');
+      setNotice('Provider key saved and set active. Run the connection test to verify live chat.');
     } catch (err) {
       console.error(err);
       setError('Could not save provider key. Check backend encryption config.');
@@ -272,18 +318,47 @@ export default function OwnerPage() {
 
             <section className="grid gap-6">
               <section className="merchant-inset rounded-panel p-4 sm:p-5">
-                <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Active LLM setup</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Active LLM setup</p>
+                    <p className="mt-2 text-sm text-[#f0dfb4]">This is the key storefront chat will try first before falling back to scripted responses.</p>
+                  </div>
+                  {activeKey ? (
+                    <button
+                      onClick={runActiveKeyTest}
+                      disabled={keyTesting}
+                      className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow disabled:opacity-60"
+                    >
+                      {keyTesting ? 'Testing…' : 'Test active key'}
+                    </button>
+                  ) : null}
+                </div>
                 <div className="mt-3 rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#f4e7c7]">
                   {activeKey ? (
                     <div className="space-y-2">
+                      <p><span className="text-onSurfaceVariant">Status:</span> Active key configured</p>
                       <p><span className="text-onSurfaceVariant">Provider:</span> {activeKey.provider}</p>
                       <p><span className="text-onSurfaceVariant">Model:</span> {activeKey.model ?? 'default'}</p>
                       <p><span className="text-onSurfaceVariant">Label:</span> {activeKey.label ?? 'unnamed key'}</p>
+                      <p><span className="text-onSurfaceVariant">Last used:</span> {activeKey.last_used_at ? new Date(activeKey.last_used_at).toLocaleString() : 'Not used in live chat yet'}</p>
                     </div>
                   ) : (
                     <p>No active provider key yet. Storefront chat will use fallback merchant copy until you add one.</p>
                   )}
                 </div>
+
+                {keyTestResult ? (
+                  <div className={`mt-3 rounded-panel border px-4 py-3 text-sm ${keyTestResult.ok ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200' : 'border-amber-500/40 bg-amber-950/30 text-amber-200'}`}>
+                    <p className="text-[10px] uppercase tracking-[0.24em]">Connection test</p>
+                    <p className="mt-2">
+                      {keyTestResult.ok
+                        ? `Live probe succeeded for ${keyTestResult.provider}${keyTestResult.model ? ` • ${keyTestResult.model}` : ''}.`
+                        : `Probe failed for ${keyTestResult.provider}${keyTestResult.model ? ` • ${keyTestResult.model}` : ''}.`}
+                    </p>
+                    {keyTestResult.message ? <p className="mt-2 text-xs text-current/90">Provider reply: {keyTestResult.message}</p> : null}
+                    {keyTestResult.error ? <p className="mt-2 text-xs text-current/90">Error: {keyTestResult.error}</p> : null}
+                  </div>
+                ) : null}
               </section>
 
               <section className="merchant-inset rounded-panel p-4 sm:p-5">
@@ -291,7 +366,7 @@ export default function OwnerPage() {
                 <form onSubmit={saveProviderKey} className="mt-4 grid gap-3">
                   <label className="grid gap-2 text-sm text-[#f4e7c7]">
                     <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Provider</span>
-                    <select value={provider} onChange={(e) => setProvider(e.target.value as CreateProviderKey['provider'])} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none">
+                    <select value={provider} onChange={(e) => updateProvider(e.target.value as CreateProviderKey['provider'])} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none">
                       <option value="openai">OpenAI</option>
                       <option value="anthropic">Anthropic</option>
                       <option value="openrouter">OpenRouter</option>
@@ -301,6 +376,7 @@ export default function OwnerPage() {
                   <label className="grid gap-2 text-sm text-[#f4e7c7]">
                     <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Model</span>
                     <input value={model} onChange={(e) => setModel(e.target.value)} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                    <span className="text-xs text-[#d8caa3]">{PROVIDER_DEFAULTS[provider].help}</span>
                   </label>
 
                   <label className="grid gap-2 text-sm text-[#f4e7c7]">

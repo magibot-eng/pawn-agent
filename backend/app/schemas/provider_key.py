@@ -32,3 +32,11 @@ class ProviderKeyResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     # Never return encrypted_key in API responses
+
+
+class ProviderKeyTestResponse(BaseModel):
+    ok: bool
+    provider: str
+    model: str | None
+    message: str | None = None
+    error: str | None = None
