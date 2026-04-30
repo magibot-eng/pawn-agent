@@ -71,6 +71,13 @@ SHOP_COLUMN_MIGRATIONS = {
 
 NEGOTIATION_COLUMN_MIGRATIONS = {
     "negotiation_state": "TEXT",
+    "seller_ask_token": "VARCHAR(42)",
+    "seller_ask_amount": "VARCHAR(78)",
+    "seller_ask_price": "VARCHAR(78)",
+    "merchant_quote_token": "VARCHAR(42)",
+    "merchant_quote_amount": "VARCHAR(78)",
+    "merchant_quote_expiry": "VARCHAR(32)",
+    "quote_status": "VARCHAR(16)",
 }
 
 
