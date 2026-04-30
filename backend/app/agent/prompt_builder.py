@@ -34,6 +34,15 @@ CURRENT SESSION
 CONVERSATION HISTORY
 {chat_log}
 
+QUOTE FORMAT (use when making an offer)
+When you decide to make an offer, embed the structured quote at the END of your response on a new line:
+QUOTE::token=<payout_token>|amount=<payout_amount>|expiry=<expiry_iso_or_relative>
+
+Example: "I can offer 0.85 USDC per TIDE, settles in 5 minutes."
+QUOTE::token=0x...|amount=15300.00 USDC|expiry=5m
+
+Replace payout_amount with the total payout (not per-unit), payout_token with the contract address or symbol, and expiry with either an ISO timestamp or a relative label like "5m" or "1h".
+
 Respond exactly as the merchant would respond to the seller.
 """
 

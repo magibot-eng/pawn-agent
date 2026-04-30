@@ -241,7 +241,6 @@ export default function HomePage() {
         existing[0] ??
         (await Shops.create({
           owner_address: walletAddress,
-          merchant_address: walletAddress,
           ens_name: normalizedEns,
           display_name: normalizedEns,
           description: `ENS-native buyout storefront for ${normalizedEns}.`,
@@ -251,11 +250,18 @@ export default function HomePage() {
           refusal_rules: 'Refuse unclear token identity, fake urgency, or missing details.',
           welcome_message: 'State the token, amount, and your ask.',
           payout_token: '0x0000000000000000000000000000000000000000',
+          wallet_provider: 'cdp_agentic_wallet',
+          wallet_status: 'pending',
+          auto_settlement_enabled: false,
         }));
 
       setShop(activeShop);
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ owner: walletAddress, ens: normalizedEns }));
-      setStatus(existing[0] ? 'Loaded existing store.' : 'Store created. Open the owner dashboard or storefront chat.');
+      setStatus(
+        existing[0]
+          ? 'Loaded existing store.'
+          : 'Store created. The owner wallet is now linked as admin only — provision the separate merchant wallet from the owner dashboard next.'
+      );
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Could not create or load store.');
@@ -354,11 +360,12 @@ export default function HomePage() {
           <aside className="merchant-panel rounded-panel p-5 sm:p-6">
             <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Current flow</p>
             <ol className="mt-4 space-y-3 text-sm text-[#f0dfb4]">
-              <li>1. Connect the wallet that will own the shop</li>
+              <li>1. Connect the wallet that will own and administer the shop</li>
               <li>2. Review any ENS detected on that wallet</li>
               <li>3. Choose the .eth route Pawn Agent should use for this storefront</li>
-              <li>4. Create or load the shop bound to that wallet + route</li>
-              <li>5. Open the owner dashboard or storefront chat</li>
+              <li>4. Create or load the shop bound to that owner wallet + route</li>
+              <li>5. Provision a separate merchant wallet for automated settlement</li>
+              <li>6. Open the owner dashboard or storefront chat</li>
             </ol>
 
             <div className="mt-5 rounded-panel border border-outlineVariant bg-surfaceLowest p-4 text-sm text-[#f0dfb4]">
@@ -376,6 +383,12 @@ export default function HomePage() {
                 <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">Current shop</p>
                 <p className="text-lg text-onSurface">{shop.ens_name}</p>
                 <p className="text-sm text-[#f0dfb4]">Owner {formatWallet(shop.owner_address)}</p>
+                <p className="text-sm text-[#f0dfb4]">
+                  Merchant wallet {shop.wallet_status === 'pending' ? 'not provisioned yet' : formatWallet(shop.merchant_address)}
+                </p>
+                <p className="text-xs uppercase tracking-[0.22em] text-onSurfaceVariant">
+                  {shop.wallet_provider} • {shop.wallet_status}
+                </p>
                 <div className="flex flex-wrap gap-3 pt-2">
                   {ownerHref ? (
                     <Link href={ownerHref} className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">

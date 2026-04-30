@@ -7,12 +7,82 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.negotiator import run_merchant_response, NegotiationError
+from app.agent.negotiator import run_merchant_response, NegotiationError, parse_quote_from_response
 from app.models.negotiation import NegotiationSession
 from app.models.shop import Shop
 from app.models.provider_key import ProviderKey
 from app.crypto import decrypt, EncryptionError
 
+
+# ---------------------------------------------------------------------------
+# Seller quote extraction helpers
+# ---------------------------------------------------------------------------
+
+_SELLER_QUOTE_PATTERNS = [
+    # "sell 18,000 TIDE at $0.12 each"
+    re.compile(
+        r"sell\s+([\d,]+(?:\.\d+)?)\s+([A-Z]{2,10})\s+(?:at\s+)?\$?([\d.]+)\s*(?:each|per)?",
+        re.IGNORECASE,
+    ),
+    # "offering 18,000 TIDE @ $0.12"
+    re.compile(
+        r"offering\s+([\d,]+(?:\.\d+)?)\s+([A-Z]{2,10})\s*[@]\s*\$?([\d.]+)",
+        re.IGNORECASE,
+    ),
+    # "I have 18,000 TIDE I want to move at $0.12"
+    re.compile(
+        r"([\d,]+(?:\.\d+)?)\s+([A-Z]{2,10}).*?(?:at|for)\s+\$?([\d.]+)",
+        re.IGNORECASE,
+    ),
+]
+
+
+def extract_seller_quote(message: str) -> dict | None:
+    """Parse structured seller quote: amount + token + asking price.
+
+    Returns dict with keys: amount, token, price  or None if no match.
+    """
+    for pat in _SELLER_QUOTE_PATTERNS:
+        m = pat.search(message)
+        if m:
+            amount_str = m.group(1).replace(",", "")
+            return {
+                "amount": amount_str,
+                "token": m.group(2).upper(),
+                "price": m.group(3),
+            }
+    return None
+
+
+def extract_message_terms(message: str, fallback_token: str, fallback_amount: str) -> tuple[str, str, str]:
+    """Extract best-effort token, amount, and seller ask display text from free text.
+
+    This supports fallback scripted chat and looser natural language than the stricter
+    structured quote parser above.
+    """
+    token = fallback_token
+    amount = fallback_amount
+    ask_display = "unknown"
+
+    amount_token_match = re.search(r"([\d,]+(?:\.\d+)?)\s+([A-Z]{2,10})", message, re.IGNORECASE)
+    if amount_token_match:
+        amount = amount_token_match.group(1).replace(",", "")
+        token = amount_token_match.group(2).upper()
+
+    ask_match = re.search(
+        r"(?:asking|need|want|for)\s+\$?([\d,]+(?:\.\d+)?)\s*([A-Z]{2,10})",
+        message,
+        re.IGNORECASE,
+    )
+    if ask_match:
+        ask_display = f"{ask_match.group(1).replace(',', '')} {ask_match.group(2).upper()}"
+
+    return token, amount, ask_display
+
+
+# ---------------------------------------------------------------------------
+# Service functions
+# ---------------------------------------------------------------------------
 
 async def process_seller_message(
     negotiation_id: str,
@@ -22,7 +92,9 @@ async def process_seller_message(
     """Process a seller's message, get merchant response, persist to DB.
 
     Returns:
-        dict with keys: merchant_response, success, error
+        dict with keys: merchant_response, success, error, chat_log,
+        response_mode, provider, model, used_fallback, negotiation_state,
+        quote (the active merchant quote if any)
     """
     # Load negotiation
     result = await db.execute(
@@ -57,6 +129,7 @@ async def process_seller_message(
     response_model = None
     response_error = None
     used_fallback = False
+    parsed_quote = None
 
     if provider_key is None:
         # No provider key — return a scripted response for prototype
@@ -76,7 +149,7 @@ async def process_seller_message(
         else:
             # Call LLM
             try:
-                merchant_text = await run_merchant_response(
+                raw_response = await run_merchant_response(
                     provider=provider_key.provider,
                     api_key=api_key_plaintext,
                     model=provider_key.model,
@@ -99,6 +172,8 @@ async def process_seller_message(
                     chat_history=chat_log,
                     seller_message=seller_message,
                 )
+                # Strip and parse embedded QUOTE:: line
+                merchant_text, parsed_quote = parse_quote_from_response(raw_response)
                 response_mode = "live_llm"
                 provider_key.last_used_at = datetime.now(timezone.utc)
             except NegotiationError as e:
@@ -107,12 +182,17 @@ async def process_seller_message(
                 response_error = str(e)
                 used_fallback = True
 
+    # Parse seller structured quote
+    seller_quote = extract_seller_quote(seller_message)
+
     # Append messages to chat log
     timestamp = datetime.now(timezone.utc).isoformat()
     chat_log.append({"sender": "seller", "text": seller_message, "timestamp": timestamp})
     chat_log.append({"sender": "merchant", "text": merchant_text, "timestamp": timestamp})
+
+    # Update negotiation state and quote fields
     negotiation.chat_log = json.dumps(chat_log, default=str)
-    negotiation.negotiation_state = extract_negotiation_state(seller_message, negotiation)
+    _apply_negotiation_state(negotiation, seller_message, seller_quote, parsed_quote, shop)
 
     await db.flush()
     await db.refresh(negotiation)
@@ -126,49 +206,106 @@ async def process_seller_message(
         "model": response_model,
         "used_fallback": used_fallback,
         "error": response_error,
-        "negotiation_state": negotiation.negotiation_state,
+        "negotiation_state": _build_negotiation_state(negotiation, seller_quote),
+        "quote": _build_quote_response(negotiation) if negotiation.quote_status != "none" else None,
     }
 
 
-def extract_negotiation_state(message: str, negotiation: NegotiationSession) -> dict[str, str]:
-    """Derive a compact structured negotiation summary for the MVP UI."""
-    normalized_message = message.strip()
-    normalized_upper = normalized_message.upper()
+def _apply_negotiation_state(
+    negotiation: NegotiationSession,
+    seller_message: str,
+    seller_quote: dict | None,
+    parsed_quote: dict | None,
+    shop: Shop,
+) -> None:
+    """Derive and persist compact structured negotiation summary to the model."""
+    normalized_message = seller_message.strip()
+    parsed_token, parsed_amount, parsed_ask_display = extract_message_terms(
+        normalized_message,
+        fallback_token=negotiation.input_token,
+        fallback_amount=str(negotiation.input_amount),
+    )
 
-    amount_token_match = re.search(r"\b[\d,]+(?:\.\d+)?\s*([A-Z]{2,10})\b", normalized_upper)
-    if amount_token_match:
-        token = amount_token_match.group(1)
-    else:
-        token_match = re.search(r"\b([A-Z]{2,10})\b", normalized_upper)
-        token = token_match.group(1) if token_match else negotiation.input_token
+    # Seller asking price
+    if seller_quote:
+        negotiation.seller_ask_token = seller_quote["token"]
+        negotiation.seller_ask_amount = seller_quote["amount"]
+        negotiation.seller_ask_price = seller_quote["price"]
 
-    ask_match = re.search(
-        r"(?:asking|need|want|for)\s+\$?([\d,]+(?:\.\d+)?)\s*([A-Z]{2,10})?",
+    # Merchant quote
+    if parsed_quote:
+        negotiation.merchant_quote_token = parsed_quote["token"]
+        negotiation.merchant_quote_amount = parsed_quote["amount"]
+        negotiation.merchant_quote_expiry = parsed_quote["expiry"]
+        negotiation.quote_status = "quoted"
+
+    # Urgency
+    urgency = "high" if re.search(
+        r"\b(urgent|urgently|asap|today|immediately|now)\b",
         normalized_message,
         flags=re.IGNORECASE,
-    )
-    if ask_match:
-        ask_amount = ask_match.group(1).replace(",", "")
-        ask_currency = (ask_match.group(2) or "").upper()
-        seller_ask = f"{ask_amount} {ask_currency}".strip()
-    else:
-        seller_ask = "unknown"
+    ) else "normal"
 
-    urgency = "high" if re.search(r"\b(urgent|urgently|asap|today|immediately|now)\b", normalized_message, flags=re.IGNORECASE) else "normal"
-
-    next_action = "await merchant quote"
-    if negotiation.input_token == "0x0000000000000000000000000000000000000000":
+    # Next action
+    if negotiation.quote_status == "quoted":
+        next_action = "await seller accept/counter"
+    elif negotiation.input_token == "0x0000000000000000000000000000000000000000":
         next_action = "provide token contract"
-    elif seller_ask == "unknown":
+    elif not seller_quote and parsed_ask_display == "unknown":
         next_action = "state asking price"
+    else:
+        next_action = "await merchant quote"
 
-    return {
-        "token": token,
-        "amount": str(negotiation.input_amount).replace(",", ""),
-        "seller_ask": seller_ask,
+    negotiation.negotiation_state = {
+        "token": seller_quote["token"] if seller_quote else parsed_token,
+        "amount": seller_quote["amount"] if seller_quote else parsed_amount,
+        "seller_ask": (
+            f"{seller_quote['price']} {seller_quote['token']}"
+            if seller_quote else parsed_ask_display
+        ),
         "urgency": urgency,
         "merchant_stance": "reviewing",
         "next_action": next_action,
+    }
+
+
+def _build_negotiation_state(negotiation: NegotiationSession, seller_quote: dict | None) -> dict:
+    """Build the public NegotiationState dict from model fields."""
+    if negotiation.negotiation_state:
+        return negotiation.negotiation_state
+
+    return {
+        "token": seller_quote["token"] if seller_quote else (
+            negotiation.seller_ask_token or negotiation.input_token
+        ),
+        "amount": seller_quote["amount"] if seller_quote else (
+            negotiation.seller_ask_amount or negotiation.input_amount
+        ),
+        "seller_ask": (
+            f"{seller_quote['price']} {seller_quote['token']}"
+            if seller_quote else
+            f"{negotiation.seller_ask_price} {negotiation.seller_ask_token}"
+            if negotiation.seller_ask_price and negotiation.seller_ask_token
+            else "unknown"
+        ),
+        "urgency": "normal",
+        "merchant_stance": "reviewing",
+        "next_action": "await merchant quote",
+    }
+
+
+def _build_quote_response(negotiation: NegotiationSession) -> dict | None:
+    """Build the public quote dict for ChatResponse if a quote is active."""
+    if not negotiation.quote_status or negotiation.quote_status == "none":
+        return None
+    return {
+        "status": negotiation.quote_status,
+        "payout_token": negotiation.merchant_quote_token or "",
+        "payout_amount": negotiation.merchant_quote_amount or "",
+        "expiry": negotiation.merchant_quote_expiry or "",
+        "seller_ask_token": negotiation.seller_ask_token or "",
+        "seller_ask_amount": negotiation.seller_ask_amount or "",
+        "seller_ask_price": negotiation.seller_ask_price or "",
     }
 
 

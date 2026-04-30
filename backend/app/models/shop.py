@@ -23,6 +23,13 @@ class ShopStatus(str):
     CLOSED = "closed"
 
 
+class ShopWalletStatus(str):
+    PENDING = "pending"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    ERROR = "error"
+
+
 class Shop(Base):
     """A merchant's pawn shop. Identified by ENS name and owner wallet."""
 
@@ -53,8 +60,25 @@ class Shop(Base):
     payout_token: Mapped[str] = mapped_column(
         String(42), nullable=False, default="0x0000000000000000000000000000000000000000"
     )
-    # Wallet the merchant uses for signing offers
-    merchant_address: Mapped[str] = mapped_column(String(42), nullable=False)
+    # Agent-controlled operational wallet address used for quoting/settlement.
+    # Zero address means the managed wallet has not been provisioned yet.
+    merchant_address: Mapped[str] = mapped_column(
+        String(42),
+        nullable=False,
+        default="0x0000000000000000000000000000000000000000",
+    )
+    # Managed wallet provider backing the merchant agent.
+    wallet_provider: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="cdp_agentic_wallet"
+    )
+    # Provider-side account / wallet identifier once provisioned.
+    wallet_provider_account_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # Lifecycle state for the managed merchant wallet.
+    wallet_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=ShopWalletStatus.PENDING
+    )
+    # Whether the merchant wallet may auto-settle accepted quotes.
+    auto_settlement_enabled: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

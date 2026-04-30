@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Negotiations, type ChatResponse, type NegotiationState } from '../lib/api';
+import { Negotiations, type ChatResponse, type NegotiationState, type NegotiationQuote } from '../lib/api';
 
 type Message = {
   id: string;
@@ -43,6 +43,123 @@ interface MerchantChatProps {
   shopEnsName: string;
 }
 
+// ---------------------------------------------------------------------------
+// Quote Card
+// ---------------------------------------------------------------------------
+
+interface QuoteCardProps {
+  quote: NegotiationQuote;
+  onAccept: () => void;
+  onCounter: () => void;
+  counterMode: boolean;
+  counterInput: string;
+  onCounterInputChange: (v: string) => void;
+  onCounterSubmit: () => void;
+  onCounterCancel: () => void;
+  disabled: boolean;
+}
+
+function QuoteCard({
+  quote,
+  onAccept,
+  onCounter,
+  counterMode,
+  counterInput,
+  onCounterInputChange,
+  onCounterSubmit,
+  onCounterCancel,
+  disabled,
+}: QuoteCardProps) {
+  return (
+    <div className="rounded-panel border border-[#d4af37]/50 bg-[rgba(212,175,55,0.08)] p-4">
+      {/* Header */}
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-[11px] uppercase tracking-[0.28em] text-[#d4af37]">Merchant Quote</p>
+        <span className="rounded-full border border-[#d4af37]/40 bg-[rgba(212,175,55,0.15)] px-2 py-0.5 text-[10px] uppercase tracking-widest text-[#d4af37]">
+          {quote.status}
+        </span>
+      </div>
+
+      {/* Ask vs Offer */}
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">You Ask</p>
+          <p className="mt-1 text-base text-[#f5e9c9]">
+            {quote.seller_ask_amount
+              ? `${Number(quote.seller_ask_amount).toLocaleString()} ${quote.seller_ask_token}`
+              : '—'}
+          </p>
+          {quote.seller_ask_price && (
+            <p className="text-[11px] text-[#a08050]">@ {quote.seller_ask_price} each</p>
+          )}
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant Offers</p>
+          <p className="mt-1 text-base text-[#f5e9c9]">
+            {quote.payout_amount
+              ? `${Number(quote.payout_amount).toLocaleString()} ${quote.payout_token}`
+              : '—'}
+          </p>
+          {quote.expiry && (
+            <p className="text-[11px] text-[#a08050]">Expires: {quote.expiry}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Counter input */}
+      {counterMode && (
+        <div className="mb-3 flex gap-2">
+          <input
+            type="text"
+            value={counterInput}
+            onChange={(e) => onCounterInputChange(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onCounterSubmit()}
+            placeholder="Your counter offer (e.g. 16000 USDC)"
+            className="merchant-inset flex-1 rounded-panel border border-outline bg-surfaceLowest px-3 py-2 text-sm text-[#f5e9c9] placeholder:text-[#7a6040] focus:outline-none focus:ring-1 focus:ring-[#d4af37]/60"
+          />
+          <button
+            onClick={onCounterSubmit}
+            disabled={!counterInput.trim() || disabled}
+            className="rounded-panel border border-primary bg-transparent px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Send
+          </button>
+          <button
+            onClick={onCounterCancel}
+            className="rounded-panel border border-outlineVariant px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#a08050] hover:bg-surfaceLow"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Actions */}
+      {!counterMode && (
+        <div className="flex gap-2">
+          <button
+            onClick={onAccept}
+            disabled={disabled || quote.status !== 'quoted'}
+            className="flex-1 rounded-panel border border-emerald-500/50 bg-emerald-500/15 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-emerald-300 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            ✓ Accept
+          </button>
+          <button
+            onClick={onCounter}
+            disabled={disabled || quote.status !== 'quoted'}
+            className="flex-1 rounded-panel border border-outlineVariant bg-transparent px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f5e9c9] hover:bg-surfaceLow disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            ↗ Counter
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MerchantChat
+// ---------------------------------------------------------------------------
+
 export default function MerchantChat({ negotiationId, shopEnsName }: MerchantChatProps) {
   const [messages, setMessages] = useState<Message[]>(FALLBACK_MESSAGES);
   const [inputValue, setInputValue] = useState('');
@@ -50,6 +167,9 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
   const [connected, setConnected] = useState(false);
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus>({ mode: 'demo_disconnected' });
   const [negotiationState, setNegotiationState] = useState<NegotiationState | null>(null);
+  const [activeQuote, setActiveQuote] = useState<NegotiationQuote | null>(null);
+  const [counterMode, setCounterMode] = useState(false);
+  const [counterInput, setCounterInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -82,7 +202,6 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
           setMessages([]);
         }
       } catch {
-        // Backend not available — use fallback static messages
         setConnected(false);
         setRuntimeStatus({ mode: 'demo_disconnected' });
         setNegotiationState(null);
@@ -101,7 +220,6 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
   useEffect(() => {
     if (!typing.active) return;
     if (typing.charIndex >= typing.text.length) {
-      // Done: add message to list
       const newMsg: Message = {
         id: `msg-${Date.now()}`,
         sender: 'merchant',
@@ -141,13 +259,12 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
     return 'border-[#d4af37]/30 bg-[rgba(212,175,55,0.08)] text-[#d4af37]';
   }
 
-  const handleSend = useCallback(async () => {
-    const text = inputValue.trim();
+  const handleSend = useCallback(async (textOverride?: string) => {
+    const text = (textOverride ?? inputValue).trim();
     if (!text) return;
 
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Optimistically add seller message
     const sellerMsg: Message = {
       id: `msg-${Date.now()}`,
       sender: 'seller',
@@ -156,9 +273,11 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
     };
     setMessages((prev) => [...prev, sellerMsg]);
     setInputValue('');
+    setCounterMode(false);
+    setCounterInput('');
+    setActiveQuote(null);
 
     if (!connected) {
-      // No backend — simulated merchant reply
       setRuntimeStatus({ mode: 'demo_disconnected' });
       setTyping({
         active: true,
@@ -168,7 +287,6 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
       return;
     }
 
-    // Call backend
     try {
       setTyping({ active: true, text: '⚓ The harbormaster is thinking…', charIndex: 0 });
       const resp: ChatResponse = await Negotiations.chat(negotiationId, text);
@@ -179,6 +297,9 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
         error: resp.error,
       });
       setNegotiationState(resp.negotiation_state ?? null);
+      if (resp.quote) {
+        setActiveQuote(resp.quote);
+      }
       setTyping({ active: true, text: resp.merchant_response, charIndex: 0 });
     } catch {
       setRuntimeStatus({ mode: 'demo_disconnected' });
@@ -189,6 +310,27 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
       });
     }
   }, [inputValue, connected, negotiationId]);
+
+  const handleAccept = useCallback(() => {
+    handleSend('I accept the quote. Let\'s settle.');
+  }, [handleSend]);
+
+  const handleCounter = useCallback(() => {
+    setCounterMode(true);
+    setCounterInput('');
+  }, []);
+
+  const handleCounterSubmit = useCallback(() => {
+    if (!counterInput.trim()) return;
+    handleSend(`Counter offer: ${counterInput.trim()}`);
+    setCounterMode(false);
+    setCounterInput('');
+  }, [counterInput, handleSend]);
+
+  const handleCounterCancel = useCallback(() => {
+    setCounterMode(false);
+    setCounterInput('');
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -260,6 +402,25 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
               </div>
             )}
 
+            {/* Quote card — shown below the last merchant message when active */}
+            {activeQuote && !typing.active && (
+              <div className="flex justify-start">
+                <div className="max-w-[82%]">
+                  <QuoteCard
+                    quote={activeQuote}
+                    onAccept={handleAccept}
+                    onCounter={handleCounter}
+                    counterMode={counterMode}
+                    counterInput={counterInput}
+                    onCounterInputChange={setCounterInput}
+                    onCounterSubmit={handleCounterSubmit}
+                    onCounterCancel={handleCounterCancel}
+                    disabled={typing.active}
+                  />
+                </div>
+              </div>
+            )}
+
             <div ref={bottomRef} />
           </div>
 
@@ -278,7 +439,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
               />
             </div>
             <button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={!inputValue.trim() || typing.active}
               className="flex h-[3.25rem] items-center justify-center rounded-panel border border-primary bg-transparent px-5 text-sm font-bold uppercase tracking-[0.2em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
             >
@@ -320,6 +481,29 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
             <p className="mt-4 leading-relaxed text-[#f0dfb4]">
               No structured negotiation state yet. Send a seller message and the merchant will start filling this in.
             </p>
+          )}
+
+          {/* Quote summary in sidebar */}
+          {activeQuote && (
+            <div className="mt-6 border-t border-outlineVariant/50 pt-4">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Active Quote</p>
+              <dl className="mt-3 space-y-2">
+                <div className="flex justify-between">
+                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Payout</dt>
+                  <dd className="text-xs text-[#f5e9c9]">
+                    {activeQuote.payout_amount} {activeQuote.payout_token}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Expiry</dt>
+                  <dd className="text-xs text-[#f5e9c9]">{activeQuote.expiry || '—'}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Status</dt>
+                  <dd className="text-xs text-[#d4af37]">{activeQuote.status}</dd>
+                </div>
+              </dl>
+            </div>
           )}
         </aside>
       </div>

@@ -1,8 +1,8 @@
 """Merchant AI negotiator — stateless, calls LLM providers via HTTP."""
 
-import json
 import logging
-from typing import Literal
+import re
+from typing import Literal, TypedDict
 
 import httpx
 
@@ -11,6 +11,18 @@ from app.agent.prompt_builder import build_system_prompt
 logger = logging.getLogger(__name__)
 
 Provider = Literal["openai", "anthropic", "openrouter"]
+
+
+class NegotiationError(Exception):
+    """Raised when LLM call or response parsing fails."""
+    pass
+
+
+class ParsedQuote(TypedDict):
+    """Structured quote extracted from a merchant LLM response."""
+    token: str
+    amount: str
+    expiry: str
 
 
 def _normalize_chat_role(role: str) -> str:
@@ -23,9 +35,29 @@ def _normalize_chat_role(role: str) -> str:
     return "user"
 
 
-class NegotiationError(Exception):
-    """Raised when LLM call or response parsing fails."""
-    pass
+def parse_quote_from_response(raw_response: str) -> tuple[str, ParsedQuote | None]:
+    """Strip QUOTE:: line from merchant response and parse it.
+
+    Returns (clean_text, quote_or_None).
+    Quote format:  QUOTE::token=<tok>|amount=<amt>|expiry=<exp>
+    """
+    quote_line_match = re.search(r"QUOTE::(\S+)", raw_response)
+    if not quote_line_match:
+        return raw_response.strip(), None
+
+    clean = raw_response[: quote_line_match.start()].strip()
+    raw_parts = quote_line_match.group(1)
+    quote: ParsedQuote = {"token": "", "amount": "", "expiry": ""}
+    for part in raw_parts.split("|"):
+        if "=" not in part:
+            continue
+        key, _, val = part.partition("=")
+        key = key.strip().lower()
+        if key in quote:
+            quote[key] = val.strip()
+    if not quote["token"] and not quote["amount"]:
+        return clean, None
+    return clean, quote
 
 
 async def call_llm(
@@ -81,7 +113,6 @@ async def _call_anthropic(api_key: str, model: str, system_prompt: str, messages
         "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
     }
-    # Merge system into first user message for Anthropic
     body = {
         "model": model or "claude-3-5-sonnet-20241022",
         "max_tokens": 200,

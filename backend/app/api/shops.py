@@ -9,14 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_db
-from app.models.shop import Shop, ShopStatus, ShopEnsIdentity
+from app.models.shop import Shop, ShopStatus, ShopEnsIdentity, ShopWalletStatus
 from app.schemas.shop import (
     ShopCreate,
     ShopUpdate,
     ShopResponse,
     ShopEnsIdentityCreate,
     ShopEnsIdentityResponse,
+    ShopWalletStatusResponse,
 )
+from app.services.wallets import provision_managed_wallet, get_wallet_status_details
 
 router = APIRouter(prefix="/shops", tags=["shops"])
 
@@ -39,7 +41,11 @@ async def create_shop(
         refusal_rules=data.refusal_rules,
         welcome_message=data.welcome_message,
         payout_token=data.payout_token,
-        merchant_address=data.merchant_address,
+        merchant_address=data.merchant_address or "0x0000000000000000000000000000000000000000",
+        wallet_provider=data.wallet_provider,
+        wallet_provider_account_id=data.wallet_provider_account_id,
+        wallet_status=data.wallet_status or ShopWalletStatus.PENDING,
+        auto_settlement_enabled=data.auto_settlement_enabled,
     )
     db.add(shop)
     await db.flush()
@@ -110,6 +116,49 @@ async def update_shop(
     )
     shop = result.scalar_one()
     return shop
+
+
+@router.post("/{shop_id}/wallet/provision", response_model=ShopResponse)
+async def provision_shop_wallet(
+    shop_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Provision the managed merchant wallet for a shop.
+
+    For now this uses a deterministic CDP-style stub so the product flow can be
+    exercised before live wallet credentials are wired in.
+    """
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if shop is None:
+        raise HTTPException(status_code=404, detail="Shop not found")
+
+    try:
+        await provision_managed_wallet(shop)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    await db.flush()
+    result = await db.execute(
+        select(Shop).where(Shop.id == shop_id).options(selectinload(Shop.ens_identities))
+    )
+    shop = result.scalar_one()
+    return shop
+
+
+@router.get("/{shop_id}/wallet/status", response_model=ShopWalletStatusResponse)
+async def get_shop_wallet_status(
+    shop_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Return read-only merchant wallet status details for the owner UI."""
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if shop is None:
+        raise HTTPException(status_code=404, detail="Shop not found")
+
+    details = get_wallet_status_details(shop)
+    return ShopWalletStatusResponse(**details.__dict__)
 
 
 # ---------------------------------------------------------------------------

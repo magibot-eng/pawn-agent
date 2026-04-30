@@ -43,6 +43,10 @@ export interface Shop {
   contract_address: string | null;
   payout_token: string;
   merchant_address: string;
+  wallet_provider: string;
+  wallet_provider_account_id: string | null;
+  wallet_status: string;
+  auto_settlement_enabled: boolean;
   created_at: string;
   updated_at: string;
   ens_identities: ShopEnsIdentity[];
@@ -69,7 +73,23 @@ export interface CreateShop {
   refusal_rules?: string;
   welcome_message?: string;
   payout_token?: string;
+  merchant_address?: string;
+  wallet_provider?: string;
+  wallet_provider_account_id?: string;
+  wallet_status?: string;
+  auto_settlement_enabled?: boolean;
+}
+
+export interface ShopWalletStatus {
+  wallet_provider: string;
+  wallet_status: string;
   merchant_address: string;
+  wallet_provider_account_id: string | null;
+  provisioning_mode: string;
+  authenticated: boolean;
+  authenticated_email: string | null;
+  balance: string | null;
+  balance_symbol: string | null;
 }
 
 export const Shops = {
@@ -85,6 +105,12 @@ export const Shops = {
 
   update: (id: string, data: Partial<Shop>) =>
     request<Shop>(`/shops/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  provisionWallet: (id: string) =>
+    request<Shop>(`/shops/${id}/wallet/provision`, { method: "POST" }),
+
+  walletStatus: (id: string) =>
+    request<ShopWalletStatus>(`/shops/${id}/wallet/status`),
 };
 
 // ---------------------------------------------------------------------------
@@ -98,6 +124,16 @@ export interface NegotiationState {
   urgency: string;
   merchant_stance: string;
   next_action: string;
+}
+
+export interface NegotiationQuote {
+  status: string;            // "quoted" | "accepted" | "countered" | "expired"
+  payout_token: string;
+  payout_amount: string;
+  expiry: string;
+  seller_ask_token: string;
+  seller_ask_amount: string;
+  seller_ask_price: string;
 }
 
 export interface NegotiationSession {
@@ -132,6 +168,7 @@ export interface ChatResponse {
   model: string | null;
   used_fallback: boolean;
   negotiation_state: NegotiationState | null;
+  quote: NegotiationQuote | null;
 }
 
 export const Negotiations = {

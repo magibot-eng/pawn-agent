@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { ProviderKeys, Shops, type CreateProviderKey, type ProviderKey, type ProviderKeyTestResult, type Shop } from '../../lib/api';
+import { ProviderKeys, Shops, type CreateProviderKey, type ProviderKey, type ProviderKeyTestResult, type Shop, type ShopWalletStatus } from '../../lib/api';
 
 const STORAGE_KEY = 'pawn-agent:selected-store';
 
@@ -45,12 +45,14 @@ export default function OwnerPage() {
   const [shop, setShop] = useState<Shop | null>(null);
   const [form, setForm] = useState<OwnerForm>(EMPTY_FORM);
   const [providerKeys, setProviderKeys] = useState<ProviderKey[]>([]);
+  const [walletStatus, setWalletStatus] = useState<ShopWalletStatus | null>(null);
   const [provider, setProvider] = useState<CreateProviderKey['provider']>('openai');
   const [model, setModel] = useState(PROVIDER_DEFAULTS.openai.model);
   const [label, setLabel] = useState('Owner dashboard');
   const [apiKey, setApiKey] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [walletProvisioning, setWalletProvisioning] = useState(false);
   const [keySaving, setKeySaving] = useState(false);
   const [keyTesting, setKeyTesting] = useState(false);
   const [keyTestResult, setKeyTestResult] = useState<ProviderKeyTestResult | null>(null);
@@ -114,9 +116,13 @@ export default function OwnerPage() {
           welcome_message: activeShop.welcome_message ?? '',
         });
 
-        const keys = await ProviderKeys.list(activeShop.id);
+        const [keys, wallet] = await Promise.all([
+          ProviderKeys.list(activeShop.id),
+          Shops.walletStatus(activeShop.id),
+        ]);
         if (!active) return;
         setProviderKeys(keys);
+        setWalletStatus(wallet);
       } catch (err) {
         console.error(err);
         if (!active) return;
@@ -184,6 +190,25 @@ export default function OwnerPage() {
     }
   }
 
+  async function provisionMerchantWallet() {
+    if (!shop) return;
+    try {
+      setWalletProvisioning(true);
+      setNotice(null);
+      setError(null);
+      const updated = await Shops.provisionWallet(shop.id);
+      setShop(updated);
+      const wallet = await Shops.walletStatus(shop.id);
+      setWalletStatus(wallet);
+      setNotice('Merchant wallet provisioned. This shop can now use a separate operational wallet for automated settlement.');
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Could not provision merchant wallet.');
+    } finally {
+      setWalletProvisioning(false);
+    }
+  }
+
   async function saveProviderKey(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!shop || !apiKey.trim()) return;
@@ -245,7 +270,7 @@ export default function OwnerPage() {
               <p className="text-[11px] uppercase tracking-[0.34em] text-onSurfaceVariant">Pawn Agent Owner View</p>
               <h1 className="mt-2 text-3xl text-onSurface">Configure the storefront</h1>
               <p className="mt-2 max-w-2xl text-sm text-[#f0dfb4]">
-                Wallet-bound merchant setup for <span className="text-onSurface">{shop.ens_name}</span>.
+                Owner-administered storefront for <span className="text-onSurface">{shop.ens_name}</span>, with a separate merchant wallet for automated settlement.
               </p>
               <p className="mt-2 text-xs uppercase tracking-[0.24em] text-onSurfaceVariant">Owner {ownerAddress ?? shop.owner_address}</p>
             </div>
@@ -317,6 +342,43 @@ export default function OwnerPage() {
             </section>
 
             <section className="grid gap-6">
+              <section className="merchant-inset rounded-panel p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Merchant wallet</p>
+                    <p className="mt-2 text-sm text-[#f0dfb4]">
+                      This is the agent-controlled settlement wallet. The owner wallet administers the shop, but this wallet will eventually quote, pay, and settle automatically.
+                    </p>
+                  </div>
+                  <button
+                    onClick={provisionMerchantWallet}
+                    disabled={walletProvisioning || shop.wallet_status === 'active'}
+                    className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow disabled:opacity-60"
+                  >
+                    {shop.wallet_status === 'active'
+                      ? 'Wallet active'
+                      : walletProvisioning
+                        ? 'Provisioning…'
+                        : 'Provision merchant wallet'}
+                  </button>
+                </div>
+                <div className="mt-3 rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#f4e7c7]">
+                  <div className="space-y-2">
+                    <p><span className="text-onSurfaceVariant">Provider:</span> {walletStatus?.wallet_provider ?? shop.wallet_provider}</p>
+                    <p><span className="text-onSurfaceVariant">Status:</span> {walletStatus?.wallet_status ?? shop.wallet_status}</p>
+                    <p><span className="text-onSurfaceVariant">Operational address:</span> {(walletStatus?.wallet_status ?? shop.wallet_status) === 'pending' ? 'Not provisioned yet' : (walletStatus?.merchant_address ?? shop.merchant_address)}</p>
+                    <p><span className="text-onSurfaceVariant">Provider account:</span> {walletStatus?.wallet_provider_account_id ?? shop.wallet_provider_account_id ?? 'Not linked yet'}</p>
+                    <p><span className="text-onSurfaceVariant">Provisioning mode:</span> {walletStatus?.provisioning_mode ?? 'stub'}</p>
+                    <p><span className="text-onSurfaceVariant">Authenticated:</span> {walletStatus?.authenticated ? `Yes${walletStatus.authenticated_email ? ` • ${walletStatus.authenticated_email}` : ''}` : 'No'}</p>
+                    <p><span className="text-onSurfaceVariant">Balance:</span> {walletStatus?.balance ? `${walletStatus.balance} ${walletStatus.balance_symbol ?? ''}`.trim() : 'Unavailable'}</p>
+                    <p><span className="text-onSurfaceVariant">Auto settlement:</span> {shop.auto_settlement_enabled ? 'Enabled' : 'Disabled'}</p>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-panel border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-xs text-amber-100">
+                  This currently provisions a deterministic CDP-style stub wallet so the product flow can be exercised before live CDP credentials are wired in.
+                </div>
+              </section>
+
               <section className="merchant-inset rounded-panel p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>

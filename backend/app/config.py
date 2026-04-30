@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     # Chains
     base_sepolia_rpc_url: str = ""
 
+    # Merchant wallet / CDP Agentic Wallet integration
+    cdp_wallet_live_enabled: bool = False
+    cdp_wallet_fallback_to_stub: bool = True
+    cdp_wallet_chain: str = "base-sepolia"
+    cdp_wallet_cli_command: str = "npx awal"
+
     # Frontend URL (for CORS)
     frontend_url: str = "http://localhost:3000"
 

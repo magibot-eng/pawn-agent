@@ -53,7 +53,35 @@ class ShopCreate(BaseModel):
             description="ERC-20 token address for payouts (ETH = address(0))",
         ),
     ]
-    merchant_address: Annotated[str, Field(max_length=42, description="Wallet address used for signing offers")]
+    merchant_address: Annotated[
+        str | None,
+        Field(
+            max_length=42,
+            default=None,
+            description="Optional managed merchant wallet address. Omit during initial shop creation to leave wallet unprovisioned.",
+        ),
+    ] = None
+    wallet_provider: Annotated[
+        str,
+        Field(
+            max_length=32,
+            default="cdp_agentic_wallet",
+            description="Managed wallet provider for the merchant agent.",
+        ),
+    ]
+    wallet_provider_account_id: Annotated[
+        str | None,
+        Field(max_length=128, default=None, description="Provider-side merchant wallet/account id, if already provisioned."),
+    ] = None
+    wallet_status: Annotated[
+        str,
+        Field(
+            max_length=16,
+            default="pending",
+            description="Merchant wallet lifecycle state: pending, active, paused, error.",
+        ),
+    ]
+    auto_settlement_enabled: bool = False
 
 
 class ShopUpdate(BaseModel):
@@ -71,6 +99,11 @@ class ShopUpdate(BaseModel):
     )
     payout_token: Annotated[str | None, Field(max_length=42)] = None
     contract_address: Annotated[str | None, Field(max_length=42)] = None
+    merchant_address: Annotated[str | None, Field(max_length=42)] = None
+    wallet_provider: Annotated[str | None, Field(max_length=32)] = None
+    wallet_provider_account_id: Annotated[str | None, Field(max_length=128)] = None
+    wallet_status: Annotated[str | None, Field(max_length=16)] = None
+    auto_settlement_enabled: bool | None = None
 
 
 class ShopResponse(BaseModel):
@@ -90,6 +123,22 @@ class ShopResponse(BaseModel):
     contract_address: str | None
     payout_token: str
     merchant_address: str
+    wallet_provider: str
+    wallet_provider_account_id: str | None
+    wallet_status: str
+    auto_settlement_enabled: bool
     created_at: datetime
     updated_at: datetime
     ens_identities: list[ShopEnsIdentityResponse] = []
+
+
+class ShopWalletStatusResponse(BaseModel):
+    wallet_provider: str
+    wallet_status: str
+    merchant_address: str
+    wallet_provider_account_id: str | None
+    provisioning_mode: str
+    authenticated: bool
+    authenticated_email: str | None
+    balance: str | None
+    balance_symbol: str | None

@@ -63,6 +63,10 @@ SHOP_COLUMN_MIGRATIONS = {
     "pricing_style": "TEXT",
     "refusal_rules": "TEXT",
     "welcome_message": "TEXT",
+    "wallet_provider": "VARCHAR(32) NOT NULL DEFAULT 'cdp_agentic_wallet'",
+    "wallet_provider_account_id": "VARCHAR(128)",
+    "wallet_status": "VARCHAR(16) NOT NULL DEFAULT 'pending'",
+    "auto_settlement_enabled": "BOOLEAN NOT NULL DEFAULT 0",
 }
 
 NEGOTIATION_COLUMN_MIGRATIONS = {

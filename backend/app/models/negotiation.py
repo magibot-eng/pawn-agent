@@ -41,6 +41,17 @@ class NegotiationSession(Base):
     agreed_payout: Mapped[str | None] = mapped_column(String(78), nullable=True)
     # Error message if negotiation failed
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ---- Structured quote fields (MVP) ----
+    # Seller's stated asking price
+    seller_ask_token: Mapped[str | None] = mapped_column(String(42), nullable=True)
+    seller_ask_amount: Mapped[str | None] = mapped_column(String(78), nullable=True)
+    seller_ask_price: Mapped[str | None] = mapped_column(String(78), nullable=True)
+    # Merchant's counter-quote (set when merchant makes an offer)
+    merchant_quote_token: Mapped[str | None] = mapped_column(String(42), nullable=True)
+    merchant_quote_amount: Mapped[str | None] = mapped_column(String(78), nullable=True)
+    merchant_quote_expiry: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Quote lifecycle: none | quoted | accepted | countered | expired
+    quote_status: Mapped[str | None] = mapped_column(String(16), nullable=True, default="none")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
