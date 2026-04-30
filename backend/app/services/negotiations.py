@@ -74,6 +74,12 @@ async def process_seller_message(
                 shop={
                     "display_name": shop.display_name,
                     "ens_name": shop.ens_name,
+                    "description": shop.description,
+                    "merchant_persona": shop.merchant_persona,
+                    "buying_preferences": shop.buying_preferences,
+                    "pricing_style": shop.pricing_style,
+                    "refusal_rules": shop.refusal_rules,
+                    "welcome_message": shop.welcome_message,
                     "contract_address": shop.contract_address,
                     "payout_token": shop.payout_token,
                 },
