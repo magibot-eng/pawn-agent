@@ -136,6 +136,32 @@ export interface NegotiationQuote {
   seller_ask_price: string;
 }
 
+export interface DealOffer {
+  id: string;
+  shop_id: string;
+  negotiation_id: string | null;
+  chain_deal_id: string;
+  seller: string;
+  input_token: string;
+  input_amount: string;
+  payout_amount: string;
+  expires_at: string;
+  state: string;
+  created_at: string;
+}
+
+export interface ExecutionRecord {
+  id: string;
+  shop_id: string;
+  deal_offer_id: string;
+  tx_hash: string | null;
+  payout_sent_wei: string | null;
+  tokens_received: string | null;
+  state: string;
+  error_message: string | null;
+  created_at: string;
+}
+
 export interface NegotiationSession {
   id: string;
   shop_id: string;
@@ -171,6 +197,13 @@ export interface ChatResponse {
   quote: NegotiationQuote | null;
 }
 
+export interface AcceptQuoteResponse {
+  success: boolean;
+  deal_offer: DealOffer;
+  execution: ExecutionRecord;
+  negotiation: NegotiationSession;
+}
+
 export const Negotiations = {
   create: (data: CreateNegotiation) =>
     request<NegotiationSession>("/negotiations", {
@@ -184,6 +217,12 @@ export const Negotiations = {
     request<ChatResponse>(`/negotiations/${id}/chat`, {
       method: "POST",
       body: JSON.stringify({ message }),
+    }),
+
+  acceptQuote: (id: string, payload: { payout_token: string; payout_amount: string; expiry: string }) =>
+    request<AcceptQuoteResponse>(`/negotiations/${id}/accept`, {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
 
   listByShop: (shopId: string, settled?: boolean) => {

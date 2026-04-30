@@ -12,12 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.models.negotiation import NegotiationSession
+from app.schemas.deal import DealOfferResponse, ExecutionResponse
 from app.schemas.negotiation import (
     NegotiationSessionCreate,
     NegotiationSessionUpdate,
     NegotiationSessionResponse,
 )
 from app.services.negotiations import process_seller_message
+from app.services.settlements import accept_quote_and_execute, SettlementError
 
 router = APIRouter(prefix="/negotiations", tags=["negotiations"])
 
@@ -118,6 +120,20 @@ class ChatResponse(BaseModel):
     model: str | None = None
     used_fallback: bool = False
     negotiation_state: dict[str, str] | None = None
+    quote: dict | None = None
+
+
+class AcceptQuoteRequest(BaseModel):
+    payout_token: Annotated[str, Field(max_length=42, description="Merchant payout token for the accepted quote")]
+    payout_amount: Annotated[str, Field(max_length=78, description="Accepted payout amount")]
+    expiry: Annotated[str, Field(max_length=64, description="Quote expiry label or timestamp")]
+
+
+class AcceptQuoteResponse(BaseModel):
+    success: bool
+    deal_offer: DealOfferResponse
+    execution: ExecutionResponse
+    negotiation: NegotiationSessionResponse
 
 
 @router.post("/{negotiation_id}/chat", response_model=ChatResponse)
@@ -136,3 +152,29 @@ async def chat(
 
     outcome = await process_seller_message(negotiation_id, data.message, db)
     return ChatResponse(**outcome)
+
+
+@router.post("/{negotiation_id}/accept", response_model=AcceptQuoteResponse)
+async def accept_quote(
+    negotiation_id: str,
+    data: AcceptQuoteRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Accept the current quote and create execution records using the merchant wallet path."""
+    try:
+        offer, execution, negotiation = await accept_quote_and_execute(
+            negotiation_id=negotiation_id,
+            payout_token=data.payout_token,
+            payout_amount=data.payout_amount,
+            expiry=data.expiry,
+            db=db,
+        )
+    except SettlementError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return AcceptQuoteResponse(
+        success=True,
+        deal_offer=DealOfferResponse.model_validate(offer),
+        execution=ExecutionResponse.model_validate(execution),
+        negotiation=NegotiationSessionResponse.model_validate(negotiation),
+    )

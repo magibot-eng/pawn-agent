@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Negotiations, type ChatResponse, type NegotiationState, type NegotiationQuote } from '../lib/api';
+import { Negotiations, type AcceptQuoteResponse, type ChatResponse, type ExecutionRecord, type NegotiationState, type NegotiationQuote } from '../lib/api';
 
 type Message = {
   id: string;
@@ -168,6 +168,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus>({ mode: 'demo_disconnected' });
   const [negotiationState, setNegotiationState] = useState<NegotiationState | null>(null);
   const [activeQuote, setActiveQuote] = useState<NegotiationQuote | null>(null);
+  const [executionRecord, setExecutionRecord] = useState<ExecutionRecord | null>(null);
   const [counterMode, setCounterMode] = useState(false);
   const [counterInput, setCounterInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -276,6 +277,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
     setCounterMode(false);
     setCounterInput('');
     setActiveQuote(null);
+    setExecutionRecord(null);
 
     if (!connected) {
       setRuntimeStatus({ mode: 'demo_disconnected' });
@@ -311,9 +313,42 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
     }
   }, [inputValue, connected, negotiationId]);
 
-  const handleAccept = useCallback(() => {
-    handleSend('I accept the quote. Let\'s settle.');
-  }, [handleSend]);
+  const handleAccept = useCallback(async () => {
+    if (!activeQuote) return;
+    if (!connected) {
+      setRuntimeStatus({ mode: 'demo_disconnected' });
+      setTyping({
+        active: true,
+        text: '⚓ Settlement cannot proceed while the harbor is offline.',
+        charIndex: 0,
+      });
+      return;
+    }
+
+    try {
+      setTyping({ active: true, text: '⚓ Sealing the bargain and preparing settlement…', charIndex: 0 });
+      const resp: AcceptQuoteResponse = await Negotiations.acceptQuote(negotiationId, {
+        payout_token: activeQuote.payout_token,
+        payout_amount: activeQuote.payout_amount,
+        expiry: activeQuote.expiry || '5m',
+      });
+      setExecutionRecord(resp.execution);
+      setActiveQuote((current) => (current ? { ...current, status: 'accepted' } : current));
+      setNegotiationState(resp.negotiation.negotiation_state ?? null);
+      setTyping({
+        active: true,
+        text: `⚓ Terms accepted. Settlement ${resp.execution.state}. Tx ${resp.execution.tx_hash ?? 'pending'}.`,
+        charIndex: 0,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Settlement failed.';
+      setTyping({
+        active: true,
+        text: `⚓ I cannot settle this yet. ${message}`,
+        charIndex: 0,
+      });
+    }
+  }, [activeQuote, connected, negotiationId]);
 
   const handleCounter = useCallback(() => {
     setCounterMode(true);
@@ -501,6 +536,26 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
                 <div className="flex justify-between">
                   <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Status</dt>
                   <dd className="text-xs text-[#d4af37]">{activeQuote.status}</dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
+          {executionRecord && (
+            <div className="mt-6 border-t border-outlineVariant/50 pt-4">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Settlement</p>
+              <dl className="mt-3 space-y-2">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">State</dt>
+                  <dd className="text-xs text-[#f5e9c9]">{executionRecord.state}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Tx</dt>
+                  <dd className="max-w-[10rem] truncate text-xs text-[#f5e9c9]">{executionRecord.tx_hash ?? 'pending'}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Payout sent</dt>
+                  <dd className="text-xs text-[#f5e9c9]">{executionRecord.payout_sent_wei ?? '—'}</dd>
                 </div>
               </dl>
             </div>
