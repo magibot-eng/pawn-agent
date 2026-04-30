@@ -13,7 +13,8 @@
     "@chatscope/chat-ui-kit-styles": "^1.4.0",
     "next": "15.5.15",
     "react": "19.1.1",
-    "react-dom": "19.1.1"
+    "react-dom": "19.1.1",
+    "viem": "^2.48.4"
   },
   "devDependencies": {
     "@types/node": "24.3.0",
