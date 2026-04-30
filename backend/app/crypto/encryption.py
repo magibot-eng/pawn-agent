@@ -47,7 +47,7 @@ def encrypt(plaintext: str) -> str:
     aes = AESGCM(key)
     nonce = os.urandom(12)  # 96-bit nonce for GCM
 
-    ciphertext = aes.encrypt(nonce, plaintext.encode("utf-8"), aad=None)
+    ciphertext = aes.encrypt(nonce, plaintext.encode("utf-8"), None)
     # Prepend nonce to ciphertext for storage
     combined = nonce + ciphertext
     return base64.b64encode(combined).decode("utf-8")
@@ -76,7 +76,7 @@ def decrypt(encrypted: str) -> str:
     ciphertext = combined[12:]
 
     try:
-        plaintext = aes.decrypt(nonce, ciphertext, aad=None)
+        plaintext = aes.decrypt(nonce, ciphertext, None)
     except Exception as e:
         raise EncryptionError(f"Decryption failed (wrong key or tampered data): {e}")
 
