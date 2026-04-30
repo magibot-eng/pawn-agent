@@ -1,6 +1,7 @@
 """Negotiation service — orchestrates the agent with database persistence."""
 
 import json
+import re
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -111,6 +112,7 @@ async def process_seller_message(
     chat_log.append({"sender": "seller", "text": seller_message, "timestamp": timestamp})
     chat_log.append({"sender": "merchant", "text": merchant_text, "timestamp": timestamp})
     negotiation.chat_log = json.dumps(chat_log, default=str)
+    negotiation.negotiation_state = extract_negotiation_state(seller_message, negotiation)
 
     await db.flush()
     await db.refresh(negotiation)
@@ -124,6 +126,49 @@ async def process_seller_message(
         "model": response_model,
         "used_fallback": used_fallback,
         "error": response_error,
+        "negotiation_state": negotiation.negotiation_state,
+    }
+
+
+def extract_negotiation_state(message: str, negotiation: NegotiationSession) -> dict[str, str]:
+    """Derive a compact structured negotiation summary for the MVP UI."""
+    normalized_message = message.strip()
+    normalized_upper = normalized_message.upper()
+
+    amount_token_match = re.search(r"\b[\d,]+(?:\.\d+)?\s*([A-Z]{2,10})\b", normalized_upper)
+    if amount_token_match:
+        token = amount_token_match.group(1)
+    else:
+        token_match = re.search(r"\b([A-Z]{2,10})\b", normalized_upper)
+        token = token_match.group(1) if token_match else negotiation.input_token
+
+    ask_match = re.search(
+        r"(?:asking|need|want|for)\s+\$?([\d,]+(?:\.\d+)?)\s*([A-Z]{2,10})?",
+        normalized_message,
+        flags=re.IGNORECASE,
+    )
+    if ask_match:
+        ask_amount = ask_match.group(1).replace(",", "")
+        ask_currency = (ask_match.group(2) or "").upper()
+        seller_ask = f"{ask_amount} {ask_currency}".strip()
+    else:
+        seller_ask = "unknown"
+
+    urgency = "high" if re.search(r"\b(urgent|urgently|asap|today|immediately|now)\b", normalized_message, flags=re.IGNORECASE) else "normal"
+
+    next_action = "await merchant quote"
+    if negotiation.input_token == "0x0000000000000000000000000000000000000000":
+        next_action = "provide token contract"
+    elif seller_ask == "unknown":
+        next_action = "state asking price"
+
+    return {
+        "token": token,
+        "amount": str(negotiation.input_amount).replace(",", ""),
+        "seller_ask": seller_ask,
+        "urgency": urgency,
+        "merchant_stance": "reviewing",
+        "next_action": next_action,
     }
 
 

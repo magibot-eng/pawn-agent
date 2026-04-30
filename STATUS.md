@@ -9,12 +9,14 @@ The repo is no longer at planning-only stage. It now contains a working frontend
 - owner-side shop configuration
 - persisted encrypted provider-key storage
 - seller-side merchant chat
+- structured negotiation state extraction and display
 - runtime-status visibility for live AI vs fallback behavior
 
-**Verified on current HEAD (`97bfc77` on `main`):**
+**Verified in local audit before this feature slice:**
 - backend `/health` boots and returns `200`
 - `POST /shops/{shop_id}/provider-keys` returns `201 Created`
-- backend smoke tests pass (`python -m pytest -q` in `backend/`)
+- backend tests pass (`python -m pytest -q` in `backend/`)
+- frontend build passes (`npm run build` in `frontend/`)
 
 ## Product Direction
 Pawn Agent is an **ENS-native AI token buyout storefront** on **Base Sepolia**.
@@ -35,7 +37,7 @@ The MVP remains:
 | `frontend/` | ✅ Working prototype | Seller storefront + owner setup screens exist |
 | `frontend/app/page.tsx` | ✅ Implemented | Combined owner-config + live merchant chat demo surface |
 | `frontend/app/owner/page.tsx` | ✅ Implemented | Dedicated owner dashboard for shop fields + provider-key save |
-| `frontend/components/MerchantChat.tsx` | ✅ Implemented | Shows runtime mode: demo, scripted fallback, live LLM, provider fallback |
+| `frontend/components/MerchantChat.tsx` | ✅ Implemented | Shows runtime mode and a live negotiation-state panel beside chat |
 | `backend/app/main.py` | ✅ Implemented | FastAPI app boots, initializes DB, serves `/health` |
 | `backend/app/api/shops.py` | ✅ Implemented | Shop CRUD + ENS identity subresource |
 | `backend/app/api/provider_keys.py` | ✅ Implemented | Encrypted provider-key save/list endpoints |
@@ -52,25 +54,19 @@ The MVP remains:
 The prototype exists, but the MVP is not feature-complete yet.
 
 Highest-value missing pieces:
-1. structured negotiation state extraction and display
-2. real merchant rules schema instead of mostly text fields
-3. buyout-offer creation from negotiation outcomes
-4. execution path from accepted deal to contract settlement
-5. stronger tests across provider-key save/chat fallback/runtime-state paths
-6. contract-side buyout settlement redesign for Base Sepolia
+1. real merchant rules schema instead of mostly text fields
+2. buyout-offer creation from negotiation outcomes
+3. execution path from accepted deal to contract settlement
+4. stronger tests across provider-key save/chat fallback/runtime-state paths
+5. contract-side buyout settlement redesign for Base Sepolia
 
 ## Next Recommended Step
-Build **structured negotiation state** for the seller chat flow.
+Turn the structured negotiation summary into actual product flow.
 
-Target output from each conversation:
-- token
-- amount
-- seller ask
-- urgency
-- merchant stance
-- next required action
-
-Then surface that state in the UI beside the chat so the prototype feels like a real negotiation product, not just a styled chatbot.
+Best follow-up options:
+- convert accepted negotiation states into `DealOffer` records
+- normalize merchant rules beyond freeform text
+- make the "next action" state drive explicit seller/merchant workflow transitions
 
 ## Resume Point
 If resuming from scratch, start here:

@@ -12,6 +12,7 @@ The backend currently supports:
 - ENS-linked shop records
 - encrypted LLM provider-key management
 - negotiation session persistence
+- persisted structured negotiation summaries
 - live merchant chat with graceful fallback behavior
 - early deal/execution record endpoints
 
@@ -73,6 +74,8 @@ These were verified during the 2026-04-30 audit.
 - `scripted_fallback`
 - `provider_error_fallback`
 
+The chat response also returns a persisted `negotiation_state` summary object.
+
 Frontend also models:
 - `demo_disconnected`
 
@@ -104,6 +107,7 @@ These are useful for the prototype UI but are not yet a normalized rules system.
 - input amount
 - serialized `chat_log`
 - optional `outcome`
+- optional `negotiation_state` summary object
 - optional `agreed_payout`
 - settled flag
 - optional error message
@@ -116,7 +120,6 @@ The deal and execution routes are early persistence scaffolds. They exist in the
 ## 5. Near-Term API Gaps
 
 Highest-value missing additions:
-- structured negotiation-state extraction endpoint or fields
 - rule validation endpoints for normalized merchant policy
 - explicit accept/reject/offer-generation flow from chat outcomes
 - execution submission/status flow tied to real Base Sepolia contract logic
@@ -126,21 +129,12 @@ Highest-value missing additions:
 
 ## 6. Suggested Next API Slice
 
-Add structured negotiation state support.
+Turn the persisted `negotiation_state` summary into explicit workflow.
 
-Possible options:
-1. extend `POST /negotiations/{negotiation_id}/chat` to persist extracted structured fields
-2. add `GET /negotiations/{negotiation_id}/state`
-3. add a lightweight negotiation summary object onto the negotiation record itself
-
-Suggested fields:
-- token
-- amount
-- seller ask
-- urgency
-- merchant stance
-- missing information
-- next action
+Possible next steps:
+1. create a backend path that converts a negotiation into a `DealOffer`
+2. let `next_action` become machine-readable workflow state instead of display-only text
+3. add structured merchant-rule validation that constrains quote generation
 
 ---
 

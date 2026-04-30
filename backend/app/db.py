@@ -65,6 +65,10 @@ SHOP_COLUMN_MIGRATIONS = {
     "welcome_message": "TEXT",
 }
 
+NEGOTIATION_COLUMN_MIGRATIONS = {
+    "negotiation_state": "TEXT",
+}
+
 
 def _ensure_sqlite_shop_columns(sync_conn) -> None:
     if sync_conn.dialect.name != "sqlite":
@@ -80,9 +84,24 @@ def _ensure_sqlite_shop_columns(sync_conn) -> None:
             )
 
 
+def _ensure_sqlite_negotiation_columns(sync_conn) -> None:
+    if sync_conn.dialect.name != "sqlite":
+        return
+
+    existing_columns = {
+        row[1] for row in sync_conn.exec_driver_sql("PRAGMA table_info(negotiation_sessions)").fetchall()
+    }
+    for column_name, column_type in NEGOTIATION_COLUMN_MIGRATIONS.items():
+        if column_name not in existing_columns:
+            sync_conn.exec_driver_sql(
+                f"ALTER TABLE negotiation_sessions ADD COLUMN {column_name} {column_type}"
+            )
+
+
 async def init_db() -> None:
     """Create all tables. Call once on app startup."""
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(_ensure_sqlite_shop_columns)
+        await conn.run_sync(_ensure_sqlite_negotiation_columns)

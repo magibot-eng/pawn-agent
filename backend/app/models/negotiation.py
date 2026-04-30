@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 
@@ -34,6 +35,8 @@ class NegotiationSession(Base):
     chat_log: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     # Agent summary of the negotiation outcome
     outcome: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Structured MVP negotiation summary for UI/runtime handoff
+    negotiation_state: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Final agreed payout amount in wei (set on settlement)
     agreed_payout: Mapped[str | None] = mapped_column(String(78), nullable=True)
     # Error message if negotiation failed

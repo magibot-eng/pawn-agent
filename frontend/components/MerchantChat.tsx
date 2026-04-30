@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Negotiations, type ChatResponse } from '../lib/api';
+import { Negotiations, type ChatResponse, type NegotiationState } from '../lib/api';
 
 type Message = {
   id: string;
@@ -49,6 +49,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
   const [typing, setTyping] = useState<TypingState>({ active: false, text: '', charIndex: 0 });
   const [connected, setConnected] = useState(false);
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus>({ mode: 'demo_disconnected' });
+  const [negotiationState, setNegotiationState] = useState<NegotiationState | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -65,6 +66,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
         }>;
         setConnected(true);
         setRuntimeStatus({ mode: 'scripted_fallback' });
+        setNegotiationState(neg.negotiation_state ?? null);
         if (log.length > 0) {
           setMessages(
             log.map((entry, i) => ({
@@ -83,6 +85,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
         // Backend not available — use fallback static messages
         setConnected(false);
         setRuntimeStatus({ mode: 'demo_disconnected' });
+        setNegotiationState(null);
         setMessages(FALLBACK_MESSAGES);
       }
     }
@@ -175,6 +178,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
         model: resp.model,
         error: resp.error,
       });
+      setNegotiationState(resp.negotiation_state ?? null);
       setTyping({ active: true, text: resp.merchant_response, charIndex: 0 });
     } catch {
       setRuntimeStatus({ mode: 'demo_disconnected' });
@@ -203,81 +207,121 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
         </p>
       </div>
 
-      {/* Message List */}
-      <div
-        ref={listRef}
-        className="flex-1 space-y-4 overflow-y-auto pr-2"
-        style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(212,175,55,0.3) transparent' }}
-      >
-        {messages.map((msg) => (
+      <div className="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="flex min-h-0 flex-col">
+          {/* Message List */}
           <div
-            key={msg.id}
-            className={`flex ${msg.sender === 'seller' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[82%] rounded-panel px-4 py-3 text-sm ${
-                msg.sender === 'merchant'
-                  ? 'merchant-inset text-[#f4e7c7]'
-                  : 'border border-outline bg-[linear-gradient(135deg,rgba(212,175,55,0.18),rgba(148,112,44,0.14))] text-[#f5e9c9]'
-              }`}
-            >
-              <div className="mb-1 flex items-center justify-between gap-4">
-                <span className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">
-                  {msg.sender === 'merchant' ? `Harbormaster ${shopEnsName}` : 'You'}
-                </span>
-                <span className="text-[10px] text-[#a08050]">{msg.timestamp}</span>
-              </div>
-              <p className="leading-relaxed">{msg.text}</p>
-            </div>
-          </div>
-        ))}
-
-        {/* Typing indicator */}
-        {typing.active && (
-          <div className="flex justify-start">
-            <div className="max-w-[82%] rounded-panel merchant-inset px-4 py-3 text-sm text-[#f4e7c7]">
-              <div className="mb-1 flex items-center gap-2">
-                <span className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">
-                  Harbormaster {shopEnsName}
-                </span>
-                <span className="flex gap-1">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#d4af37]" style={{ animationDelay: '0ms' }} />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#d4af37]" style={{ animationDelay: '160ms' }} />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#d4af37]" style={{ animationDelay: '320ms' }} />
-                </span>
-              </div>
-              <p className="leading-relaxed">
-                {typing.text.slice(0, typing.charIndex)}
-                <span className="animate-pulse text-[#d4af37]">|</span>
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Input Bar */}
-      <div className="mt-4 flex items-end gap-3">
-        <div className="flex-1">
-          <textarea
-            ref={inputRef}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="State your offer or ask…"
-            rows={2}
-            className="merchant-inset w-full resize-none rounded-panel border border-outline bg-surfaceLowest px-4 py-3 text-sm text-[#f5e9c9] placeholder:text-[#7a6040] focus:outline-none focus:ring-1 focus:ring-[#d4af37]/60"
+            ref={listRef}
+            className="flex-1 space-y-4 overflow-y-auto pr-2"
             style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(212,175,55,0.3) transparent' }}
-          />
+          >
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.sender === 'seller' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[82%] rounded-panel px-4 py-3 text-sm ${
+                    msg.sender === 'merchant'
+                      ? 'merchant-inset text-[#f4e7c7]'
+                      : 'border border-outline bg-[linear-gradient(135deg,rgba(212,175,55,0.18),rgba(148,112,44,0.14))] text-[#f5e9c9]'
+                  }`}
+                >
+                  <div className="mb-1 flex items-center justify-between gap-4">
+                    <span className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">
+                      {msg.sender === 'merchant' ? `Harbormaster ${shopEnsName}` : 'You'}
+                    </span>
+                    <span className="text-[10px] text-[#a08050]">{msg.timestamp}</span>
+                  </div>
+                  <p className="leading-relaxed">{msg.text}</p>
+                </div>
+              </div>
+            ))}
+
+            {/* Typing indicator */}
+            {typing.active && (
+              <div className="flex justify-start">
+                <div className="max-w-[82%] rounded-panel merchant-inset px-4 py-3 text-sm text-[#f4e7c7]">
+                  <div className="mb-1 flex items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">
+                      Harbormaster {shopEnsName}
+                    </span>
+                    <span className="flex gap-1">
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#d4af37]" style={{ animationDelay: '0ms' }} />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#d4af37]" style={{ animationDelay: '160ms' }} />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#d4af37]" style={{ animationDelay: '320ms' }} />
+                    </span>
+                  </div>
+                  <p className="leading-relaxed">
+                    {typing.text.slice(0, typing.charIndex)}
+                    <span className="animate-pulse text-[#d4af37]">|</span>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Input Bar */}
+          <div className="mt-4 flex items-end gap-3">
+            <div className="flex-1">
+              <textarea
+                ref={inputRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="State your offer or ask…"
+                rows={2}
+                className="merchant-inset w-full resize-none rounded-panel border border-outline bg-surfaceLowest px-4 py-3 text-sm text-[#f5e9c9] placeholder:text-[#7a6040] focus:outline-none focus:ring-1 focus:ring-[#d4af37]/60"
+                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(212,175,55,0.3) transparent' }}
+              />
+            </div>
+            <button
+              onClick={handleSend}
+              disabled={!inputValue.trim() || typing.active}
+              className="flex h-[3.25rem] items-center justify-center rounded-panel border border-primary bg-transparent px-5 text-sm font-bold uppercase tracking-[0.2em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Send
+            </button>
+          </div>
         </div>
-        <button
-          onClick={handleSend}
-          disabled={!inputValue.trim() || typing.active}
-          className="flex h-[3.25rem] items-center justify-center rounded-panel border border-primary bg-transparent px-5 text-sm font-bold uppercase tracking-[0.2em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Send
-        </button>
+
+        <aside className="merchant-panel rounded-panel border border-outlineVariant/70 p-4 text-sm text-[#f4e7c7] xl:self-start">
+          <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Negotiation State</p>
+          {negotiationState ? (
+            <dl className="mt-4 space-y-3">
+              <div>
+                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Token</dt>
+                <dd className="mt-1 text-base text-onSurface">{negotiationState.token}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Amount</dt>
+                <dd className="mt-1 text-base text-onSurface">{negotiationState.amount}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Seller Ask</dt>
+                <dd className="mt-1 text-base text-onSurface">{negotiationState.seller_ask}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Urgency</dt>
+                <dd className="mt-1 text-base text-onSurface">{negotiationState.urgency}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant Stance</dt>
+                <dd className="mt-1 text-base text-onSurface">{negotiationState.merchant_stance}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Next Action</dt>
+                <dd className="mt-1 text-base text-onSurface">{negotiationState.next_action}</dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="mt-4 leading-relaxed text-[#f0dfb4]">
+              No structured negotiation state yet. Send a seller message and the merchant will start filling this in.
+            </p>
+          )}
+        </aside>
       </div>
     </div>
   );

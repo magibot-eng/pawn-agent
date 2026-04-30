@@ -21,6 +21,7 @@ class NegotiationSessionUpdate(BaseModel):
         description="A single chat log entry: {sender: 'merchant'|'seller', text: '...', timestamp: 'ISO8601'}",
     )
     outcome: Annotated[str | None, Field(max_length=32, description="e.g. settled, rejected, expired, cancelled")] = None
+    negotiation_state: dict[str, str] | None = None
     agreed_payout: Annotated[str | None, Field(max_length=78, description="Final payout amount in wei, set on settlement")] = None
     settled: bool | None = None
     error_message: str | None = None
@@ -37,6 +38,7 @@ class NegotiationSessionResponse(BaseModel):
     settled: bool
     chat_log: str  # JSON string
     outcome: str | None
+    negotiation_state: dict[str, str] | None
     agreed_payout: str | None
     error_message: str | None
     created_at: datetime

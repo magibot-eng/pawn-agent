@@ -2,7 +2,7 @@
 
 **Status:** Active Hackathon MVP | Frontend/Backend Prototype Live | Contracts Incomplete
 **Last Updated:** 2026-04-30
-**Branch / HEAD verified during audit:** `main` @ `97bfc77`
+**Verification baseline:** local audit + passing backend tests + passing frontend build before this feature push
 
 ## Executive Summary
 Pawn Agent is no longer in a planning-only state.
@@ -13,6 +13,7 @@ The current repo already supports a real prototype loop:
 - save encrypted provider API keys
 - open negotiation sessions
 - chat with the merchant runtime
+- inspect a structured negotiation summary beside the chat
 - visibly distinguish live LLM, scripted fallback, provider-error fallback, and disconnected demo mode
 
 This is enough for a convincing hackathon MVP demo shell, but not enough for a complete buyout product yet.
@@ -48,6 +49,7 @@ Important note:
     - `scripted_fallback`
     - `live_llm`
     - `provider_error_fallback`
+  - shows a structured negotiation summary panel beside the chat
 
 ### Backend
 - `backend/app/main.py`
@@ -61,6 +63,7 @@ Important note:
   - create/get/update negotiation session
   - list sessions by shop
   - seller chat endpoint
+  - returns persisted structured negotiation state in chat/session responses
 - `backend/app/api/deals.py`
   - early deal/execution record endpoints exist
 - `backend/app/services/negotiations.py`
@@ -68,6 +71,7 @@ Important note:
   - decrypts provider key when present
   - calls provider runtime when available
   - falls back gracefully to scripted merchant text on provider/decryption failure
+  - derives a compact structured negotiation summary after each seller message
 - `backend/app/crypto/encryption.py`
   - AES-256-GCM encryption/decryption with debug/dev fallback master key
 - `backend/app/db.py`
@@ -85,7 +89,6 @@ Current DB-backed entities include:
 - execution records
 
 ## What Is Not Done Yet
-- structured negotiation state extraction
 - rule schema normalization beyond freeform text fields
 - turning chat outcomes into explicit deal offers automatically
 - contract-backed buyout settlement flow wired end-to-end
@@ -102,22 +105,12 @@ The following older statements are no longer true and should not be repeated:
 The repo is now in **prototype implementation** phase, not planning phase.
 
 ## Recommended Next Slice
-**Add structured negotiation state and show it in the UI.**
+**Turn structured negotiation state into actual workflow.**
 
-Why this is the best next move:
-- creates visible product progress fast
-- makes the chat feel like a real workflow, not just styled conversation
-- gives a clean bridge into offer-generation and settlement later
-- is a smaller/more legible public-repo slice than jumping straight into contracts
-
-Suggested state fields:
-- token
-- amount
-- seller ask
-- urgency
-- merchant stance
-- missing information
-- next action
+Best follow-ups:
+1. convert accepted negotiation states into `DealOffer` records
+2. define normalized merchant-rule schema
+3. make `next_action` drive explicit seller/merchant workflow transitions
 
 ## Secondary Follow-Up Slice
 After structured negotiation state:

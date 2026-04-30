@@ -91,6 +91,15 @@ export const Shops = {
 // Negotiations
 // ---------------------------------------------------------------------------
 
+export interface NegotiationState {
+  token: string;
+  amount: string;
+  seller_ask: string;
+  urgency: string;
+  merchant_stance: string;
+  next_action: string;
+}
+
 export interface NegotiationSession {
   id: string;
   shop_id: string;
@@ -100,6 +109,7 @@ export interface NegotiationSession {
   settled: boolean;
   chat_log: string; // JSON string
   outcome: string | null;
+  negotiation_state: NegotiationState | null;
   agreed_payout: string | null;
   error_message: string | null;
   created_at: string;
@@ -121,6 +131,7 @@ export interface ChatResponse {
   provider: string | null;
   model: string | null;
   used_fallback: boolean;
+  negotiation_state: NegotiationState | null;
 }
 
 export const Negotiations = {

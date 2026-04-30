@@ -1,7 +1,7 @@
 # Pawn Agent — Roadmap
 
 ## Milestone 1 — Working Negotiation Prototype
-**Status:** mostly achieved
+**Status:** achieved
 
 Includes:
 - owner-configured shop fields
@@ -12,19 +12,16 @@ Includes:
 - graceful provider failure fallback
 
 ## Milestone 2 — Structured Negotiation Productization
-**Status:** next
+**Status:** achieved / ready for follow-on workflow work
 
-Goal:
-Turn the merchant chat from a good demo into a more product-shaped workflow.
-
-Deliverables:
+Delivered:
 - extracted negotiation summary/state
 - visible negotiation side panel
-- clearer “what happens next” guidance
-- tests around state extraction and response modes
+- clearer immediate “what is happening now” context in the UI
+- backend tests around state extraction and persistence
 
 ## Milestone 3 — Deal Generation Layer
-**Status:** pending
+**Status:** next
 
 Deliverables:
 - explicit offer creation from negotiation outcomes

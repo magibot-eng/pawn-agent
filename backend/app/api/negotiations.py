@@ -117,6 +117,7 @@ class ChatResponse(BaseModel):
     provider: str | None = None
     model: str | None = None
     used_fallback: bool = False
+    negotiation_state: dict[str, str] | None = None
 
 
 @router.post("/{negotiation_id}/chat", response_model=ChatResponse)

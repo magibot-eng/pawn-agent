@@ -81,6 +81,7 @@ def upgrade() -> None:
         sa.Column('settled', sa.Boolean, server_default='0', nullable=False),
         sa.Column('chat_log', sa.Text, server_default='[]', nullable=False),
         sa.Column('outcome', sa.String(32), nullable=True),
+        sa.Column('negotiation_state', sa.JSON(), nullable=True),
         sa.Column('agreed_payout', sa.String(78), nullable=True),
         sa.Column('error_message', sa.Text, nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
