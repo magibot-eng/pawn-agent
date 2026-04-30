@@ -13,6 +13,16 @@ logger = logging.getLogger(__name__)
 Provider = Literal["openai", "anthropic", "openrouter"]
 
 
+def _normalize_chat_role(role: str) -> str:
+    if role in ("system", "assistant", "user"):
+        return role
+    if role == "merchant":
+        return "assistant"
+    if role == "seller":
+        return "user"
+    return "user"
+
+
 class NegotiationError(Exception):
     """Raised when LLM call or response parsing fails."""
     pass
@@ -30,9 +40,7 @@ async def call_llm(
 
     messages = []
     for entry in chat_history:
-        role = entry.get("sender", "user")
-        if role not in ("user", "assistant", "merchant", "seller"):
-            role = "user"
+        role = _normalize_chat_role(entry.get("sender", "user"))
         messages.append({"role": role, "content": entry.get("text", "")})
     messages.append({"role": "user", "content": user_message})
 
