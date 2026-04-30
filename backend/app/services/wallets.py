@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import shlex
 import subprocess
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 
 from app.config import get_settings
 from app.models.shop import Shop, ShopWalletStatus
@@ -34,11 +36,58 @@ class WalletStatusDetails:
     balance_symbol: str | None
 
 
+@dataclass
+class WalletTransferResult:
+    recipient_address: str
+    amount_eth: str
+    amount_wei: str
+    state: str
+    tx_hash: str
+
+
 class WalletProvisioningError(Exception):
     """Raised when live wallet provisioning is requested but unavailable."""
 
 
+def _eth_amount_to_wei(amount: str) -> str:
+    try:
+        decimal_amount = Decimal(amount)
+    except InvalidOperation as exc:
+        raise WalletProvisioningError(f"Invalid ETH amount: {amount}") from exc
 
+    if decimal_amount <= 0:
+        raise WalletProvisioningError("ETH amount must be greater than zero.")
+
+    wei_amount = decimal_amount * Decimal("1000000000000000000")
+    if wei_amount != wei_amount.to_integral_value():
+        raise WalletProvisioningError("ETH amount must use 18 decimals or fewer.")
+
+    return str(int(wei_amount))
+
+
+def _parse_awal_send_output(output: str) -> tuple[str, str]:
+    tx_hash = None
+    state = "submitted"
+
+    if output:
+        try:
+            payload = json.loads(output)
+        except json.JSONDecodeError:
+            payload = None
+
+        if isinstance(payload, dict):
+            tx_hash = payload.get("transactionHash") or payload.get("txHash") or payload.get("hash")
+            state = payload.get("status") or payload.get("state") or state
+
+        if not tx_hash:
+            match = re.search(r"0x[a-fA-F0-9]{6,}", output)
+            if match:
+                tx_hash = match.group(0)
+
+    if not tx_hash:
+        raise WalletProvisioningError(f"Could not parse transaction hash from awal send output: {output or 'empty output'}")
+
+    return tx_hash, state
 def _derive_stub_wallet(shop: Shop) -> tuple[str, str]:
     """Derive deterministic stub provider ids for local/dev provisioning."""
     digest = hashlib.sha256(f"{shop.id}:{shop.ens_name}".encode()).hexdigest()
@@ -174,3 +223,46 @@ async def provision_managed_wallet(shop: Shop) -> Shop:
     shop.merchant_address = address
     shop.wallet_status = ShopWalletStatus.ACTIVE
     return shop
+
+
+async def withdraw_eth_to_owner(shop: Shop, amount_eth: str) -> WalletTransferResult:
+    """Send ETH from the live merchant wallet back to the shop owner wallet."""
+    if shop.wallet_provider != "cdp_agentic_wallet":
+        raise WalletProvisioningError(f"Unsupported wallet provider: {shop.wallet_provider}")
+
+    if shop.wallet_status != ShopWalletStatus.ACTIVE or not shop.merchant_address or shop.merchant_address == ZERO_ADDRESS:
+        raise WalletProvisioningError("Merchant wallet is not active yet.")
+
+    if not shop.wallet_provider_account_id or not shop.wallet_provider_account_id.startswith("cdpwa_live_"):
+        raise WalletProvisioningError(
+            "Merchant wallet is not in live Base Sepolia mode yet. Authenticate the CDP Agentic Wallet and re-provision before withdrawing funds."
+        )
+
+    settings = get_settings()
+    if not settings.cdp_wallet_live_enabled:
+        raise WalletProvisioningError("Live CDP wallet mode must be enabled for merchant-wallet withdrawals.")
+    if settings.cdp_wallet_chain != "base-sepolia":
+        raise WalletProvisioningError("Merchant-wallet withdrawals are currently restricted to Base Sepolia.")
+
+    recipient_address = shop.owner_address
+    amount_wei = _eth_amount_to_wei(amount_eth)
+    output = _run_awal(
+        [
+            "send",
+            amount_eth,
+            recipient_address,
+            "--chain",
+            settings.cdp_wallet_chain,
+            "--asset",
+            "ETH",
+            "--json",
+        ]
+    )
+    tx_hash, state = _parse_awal_send_output(output)
+    return WalletTransferResult(
+        recipient_address=recipient_address,
+        amount_eth=amount_eth,
+        amount_wei=amount_wei,
+        state=state,
+        tx_hash=tx_hash,
+    )

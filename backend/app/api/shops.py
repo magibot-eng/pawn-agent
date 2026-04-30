@@ -17,8 +17,10 @@ from app.schemas.shop import (
     ShopEnsIdentityCreate,
     ShopEnsIdentityResponse,
     ShopWalletStatusResponse,
+    ShopWalletWithdrawRequest,
+    ShopWalletTransferResponse,
 )
-from app.services.wallets import provision_managed_wallet, get_wallet_status_details
+from app.services.wallets import provision_managed_wallet, get_wallet_status_details, withdraw_eth_to_owner, WalletProvisioningError
 
 router = APIRouter(prefix="/shops", tags=["shops"])
 
@@ -159,6 +161,33 @@ async def get_shop_wallet_status(
 
     details = get_wallet_status_details(shop)
     return ShopWalletStatusResponse(**details.__dict__)
+
+
+@router.post("/{shop_id}/wallet/withdraw", response_model=ShopWalletTransferResponse)
+async def withdraw_shop_wallet_to_owner(
+    shop_id: str,
+    data: ShopWalletWithdrawRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Send ETH from the live merchant wallet back to the owner wallet."""
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if shop is None:
+        raise HTTPException(status_code=404, detail="Shop not found")
+
+    try:
+        transfer = await withdraw_eth_to_owner(shop, data.amount_eth)
+    except WalletProvisioningError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return ShopWalletTransferResponse(
+        success=True,
+        recipient_address=transfer.recipient_address,
+        amount_eth=transfer.amount_eth,
+        amount_wei=transfer.amount_wei,
+        state=transfer.state,
+        tx_hash=transfer.tx_hash,
+    )
 
 
 # ---------------------------------------------------------------------------

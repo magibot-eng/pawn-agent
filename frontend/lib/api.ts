@@ -92,6 +92,15 @@ export interface ShopWalletStatus {
   balance_symbol: string | null;
 }
 
+export interface ShopWalletTransferResponse {
+  success: boolean;
+  recipient_address: string;
+  amount_eth: string;
+  amount_wei: string;
+  state: string;
+  tx_hash: string;
+}
+
 export const Shops = {
   create: (data: CreateShop) =>
     request<Shop>("/shops", { method: "POST", body: JSON.stringify(data) }),
@@ -111,6 +120,12 @@ export const Shops = {
 
   walletStatus: (id: string) =>
     request<ShopWalletStatus>(`/shops/${id}/wallet/status`),
+
+  withdrawToOwner: (id: string, amount_eth: string) =>
+    request<ShopWalletTransferResponse>(`/shops/${id}/wallet/withdraw`, {
+      method: "POST",
+      body: JSON.stringify({ amount_eth }),
+    }),
 };
 
 // ---------------------------------------------------------------------------

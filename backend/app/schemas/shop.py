@@ -142,3 +142,16 @@ class ShopWalletStatusResponse(BaseModel):
     authenticated_email: str | None
     balance: str | None
     balance_symbol: str | None
+
+
+class ShopWalletWithdrawRequest(BaseModel):
+    amount_eth: Annotated[str, Field(max_length=78, description="ETH amount to withdraw from merchant wallet to owner wallet")]
+
+
+class ShopWalletTransferResponse(BaseModel):
+    success: bool
+    recipient_address: str
+    amount_eth: str
+    amount_wei: str
+    state: str
+    tx_hash: str

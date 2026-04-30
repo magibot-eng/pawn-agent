@@ -2,9 +2,31 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { ProviderKeys, Shops, type CreateProviderKey, type ProviderKey, type ProviderKeyTestResult, type Shop, type ShopWalletStatus } from '../../lib/api';
+import { getAddress, isAddress, parseEther } from 'viem';
+import { ProviderKeys, Shops, type CreateProviderKey, type ProviderKey, type ProviderKeyTestResult, type Shop, type ShopWalletStatus, type ShopWalletTransferResponse } from '../../lib/api';
 
 const STORAGE_KEY = 'pawn-agent:selected-store';
+const BASE_SEPOLIA_CHAIN_ID = '0x14a34';
+
+type EthereumProvider = {
+  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+  on?(event: string, listener: (...args: unknown[]) => void): void;
+  removeListener?(event: string, listener: (...args: unknown[]) => void): void;
+};
+
+declare global {
+  interface Window {
+    ethereum?: EthereumProvider;
+  }
+}
+
+function formatWallet(address: string) {
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
+}
+
+function normalizeEthAmount(value: string) {
+  return value.trim();
+}
 
 type OwnerForm = {
   display_name: string;
@@ -60,6 +82,14 @@ export default function OwnerPage() {
   const [error, setError] = useState<string | null>(null);
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
   const [ensName, setEnsName] = useState<string | null>(null);
+  const [connectedWallet, setConnectedWallet] = useState<string | null>(null);
+  const [walletConnecting, setWalletConnecting] = useState(false);
+  const [fundAmount, setFundAmount] = useState('0.0001');
+  const [withdrawAmount, setWithdrawAmount] = useState('0.0001');
+  const [funding, setFunding] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [fundTransfer, setFundTransfer] = useState<{ tx_hash: string; amount_eth: string } | null>(null);
+  const [withdrawTransfer, setWithdrawTransfer] = useState<ShopWalletTransferResponse | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -138,8 +168,193 @@ export default function OwnerPage() {
     };
   }, []);
 
+  useEffect(() => {
+    async function restoreWallet() {
+      if (!window.ethereum) return;
+      try {
+        const accounts = (await window.ethereum.request({ method: 'eth_accounts' })) as string[];
+        const first = accounts[0];
+        if (!first || !isAddress(first)) return;
+        setConnectedWallet(getAddress(first));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    const provider = window.ethereum;
+    const handleAccountsChanged = async (...args: unknown[]) => {
+      const [accounts] = args as [string[]];
+      const first = accounts?.[0];
+      if (!first || !isAddress(first)) {
+        setConnectedWallet(null);
+        return;
+      }
+      setConnectedWallet(getAddress(first));
+    };
+
+    provider?.on?.('accountsChanged', handleAccountsChanged);
+    restoreWallet();
+
+    return () => {
+      provider?.removeListener?.('accountsChanged', handleAccountsChanged);
+    };
+  }, []);
+
   const activeKey = useMemo(() => providerKeys.find((key) => key.is_active) ?? null, [providerKeys]);
   const storefrontHref = shop ? `/shop/${encodeURIComponent(shop.ens_name)}` : '/';
+
+  async function refreshWalletStatus(shopId: string) {
+    const wallet = await Shops.walletStatus(shopId);
+    setWalletStatus(wallet);
+    return wallet;
+  }
+
+  async function connectOwnerWallet() {
+    if (!window.ethereum) {
+      setError('No browser wallet detected. Install MetaMask or another injected wallet.');
+      return;
+    }
+
+    try {
+      setWalletConnecting(true);
+      setError(null);
+      const accounts = (await window.ethereum.request({ method: 'eth_requestAccounts' })) as string[];
+      const first = accounts[0];
+      if (!first || !isAddress(first)) {
+        throw new Error('Wallet did not return a valid address.');
+      }
+      setConnectedWallet(getAddress(first));
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Could not connect owner wallet.');
+    } finally {
+      setWalletConnecting(false);
+    }
+  }
+
+  async function switchOwnerWallet() {
+    if (!window.ethereum) {
+      setError('No browser wallet detected. Install MetaMask or another injected wallet.');
+      return;
+    }
+
+    try {
+      setWalletConnecting(true);
+      setError(null);
+      await window.ethereum.request({
+        method: 'wallet_requestPermissions',
+        params: [{ eth_accounts: {} }],
+      });
+      const accounts = (await window.ethereum.request({ method: 'eth_requestAccounts' })) as string[];
+      const first = accounts[0];
+      if (!first || !isAddress(first)) {
+        throw new Error('Wallet did not return a valid address after switching accounts.');
+      }
+      setConnectedWallet(getAddress(first));
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Could not switch owner wallet.');
+    } finally {
+      setWalletConnecting(false);
+    }
+  }
+
+  function disconnectOwnerWallet() {
+    setConnectedWallet(null);
+    setNotice('Browser wallet disconnected from this page.');
+    setError(null);
+  }
+
+  async function ensureBaseSepoliaChain() {
+    if (!window.ethereum) {
+      throw new Error('No browser wallet detected.');
+    }
+
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: BASE_SEPOLIA_CHAIN_ID }],
+      });
+    } catch (err) {
+      throw new Error('Switch the connected browser wallet to Base Sepolia before funding the merchant wallet.');
+    }
+  }
+
+  async function fundMerchantWallet() {
+    if (!shop) return;
+    if (!window.ethereum) {
+      setError('No browser wallet detected. Install MetaMask or another injected wallet.');
+      return;
+    }
+    if (!connectedWallet) {
+      setError('Connect the owner wallet in this browser before funding the merchant wallet.');
+      return;
+    }
+    if (!ownerAddress || getAddress(connectedWallet) !== getAddress(ownerAddress)) {
+      setError('The connected browser wallet must match the shop owner wallet before funding the merchant wallet.');
+      return;
+    }
+    if (!shop.merchant_address || shop.merchant_address === '0x0000000000000000000000000000000000000000') {
+      setError('Provision the merchant wallet before funding it.');
+      return;
+    }
+
+    const amountEth = normalizeEthAmount(fundAmount);
+    if (!amountEth) {
+      setError('Enter an ETH amount to fund the merchant wallet.');
+      return;
+    }
+
+    try {
+      setFunding(true);
+      setError(null);
+      setNotice(null);
+      setFundTransfer(null);
+      await ensureBaseSepoliaChain();
+      const txHash = await window.ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: connectedWallet,
+          to: shop.merchant_address,
+          value: `0x${parseEther(amountEth).toString(16)}`,
+        }],
+      }) as string;
+      setFundTransfer({ tx_hash: txHash, amount_eth: amountEth });
+      await refreshWalletStatus(shop.id);
+      setNotice(`Funding transaction submitted from owner wallet to merchant wallet. Tx ${txHash}.`);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Could not fund the merchant wallet.');
+    } finally {
+      setFunding(false);
+    }
+  }
+
+  async function withdrawMerchantFunds() {
+    if (!shop) return;
+
+    const amountEth = normalizeEthAmount(withdrawAmount);
+    if (!amountEth) {
+      setError('Enter an ETH amount to withdraw to the owner wallet.');
+      return;
+    }
+
+    try {
+      setWithdrawing(true);
+      setError(null);
+      setNotice(null);
+      setWithdrawTransfer(null);
+      const transfer = await Shops.withdrawToOwner(shop.id, amountEth);
+      setWithdrawTransfer(transfer);
+      await refreshWalletStatus(shop.id);
+      setNotice(`Merchant-wallet withdrawal submitted back to owner wallet. Tx ${transfer.tx_hash}.`);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Could not withdraw funds from the merchant wallet.');
+    } finally {
+      setWithdrawing(false);
+    }
+  }
 
   function updateField<K extends keyof OwnerForm>(key: K, value: OwnerForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -198,8 +413,7 @@ export default function OwnerPage() {
       setError(null);
       const updated = await Shops.provisionWallet(shop.id);
       setShop(updated);
-      const wallet = await Shops.walletStatus(shop.id);
-      setWalletStatus(wallet);
+      await refreshWalletStatus(shop.id);
       setNotice('Merchant wallet provisioned. This shop can now use a separate operational wallet for automated settlement.');
     } catch (err) {
       console.error(err);
@@ -375,7 +589,84 @@ export default function OwnerPage() {
                   </div>
                 </div>
                 <div className="mt-3 rounded-panel border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-xs text-amber-100">
-                  This currently provisions a deterministic CDP-style stub wallet so the product flow can be exercised before live CDP credentials are wired in.
+                  Live settlement and merchant-wallet withdrawals require a live `awal` wallet on Base Sepolia. Stub wallets are useful for flow testing only.
+                </div>
+              </section>
+
+              <section className="merchant-inset rounded-panel p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Wallet funding</p>
+                    <p className="mt-2 text-sm text-[#f0dfb4]">
+                      Move Base Sepolia ETH between the owner wallet and the merchant wallet so settlement testing can happen without leaving the product flow.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={connectedWallet ? switchOwnerWallet : connectOwnerWallet}
+                      disabled={walletConnecting}
+                      className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow disabled:opacity-60"
+                    >
+                      {walletConnecting ? 'Connecting…' : connectedWallet ? 'Switch owner wallet' : 'Connect owner wallet'}
+                    </button>
+                    {connectedWallet ? (
+                      <button
+                        onClick={disconnectOwnerWallet}
+                        className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow"
+                      >
+                        Disconnect
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#f4e7c7]">
+                  <div className="space-y-2">
+                    <p><span className="text-onSurfaceVariant">Shop owner wallet:</span> {ownerAddress ? `${formatWallet(ownerAddress)} • ${ownerAddress}` : 'Unknown'}</p>
+                    <p><span className="text-onSurfaceVariant">Connected browser wallet:</span> {connectedWallet ? `${formatWallet(connectedWallet)} • ${connectedWallet}` : 'Not connected'}</p>
+                    <p><span className="text-onSurfaceVariant">Merchant wallet:</span> {walletStatus?.merchant_address ?? shop.merchant_address}</p>
+                    <p><span className="text-onSurfaceVariant">Network:</span> Base Sepolia</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-panel border border-outlineVariant bg-surfaceLowest p-4">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Owner → Merchant</p>
+                    <p className="mt-2 text-sm text-[#f0dfb4]">Use the connected browser owner wallet to top up the merchant wallet with Base Sepolia ETH.</p>
+                    <label className="mt-3 grid gap-2 text-sm text-[#f4e7c7]">
+                      <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Amount (ETH)</span>
+                      <input value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} className="rounded-panel border border-outlineVariant bg-maritime px-3 py-3 text-onSurface outline-none" />
+                    </label>
+                    <button
+                      onClick={fundMerchantWallet}
+                      disabled={funding}
+                      className="mt-3 w-full rounded-panel border border-outlineVariant bg-primary px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-black disabled:opacity-60"
+                    >
+                      {funding ? 'Funding…' : 'Fund merchant wallet'}
+                    </button>
+                    {fundTransfer ? (
+                      <p className="mt-3 text-xs text-emerald-200">Submitted {fundTransfer.amount_eth} ETH. Tx: {fundTransfer.tx_hash}</p>
+                    ) : null}
+                  </div>
+
+                  <div className="rounded-panel border border-outlineVariant bg-surfaceLowest p-4">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant → Owner</p>
+                    <p className="mt-2 text-sm text-[#f0dfb4]">Use the live merchant wallet to withdraw Base Sepolia ETH back to the owner wallet.</p>
+                    <label className="mt-3 grid gap-2 text-sm text-[#f4e7c7]">
+                      <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Amount (ETH)</span>
+                      <input value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="rounded-panel border border-outlineVariant bg-maritime px-3 py-3 text-onSurface outline-none" />
+                    </label>
+                    <button
+                      onClick={withdrawMerchantFunds}
+                      disabled={withdrawing}
+                      className="mt-3 w-full rounded-panel border border-outlineVariant bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary disabled:opacity-60"
+                    >
+                      {withdrawing ? 'Withdrawing…' : 'Withdraw to owner wallet'}
+                    </button>
+                    {withdrawTransfer ? (
+                      <p className="mt-3 text-xs text-emerald-200">Submitted {withdrawTransfer.amount_eth} ETH back to {formatWallet(withdrawTransfer.recipient_address)}. Tx: {withdrawTransfer.tx_hash}</p>
+                    ) : null}
+                  </div>
                 </div>
               </section>
 
