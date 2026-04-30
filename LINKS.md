@@ -1,5 +1,16 @@
 # Pawn Agent — Reference Links
 
+## Core Project Docs
+- `README.md` — public project overview
+- `PROJECT.md` — concise project brief + resume context
+- `STATUS.md` — top-level current snapshot
+- `TASKS.md` — current execution queue / best resume point
+- `ROADMAP.md` — milestone view
+- `docs/DESIGN.md` — canonical product design source of truth
+- `docs/STATE.md` — current implementation-state summary
+- `docs/API.md` — current backend API surface
+- `docs/IMPLEMENTATION_PLAN.md` — older execution plan (use with caution where it conflicts with current state)
+
 ## Core Product References
 - [ENS Documentation](https://docs.ens.domains)
 - [ENS Building with AI](https://docs.ens.domains/building-with-ai/)
@@ -33,10 +44,3 @@
 - [Dexscreener API](https://docs.dexscreener.com/api/reference)
 - [CoinGecko API](https://docs.coingecko.com/)
 - [Chainlink Data Feeds](https://docs.chain.link/data-feeds)
-
-## Project Docs
-- `README.md` — public project overview
-- `docs/DESIGN.md` — canonical product design source of truth
-- `docs/IMPLEMENTATION_PLAN.md` — canonical execution roadmap
-- `docs/STATE.md` — current project-state summary
-- `STATUS.md` — high-level project snapshot

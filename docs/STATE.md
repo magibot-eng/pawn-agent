@@ -1,77 +1,141 @@
 # Pawn Agent — Project State
 
-**Status:** Design Locked | Implementation Plan Complete | Execution Not Started
-**Last Updated:** 2026-04-29
+**Status:** Active Hackathon MVP | Frontend/Backend Prototype Live | Contracts Incomplete
+**Last Updated:** 2026-04-30
+**Branch / HEAD verified during audit:** `main` @ `97bfc77`
 
-## Where We Are
+## Executive Summary
+Pawn Agent is no longer in a planning-only state.
 
-- [x] Product direction narrowed to **ENS prize only**
-- [x] MVP reframed as **buyout-first** rather than loan-first
-- [x] Canonical design doc updated (`docs/DESIGN.md`)
-- [x] Implementation plan written (`docs/IMPLEMENTATION_PLAN.md`)
-- [x] Existing repo scaffold audited
-- [ ] Repo docs modernized for public OSS review
-- [ ] Frontend scaffold created
-- [ ] Backend scaffold created
-- [ ] Buyout settlement contract implemented
-- [ ] Merchant onboarding flow implemented
-- [ ] Encrypted API key storage implemented
-- [ ] Merchant rules UI and negotiation runtime implemented
+The current repo already supports a real prototype loop:
+- create/load a demo ENS shop
+- edit merchant-facing shop settings
+- save encrypted provider API keys
+- open negotiation sessions
+- chat with the merchant runtime
+- visibly distinguish live LLM, scripted fallback, provider-error fallback, and disconnected demo mode
 
-## Locked Decisions
+This is enough for a convincing hackathon MVP demo shell, but not enough for a complete buyout product yet.
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Prize focus | ENS only | Keeps the product story clean and tightly scoped |
-| Product model | Discounted token buyout merchant first | Simpler than collateralized lending for MVP; fits distressed-token use case |
-| Chain | Base Sepolia only | Lowest-complexity demo environment |
-| Identity model | Root ENS name canonical; subdomain optional | Strong ENS identity without overcommitting to one subdomain path |
-| Durin reliance | Optional convenience, not core dependency | Avoids identity lock-in and chain-specific constraints |
-| Asset type | ERC-20 only | Keeps valuation and settlement tractable for v1 |
-| Token coverage | Start with faucet-accessible Base Sepolia assets | Lets the demo expand incrementally |
-| LLM providers | OpenAI, Anthropic, OpenRouter | Focused initial provider set |
-| LLM key storage | Persisted encrypted server-side storage | Required for persistent merchant shops |
-| AWS dependency | Not required for MVP | Simpler initial implementation; can add KMS/Secrets Manager later |
-| Execution model | Autonomous execution inside hard rules | Delivers the core agent experience while staying bounded |
-| Storefront fidelity | Easiest viable 2D / lightweight immersive merchant UI first | Better scope control than pseudo-3D or full scene work |
-| Repo policy | Public open-source repo with frequent small commits | Required for verification and healthy execution discipline |
+## Verified During This Audit
+Read-only/runtime checks performed on 2026-04-30:
+- `backend`: `python -m pytest -q` → **1 passed**
+- fresh Uvicorn boot on temp port → `/health` returned **200**
+- fresh `POST /shops/{shop_id}/provider-keys` → **201 Created**
+- local SQLite state confirmed existing shops, provider keys, and negotiation sessions
 
-## Current Repo Reality
+Important note:
+- the reported ASGI crash was caused by an **older runtime instance** using the bad `AESGCM.encrypt(..., aad=None)` call shape
+- current checked-in `backend/app/crypto/encryption.py` already uses the corrected call and the route now works live
 
-### Canonical docs
-- `docs/DESIGN.md` — product source of truth
-- `docs/IMPLEMENTATION_PLAN.md` — execution source of truth
+## What Is Implemented
 
-### Legacy scaffolds still present
-These files exist but reflect the older loan-first concept and must be replaced or rewritten during early implementation:
-- `contracts/src/PawnShop.sol`
-- `config/shop_rules.yaml`
-- `.env.example`
-- `requirements.txt` (root-level exploratory dependency list)
+### Frontend
+- `frontend/app/page.tsx`
+  - combined owner-config + live seller chat demo surface
+  - creates/loads demo shop
+  - can create fresh negotiation sessions
+  - can save provider keys
+- `frontend/app/owner/page.tsx`
+  - dedicated owner dashboard
+  - edits merchant persona, buying preferences, pricing posture, refusal rules, welcome line
+  - saves provider keys
+- `frontend/components/MerchantChat.tsx`
+  - loads persisted chat history
+  - sends seller messages to backend chat route
+  - displays runtime badge for:
+    - `demo_disconnected`
+    - `scripted_fallback`
+    - `live_llm`
+    - `provider_error_fallback`
 
-### Repo state
-- Git repo exists
-- commit discipline requirement is locked
-- repo should remain public and open source
+### Backend
+- `backend/app/main.py`
+  - FastAPI app, CORS, DB startup init, `/health`
+- `backend/app/api/shops.py`
+  - create/list/get/update shop
+  - add/list ENS identities
+- `backend/app/api/provider_keys.py`
+  - save/list encrypted provider keys
+- `backend/app/api/negotiations.py`
+  - create/get/update negotiation session
+  - list sessions by shop
+  - seller chat endpoint
+- `backend/app/api/deals.py`
+  - early deal/execution record endpoints exist
+- `backend/app/services/negotiations.py`
+  - loads shop + active provider key
+  - decrypts provider key when present
+  - calls provider runtime when available
+  - falls back gracefully to scripted merchant text on provider/decryption failure
+- `backend/app/crypto/encryption.py`
+  - AES-256-GCM encryption/decryption with debug/dev fallback master key
+- `backend/app/db.py`
+  - SQLite async engine
+  - startup table creation
+  - lightweight shop-column migration helper
 
-## Open Questions
+### Persistence Model
+Current DB-backed entities include:
+- shops
+- shop ENS identities
+- provider keys
+- negotiation sessions
+- deal offers
+- execution records
 
-1. Exact Base Sepolia test token set for initial demo
-2. Whether optional subdomain provisioning ships in v1 or v1.1
-3. How much market-data sophistication is needed in the first pricing heuristic
-4. Whether storefront visuals begin with static art, generated art, or lightly interactive presentation
+## What Is Not Done Yet
+- structured negotiation state extraction
+- rule schema normalization beyond freeform text fields
+- turning chat outcomes into explicit deal offers automatically
+- contract-backed buyout settlement flow wired end-to-end
+- production-grade ENS ownership verification/onchain integration
+- serious backend test coverage
+- updated implementation plan reflecting current actual milestone order
 
-## Next Actions
+## Reality vs Older Docs
+The following older statements are no longer true and should not be repeated:
+- "execution not started"
+- "backend scaffold not created"
+- "encrypted API key storage not implemented"
 
-1. Refresh public-facing repo docs (`README.md`, `LICENSE`, `docs/API.md`)
-2. Scaffold `frontend/` with Next.js + wallet/ENS foundation
-3. Scaffold `backend/` with FastAPI + DB/config foundation
-4. Replace the loan-era contract direction with a buyout settlement contract and tests
-5. Add encrypted provider key storage
-6. Add ENS merchant onboarding and shop creation flow
-7. Replace loan-era rules schema with buyout-first merchant rules
-8. Implement master prompt, negotiation runtime, and auto-execution gate
+The repo is now in **prototype implementation** phase, not planning phase.
 
-## Notes
+## Recommended Next Slice
+**Add structured negotiation state and show it in the UI.**
 
-If execution details drift from the design document, update `docs/DESIGN.md` first or explicitly record the rationale before proceeding.
+Why this is the best next move:
+- creates visible product progress fast
+- makes the chat feel like a real workflow, not just styled conversation
+- gives a clean bridge into offer-generation and settlement later
+- is a smaller/more legible public-repo slice than jumping straight into contracts
+
+Suggested state fields:
+- token
+- amount
+- seller ask
+- urgency
+- merchant stance
+- missing information
+- next action
+
+## Secondary Follow-Up Slice
+After structured negotiation state:
+1. define normalized merchant-rule schema
+2. convert accepted negotiation states into `DealOffer` records
+3. connect offer acceptance to contract/execution planning
+
+## Source of Truth Order
+When resuming work, use this order:
+1. `docs/DESIGN.md`
+2. `PROJECT.md`
+3. `docs/STATE.md`
+4. `TASKS.md`
+5. `ROADMAP.md`
+6. codebase
+
+## Notes for Future Mira / Arie Resume
+- treat `contracts/` as incomplete/legacy relative to the current MVP shell
+- current most trustworthy product surface is the frontend/backend demo loop, not the old execution plan ordering
+- keep commits single-concern and push immediately because the repo is public hackathon-facing
+- check `git status` before commit because scope discipline matters more than speed here

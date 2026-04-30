@@ -2,21 +2,36 @@
 
 ENS-native AI token buyout storefronts on Base Sepolia.
 
-Pawn Agent lets an ENS holder launch a configurable AI-powered token buyout shop, define hard buyout rules, securely connect an LLM API key, and publish a storefront where sellers negotiate discounted token exits with an autonomous merchant agent.
+Pawn Agent lets an ENS holder launch a configurable AI-powered token buyout shop, define merchant behavior, securely connect an LLM API key, and publish a storefront where sellers negotiate discounted token exits with an autonomous merchant agent.
 
 ## Status
 
-- **Phase:** Design locked, implementation planning complete
-- **Execution:** Not started
+- **Phase:** Active hackathon MVP prototype
+- **Execution:** In progress
 - **Prize focus:** ENS only
 - **MVP chain:** Base Sepolia
 - **Product model:** Buyout-first, not collateralized lending first
+- **Current reality:** frontend/backend prototype live; contracts still incomplete
 
 See:
-- `docs/DESIGN.md` — canonical product design source of truth
-- `docs/IMPLEMENTATION_PLAN.md` — canonical implementation roadmap
-- `docs/STATE.md` — current project-state summary
+- `PROJECT.md` — concise project brief + resume context
 - `STATUS.md` — top-level snapshot
+- `TASKS.md` — current next-work queue
+- `ROADMAP.md` — milestone view
+- `docs/DESIGN.md` — canonical product design source of truth
+- `docs/STATE.md` — current implementation-state summary
+- `docs/API.md` — backend API surface
+
+## What Exists Today
+
+The repo already includes a working prototype loop for:
+- owner-side shop configuration
+- encrypted provider-key save/list
+- seller-side merchant chat
+- runtime visibility for live AI vs fallback behavior
+- persisted negotiation sessions
+
+This means the project has moved beyond planning/scaffolding, but it is **not** yet a complete buyout product.
 
 ## What Pawn Agent Is
 
@@ -29,14 +44,14 @@ Each merchant can:
 - optionally add a shop subdomain later
 - define hard buyout rules and negotiation preferences
 - store an encrypted LLM provider key
-- launch a merchant-style storefront
-- let the AI merchant negotiate and auto-execute compliant deals
+- launch a storefront
+- let the AI merchant negotiate within merchant boundaries
 
 Each seller can:
 - visit a storefront
 - negotiate a discounted exit for a token position
 - accept or reject the merchant's offer
-- complete settlement onchain
+- eventually complete settlement onchain
 
 ## MVP Scope
 
@@ -87,43 +102,15 @@ may be added as an enhancement.
 
 Durin / Namestone is treated as an **optional convenience layer**, not a core dependency for MVP identity.
 
-## Merchant Configuration Model
-
-Merchants will configure structured controls rather than open-ended prompt editing.
-
-Expected merchant inputs include:
-- desired assets
-- excluded assets
-- buy-side budget constraints
-- target discount below visible market price
-- liquidity-sensitive pricing behavior
-- max exposure rules
-- min/max deal size
-- aggressiveness slider
-- merchant tone/persona presets
-
-The AI agent can act freely **inside** those hard rules and must reject actions **outside** them.
-
-## LLM Provider Support
-
-Initial supported providers:
-- OpenAI
-- Anthropic
-- OpenRouter
-
-API keys are intended to use **persisted encrypted server-side storage**.
-
-For MVP, AWS is **not required**. The initial implementation can use application-level encryption with a server-side master key, with room to upgrade later to KMS or a secrets manager.
-
 ## Technical Direction
 
-The planned repo architecture is a public monorepo with:
+The active monorepo shape is:
 
-- `frontend/` — Next.js storefront and merchant UI
-- `backend/` — FastAPI app for merchant config, encrypted secrets, rules, negotiation, and execution orchestration
-- `contracts/` — Foundry contracts for Base Sepolia settlement
+- `frontend/` — Next.js storefront and owner UI prototype
+- `backend/` — FastAPI app for shop config, encrypted secrets, negotiation, and early deal tracking
+- `contracts/` — Foundry contract area, still incomplete relative to current MVP shell
 - `config/` — rules/config examples
-- `docs/` — design, implementation, and state docs
+- `docs/` — design, implementation, API, and state docs
 
 ## Repository Rules
 
@@ -140,40 +127,24 @@ Development rules for this project:
 
 ## Current Repo Reality
 
-The repo currently contains some legacy exploratory scaffolds from the earlier loan-first concept:
+The repo still contains some legacy exploratory scaffolds from the earlier loan-first concept:
 - `contracts/src/PawnShop.sol`
 - `config/shop_rules.yaml`
 - `.env.example`
 
-These should be treated as pre-refactor scaffolds, not the final MVP architecture.
+Treat these as pre-refactor scaffolds, not the final MVP architecture.
 
-## Planned Execution Order
+## Current Recommended Next Step
 
-1. Repo hygiene and docs baseline
-2. Frontend/backend scaffolding
-3. Buyout settlement contract redesign
-4. Merchant data model and encrypted API key storage
-5. ENS onboarding
-6. Rules schema and UI
-7. LLM negotiation runtime
-8. Deal normalization and auto-execution
-9. Storefront UX
-10. Base Sepolia end-to-end demo
+Add **structured negotiation state** to the chat flow and show it in the UI.
 
-## Local Development
-
-Detailed setup instructions will evolve as the scaffold is built.
-
-Planned surfaces:
-- Frontend: Next.js + TypeScript
-- Backend: FastAPI + Python
-- Contracts: Foundry + Solidity
+That is the fastest path to making the prototype feel like a product instead of just a styled conversation demo.
 
 ## Source of Truth
 
-If this README ever drifts from the project docs, follow:
+If docs ever drift, follow this order:
 1. `docs/DESIGN.md`
-2. `docs/IMPLEMENTATION_PLAN.md`
-3. `docs/STATE.md`
-
-Those files are authoritative over this summary.
+2. `docs/STATE.md`
+3. `TASKS.md`
+4. `ROADMAP.md`
+5. `docs/API.md`
