@@ -101,7 +101,7 @@ async def _eth_call(to_address: str, data: str) -> str:
     return result
 
 
-async def _lookup_primary_ens_via_web3bio(address: str) -> tuple[str | None, bool]:
+async def _fetch_web3bio_profiles(address: str) -> list[dict[str, Any]]:
     normalized_address = address.strip().lower()
     url = f"https://api.web3.bio/profile/{normalized_address}"
     async with httpx.AsyncClient(timeout=15) as client:
@@ -109,16 +109,39 @@ async def _lookup_primary_ens_via_web3bio(address: str) -> tuple[str | None, boo
         response.raise_for_status()
         payload = response.json()
 
-    if not isinstance(payload, list) or not payload:
+    if not isinstance(payload, list):
+        return []
+    return [entry for entry in payload if isinstance(entry, dict)]
+
+
+async def _lookup_primary_ens_via_web3bio(address: str) -> tuple[str | None, bool]:
+    profiles = await _fetch_web3bio_profiles(address)
+    if not profiles:
         return None, False
 
-    first = payload[0] if isinstance(payload[0], dict) else {}
+    first = profiles[0]
     identity = str(first.get("identity") or "")
     display_name = str(first.get("displayName") or "")
     for candidate in (identity, display_name):
         if candidate and candidate.lower().endswith(".eth"):
             return candidate, False
     return None, False
+
+
+async def resolve_owned_ens_names(address: str) -> list[str]:
+    profiles = await _fetch_web3bio_profiles(address)
+    names: list[str] = []
+    seen: set[str] = set()
+    for profile in profiles:
+        for raw in (profile.get("identity"), profile.get("displayName")):
+            candidate = str(raw or "").strip().lower()
+            if not candidate.endswith(".eth"):
+                continue
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            names.append(candidate)
+    return names
 
 
 async def resolve_ens_owner_address(ens_name: str) -> str | None:

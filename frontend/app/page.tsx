@@ -55,6 +55,7 @@ export default function HomePage() {
   const {
     walletAddress,
     ensName: primaryEns,
+    ensNames,
     ensLookupError,
     disconnectWallet,
     connectError,
@@ -62,7 +63,7 @@ export default function HomePage() {
     resolveEnsOwnerAddress,
   } = useUnifiedWallet();
 
-  const [ensInput, setEnsInput] = useState('');
+  const [selectedEns, setSelectedEns] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [shop, setShop] = useState<Shop | null>(null);
@@ -97,7 +98,7 @@ export default function HomePage() {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as { owner?: string; ens?: string };
-        if (parsed.ens) setEnsInput(parsed.ens);
+        if (parsed.ens) setSelectedEns(parsed.ens);
       }
     } catch (err) {
       console.error(err);
@@ -109,13 +110,36 @@ export default function HomePage() {
     if (!walletAddress) return;
     setStatus(
       primaryEns
-        ? `Wallet connected through ${walletConnectorName ?? 'your wallet'}. Detected existing ENS: ${primaryEns}.`
-        : ensLookupError
-          ? `Wallet connected through ${walletConnectorName ?? 'your wallet'}. ${ensLookupError}`
-          : `Wallet connected through ${walletConnectorName ?? 'your wallet'}. No ENS detected on this wallet.`
+        ? `Wallet connected through ${walletConnectorName ?? 'your wallet'}. Using ENS identity ${primaryEns}.`
+        : ensNames.length > 0
+          ? `Wallet connected through ${walletConnectorName ?? 'your wallet'}. Select which ENS storefront identity to open.`
+          : ensLookupError
+            ? `Wallet connected through ${walletConnectorName ?? 'your wallet'}. ${ensLookupError}`
+            : `Wallet connected through ${walletConnectorName ?? 'your wallet'}. No ENS detected on this wallet.`
     );
     setError(null);
-  }, [walletAddress, primaryEns, ensLookupError, walletConnectorName]);
+  }, [walletAddress, primaryEns, ensNames, ensLookupError, walletConnectorName]);
+
+  useEffect(() => {
+    if (!walletAddress) {
+      setSelectedEns('');
+      return;
+    }
+
+    if (ensNames.length === 0) {
+      if (primaryEns && !selectedEns) {
+        setSelectedEns(primaryEns);
+      }
+      return;
+    }
+
+    if (selectedEns && ensNames.includes(selectedEns)) return;
+    if (primaryEns && ensNames.includes(primaryEns)) {
+      setSelectedEns(primaryEns);
+      return;
+    }
+    setSelectedEns(ensNames[0]);
+  }, [walletAddress, ensNames, primaryEns, selectedEns]);
 
   async function verifyEnsRoute(normalizedEns: string, ownerAddress: string) {
     const resolvedOwner = await resolveEnsOwnerAddress(normalizedEns);
@@ -131,7 +155,7 @@ export default function HomePage() {
   useEffect(() => {
     let active = true;
     async function refreshEnsVerification() {
-      const normalizedEns = ensInput.trim().toLowerCase();
+      const normalizedEns = selectedEns.trim().toLowerCase();
       if (!walletAddress || !looksLikeEns(normalizedEns)) {
         setEnsVerificationStatus('idle');
         setEnsVerificationMessage(null);
@@ -154,7 +178,7 @@ export default function HomePage() {
     }
     refreshEnsVerification();
     return () => { active = false; };
-  }, [ensInput, walletAddress, resolveEnsOwnerAddress]);
+  }, [selectedEns, walletAddress, resolveEnsOwnerAddress]);
 
   async function handleDisconnectWallet() {
     try {
@@ -164,8 +188,8 @@ export default function HomePage() {
       setError(null);
       const saved = window.localStorage.getItem(STORAGE_KEY);
       const parsed = saved ? (JSON.parse(saved) as { owner?: string; ens?: string }) : null;
-      const typedEns = ensInput.trim().toLowerCase();
-      const preservedEns = parsed?.ens ? parsed.ens : typedEns;
+      const chosenEns = selectedEns.trim().toLowerCase();
+      const preservedEns = parsed?.ens ? parsed.ens : chosenEns;
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preservedEns ? { ens: preservedEns } : {}));
     } catch (err) {
       console.error(err);
@@ -175,8 +199,8 @@ export default function HomePage() {
 
   async function createOrLoadStore() {
     if (!walletAddress) { setError('Connect a wallet first.'); return; }
-    if (!looksLikeEns(ensInput)) { setError('Enter a valid ENS or subdomain ending in .eth.'); return; }
-    const normalizedEns = ensInput.trim().toLowerCase();
+    if (!looksLikeEns(selectedEns)) { setError('Select one of the ENS identities tied to the connected wallet first.'); return; }
+    const normalizedEns = selectedEns.trim().toLowerCase();
     try {
       setCreating(true);
       setError(null);
@@ -278,7 +302,7 @@ export default function HomePage() {
           <div className="wallet-area">
             {walletAddress ? (
               <>
-                <span className="wallet-address">{formatWallet(walletAddress)}</span>
+                <span className="wallet-address">{primaryEns ?? formatWallet(walletAddress)}</span>
                 <button onClick={handleDisconnectWallet} className="wallet-disconnect">Disconnect</button>
               </>
             ) : (
@@ -351,21 +375,36 @@ export default function HomePage() {
                 {!shop ? (
                   <div className="door-merchant-setup">
                     <div className="merchant-inset-rounded">
-                      <input
-                        value={ensInput}
-                        onChange={(e) => setEnsInput(e.target.value)}
-                        placeholder="yourname.eth"
-                        className="parchment-input door-ens-input"
-                      />
+                      {walletAddress ? (
+                        ensNames.length > 0 ? (
+                          <select
+                            value={selectedEns}
+                            onChange={(e) => setSelectedEns(e.target.value)}
+                            className="parchment-input door-ens-input"
+                          >
+                            {ensNames.map((name) => (
+                              <option key={name} value={name}>{name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="parchment-input door-ens-input" style={{ display: 'flex', alignItems: 'center', opacity: 0.8 }}>
+                            No ENS identity found on this wallet
+                          </div>
+                        )
+                      ) : (
+                        <div className="parchment-input door-ens-input" style={{ display: 'flex', alignItems: 'center', opacity: 0.8 }}>
+                          Connect wallet to load ENS identities
+                        </div>
+                      )}
                       <button
                         onClick={createOrLoadStore}
-                        disabled={creating || !walletAddress}
+                        disabled={creating || !walletAddress || ensNames.length === 0 || !selectedEns}
                         className="door-open-btn"
                       >
                         {creating ? 'Preparing…' : walletAddress ? 'Open Your Door' : 'Connect Wallet First'}
                       </button>
                     </div>
-                    {looksLikeEns(ensInput) && ensVerificationStatus !== 'idle' ? (
+                    {looksLikeEns(selectedEns) && ensVerificationStatus !== 'idle' ? (
                       <div className={`ens-status-badge ${ensVerificationStatus}`}>
                         {ensVerificationStatus === 'verified' ? '✓ Verified' : ensVerificationStatus === 'checking' ? 'Checking…' : 'Manual route'}
                       </div>

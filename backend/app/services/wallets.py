@@ -7,6 +7,7 @@ import json
 import re
 import shlex
 import subprocess
+from subprocess import TimeoutExpired
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 
@@ -104,12 +105,15 @@ def _run_awal(args: list[str]) -> str:
     """
     settings = get_settings()
     base_cmd = shlex.split(settings.cdp_wallet_cli_command)
-    proc = subprocess.run(
-        base_cmd + args,
-        capture_output=True,
-        text=True,
-        timeout=45,
-    )
+    try:
+        proc = subprocess.run(
+            base_cmd + args,
+            capture_output=True,
+            text=True,
+            timeout=12,
+        )
+    except TimeoutExpired as exc:
+        raise WalletProvisioningError("Live merchant wallet command timed out. This environment may not be authenticated for awal.") from exc
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "unknown awal error").strip()
         raise WalletProvisioningError(detail)

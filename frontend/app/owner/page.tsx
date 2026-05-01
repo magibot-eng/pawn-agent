@@ -86,6 +86,8 @@ export default function OwnerPage() {
   const [form, setForm] = useState<OwnerForm>(EMPTY_FORM);
   const [providerKeys, setProviderKeys] = useState<ProviderKey[]>([]);
   const [walletStatus, setWalletStatus] = useState<ShopWalletStatus | null>(null);
+  const [walletStatusLoading, setWalletStatusLoading] = useState(false);
+  const [walletStatusError, setWalletStatusError] = useState<string | null>(null);
   const [provider, setProvider] = useState<CreateProviderKey['provider']>('openai');
   const [model, setModel] = useState(PROVIDER_DEFAULTS.openai.model);
   const [label, setLabel] = useState('Owner dashboard');
@@ -166,13 +168,27 @@ export default function OwnerPage() {
           merchant_portrait: activeShop.merchant_portrait ?? DEFAULT_MERCHANT_PORTRAIT_ID,
         });
 
-        const [keys, wallet] = await Promise.all([
-          ProviderKeys.list(activeShop.id),
-          Shops.walletStatus(activeShop.id),
-        ]);
+        const keys = await ProviderKeys.list(activeShop.id);
         if (!active) return;
         setProviderKeys(keys);
-        setWalletStatus(wallet);
+        setWalletStatus(null);
+        setWalletStatusError(null);
+        setWalletStatusLoading(true);
+        Shops.walletStatus(activeShop.id)
+          .then((wallet) => {
+            if (!active) return;
+            setWalletStatus(wallet);
+            setWalletStatusError(null);
+          })
+          .catch((walletErr) => {
+            console.error(walletErr);
+            if (!active) return;
+            setWalletStatusError(walletErr instanceof Error ? walletErr.message : 'Could not load wallet diagnostics.');
+          })
+          .finally(() => {
+            if (!active) return;
+            setWalletStatusLoading(false);
+          });
       } catch (err) {
         console.error(err);
         if (!active) return;
@@ -221,9 +237,19 @@ export default function OwnerPage() {
   const walletError = error ?? connectError;
 
   async function refreshWalletStatus(shopId: string) {
-    const wallet = await Shops.walletStatus(shopId);
-    setWalletStatus(wallet);
-    return wallet;
+    setWalletStatusLoading(true);
+    setWalletStatusError(null);
+    try {
+      const wallet = await Shops.walletStatus(shopId);
+      setWalletStatus(wallet);
+      return wallet;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not load wallet diagnostics.';
+      setWalletStatusError(message);
+      throw err;
+    } finally {
+      setWalletStatusLoading(false);
+    }
   }
 
   async function refreshTreasuryData(shopId: string) {
@@ -243,6 +269,9 @@ export default function OwnerPage() {
       } else {
         setMerchantChainBalance(null);
       }
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Could not refresh wallet diagnostics.');
     } finally {
       setWalletRefreshing(false);
     }
@@ -672,11 +701,11 @@ export default function OwnerPage() {
                       </div>
                       <button
                         onClick={provisionMerchantWallet}
-                        disabled={walletProvisioning || shop.wallet_status === 'active'}
+                        disabled={walletProvisioning || walletStatusLoading || shop.wallet_status === 'active'}
                         className="tavern-sign-link"
                         style={{ whiteSpace: 'nowrap' }}
                       >
-                        {shop.wallet_status === 'active' ? 'Wallet active' : walletProvisioning ? 'Provisioning…' : 'Provision wallet'}
+                        {shop.wallet_status === 'active' ? 'Wallet active' : walletProvisioning ? 'Provisioning…' : walletStatusLoading ? 'Checking…' : 'Provision wallet'}
                       </button>
                     </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -704,6 +733,11 @@ export default function OwnerPage() {
                     <div className="mt-4 rounded-panel border px-4 py-3 text-xs" style={{ borderColor: 'rgba(251,191,36,0.3)', background: 'rgba(120,53,15,0.2)', color: '#fcd34d' }}>
                       Live settlement, holdings, and merchant-wallet withdrawals require a live `awal` wallet on Base Sepolia. Stub wallets are useful for flow testing only.
                     </div>
+                    {walletStatusError ? (
+                      <div className="mt-4 rounded-panel border px-4 py-3 text-xs" style={{ borderColor: 'rgba(248,113,113,0.4)', background: 'rgba(127,29,29,0.3)', color: '#fecaca' }}>
+                        {walletStatusError}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 

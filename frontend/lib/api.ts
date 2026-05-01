@@ -144,8 +144,14 @@ export interface PrimaryEnsLookup {
   verified: boolean;
 }
 
+export interface OwnedEnsLookup {
+  address: string;
+  names: string[];
+}
+
 export const Ens = {
   primary: (address: string) => request<PrimaryEnsLookup>(`/ens/primary/${encodeURIComponent(address)}`),
+  owned: (address: string) => request<OwnedEnsLookup>(`/ens/owned/${encodeURIComponent(address)}`),
 };
 
 // ---------------------------------------------------------------------------
