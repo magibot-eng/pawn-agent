@@ -1,4 +1,4 @@
-"""Integration tests for ENS verification metadata on shops."""
+"""Integration tests for ENS verification metadata and claim enforcement on shops."""
 import httpx
 import pytest
 from httpx import ASGITransport
@@ -53,3 +53,48 @@ async def test_create_shop_persists_verified_ens_metadata(client):
     data = response.json()
     assert data["ens_verification_status"] == "verified"
     assert data["ens_verified_owner_address"] == "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0"
+
+
+@pytest.mark.asyncio
+async def test_create_shop_rejects_verified_ens_when_verified_owner_does_not_match_owner(client):
+    response = await client.post(
+        "/shops",
+        json={
+            "owner_address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0",
+            "ens_name": "mismatch.eth",
+            "display_name": "Mismatch Route",
+            "ens_verification_status": "verified",
+            "ens_verified_owner_address": "0x1111111111111111111111111111111111111111"
+        },
+    )
+
+    assert response.status_code == 400, response.text
+    assert "verified ENS owner address must match" in response.text
+
+
+@pytest.mark.asyncio
+async def test_create_shop_rejects_second_owner_claim_for_same_ens_route(client):
+    first = await client.post(
+        "/shops",
+        json={
+            "owner_address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0",
+            "ens_name": "wago.eth",
+            "display_name": "Wago Verified",
+            "ens_verification_status": "verified",
+            "ens_verified_owner_address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0"
+        },
+    )
+    assert first.status_code == 201, first.text
+
+    second = await client.post(
+        "/shops",
+        json={
+            "owner_address": "0x2222222222222222222222222222222222222222",
+            "ens_name": "wago.eth",
+            "display_name": "Wago Hijack Attempt",
+            "ens_verification_status": "manual"
+        },
+    )
+
+    assert second.status_code == 409, second.text
+    assert "already claimed" in second.text

@@ -217,7 +217,12 @@ export default function HomePage() {
       await loadMarketplaceShops();
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : 'Could not create or load store.');
+      const message = err instanceof Error ? err.message : 'Could not create or load store.';
+      if (message.includes('already claimed')) {
+        setError(`That ENS storefront route is already claimed. Connect the wallet that owns it, or choose a different .eth route.`);
+      } else {
+        setError(message);
+      }
     } finally {
       setCreating(false);
     }

@@ -25,16 +25,55 @@ from app.services.wallets import provision_managed_wallet, get_wallet_status_det
 router = APIRouter(prefix="/shops", tags=["shops"])
 
 
+def _normalize_ens_name(ens_name: str) -> str:
+    return ens_name.strip().lower()
+
+
+def _normalize_address(address: str) -> str:
+    return address.strip().lower()
+
+
+async def _ensure_ens_route_available(
+    db: AsyncSession,
+    ens_name: str,
+    *,
+    current_shop_id: str | None = None,
+) -> None:
+    result = await db.execute(select(Shop).where(Shop.ens_name == ens_name))
+    existing_shop = result.scalar_one_or_none()
+    if existing_shop and existing_shop.id != current_shop_id:
+        raise HTTPException(status_code=409, detail=f"ENS route {ens_name} is already claimed by another shop")
+
+
+def _validate_ens_verification(owner_address: str, verification_status: str | None, verified_owner_address: str | None) -> tuple[str, str | None]:
+    normalized_status = (verification_status or "manual").strip().lower()
+    if normalized_status == "verified":
+        if not verified_owner_address:
+            raise HTTPException(status_code=400, detail="A verified ENS route must include a verified owner address")
+        if _normalize_address(verified_owner_address) != _normalize_address(owner_address):
+            raise HTTPException(status_code=400, detail="A verified ENS owner address must match the shop owner wallet")
+        return normalized_status, verified_owner_address
+    return "manual", None
+
+
 @router.post("", response_model=ShopResponse, status_code=status.HTTP_201_CREATED)
 async def create_shop(
     data: ShopCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a new pawn shop for a merchant ENS identity."""
+    normalized_ens_name = _normalize_ens_name(data.ens_name)
+    normalized_verification_status, normalized_verified_owner_address = _validate_ens_verification(
+        owner_address=data.owner_address,
+        verification_status=data.ens_verification_status,
+        verified_owner_address=data.ens_verified_owner_address,
+    )
+    await _ensure_ens_route_available(db, normalized_ens_name)
+
     shop = Shop(
         id=str(uuid.uuid4()),
         owner_address=data.owner_address,
-        ens_name=data.ens_name,
+        ens_name=normalized_ens_name,
         display_name=data.display_name,
         description=data.description,
         merchant_persona=data.merchant_persona,
@@ -50,8 +89,8 @@ async def create_shop(
         wallet_provider_account_id=data.wallet_provider_account_id,
         wallet_status=data.wallet_status or ShopWalletStatus.PENDING,
         auto_settlement_enabled=data.auto_settlement_enabled,
-        ens_verification_status=data.ens_verification_status or "manual",
-        ens_verified_owner_address=data.ens_verified_owner_address,
+        ens_verification_status=normalized_verification_status,
+        ens_verified_owner_address=normalized_verified_owner_address,
     )
     db.add(shop)
     await db.flush()
@@ -112,8 +151,22 @@ async def update_shop(
     if shop is None:
         raise HTTPException(status_code=404, detail="Shop not found")
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+
+    next_ens_name = _normalize_ens_name(updates.get("ens_name", shop.ens_name))
+    next_verification_status, next_verified_owner_address = _validate_ens_verification(
+        owner_address=shop.owner_address,
+        verification_status=updates.get("ens_verification_status", shop.ens_verification_status),
+        verified_owner_address=updates.get("ens_verified_owner_address", shop.ens_verified_owner_address),
+    )
+    await _ensure_ens_route_available(db, next_ens_name, current_shop_id=shop.id)
+
+    for field, value in updates.items():
         setattr(shop, field, value)
+
+    shop.ens_name = next_ens_name
+    shop.ens_verification_status = next_verification_status
+    shop.ens_verified_owner_address = next_verified_owner_address
 
     await db.flush()
     # Eager-load ens_identities for response serialization

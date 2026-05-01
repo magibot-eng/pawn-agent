@@ -31,6 +31,10 @@ function formatHoldingLabel(asset: string, chain?: string | null) {
   return chain ? `${asset} • ${chain}` : asset;
 }
 
+function ensVerificationLabel(status: string | null | undefined) {
+  return (status ?? 'manual').toLowerCase() === 'verified' ? 'Verified ENS storefront' : 'Manual ENS route';
+}
+
 type OwnerForm = {
   display_name: string;
   description: string;
@@ -445,6 +449,8 @@ export default function OwnerPage() {
               <p className="mt-2 max-w-2xl break-words text-sm leading-6 text-[#f0dfb4]">
                 Owner-administered storefront for <span className="text-onSurface">{shop.ens_name}</span>, with a separate merchant wallet for automated settlement.
               </p>
+              <p className="mt-2 text-xs uppercase tracking-[0.22em] text-[#d8caa3]">{ensVerificationLabel(shop.ens_verification_status)}</p>
+              {shop.ens_verified_owner_address ? <p className="mt-2 break-all text-xs text-[#cbb68c]">Resolved owner {shop.ens_verified_owner_address}</p> : null}
               <p className="mt-2 break-all text-xs uppercase tracking-[0.24em] text-onSurfaceVariant">Owner {ownerAddress ?? shop.owner_address}</p>
             </div>
             <div className="merchant-inset rounded-panel p-3 sm:min-w-[13rem]">

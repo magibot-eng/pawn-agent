@@ -19,6 +19,10 @@ function formatWallet(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
+function ensVerificationLabel(status: string | null | undefined) {
+  return (status ?? 'manual').toLowerCase() === 'verified' ? 'Verified ENS storefront' : 'Manual ENS route';
+}
+
 function sessionStorageKey(ensName: string, sellerAddress: string) {
   return `${SESSION_STORAGE_PREFIX}${ensName.toLowerCase()}:${sellerAddress.toLowerCase()}`;
 }
@@ -165,6 +169,8 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
               <p className="text-[11px] uppercase tracking-[0.34em] text-onSurfaceVariant">Pawn Agent Storefront</p>
               <h1 className="mt-2 text-3xl text-onSurface">{headline}</h1>
               <p className="mt-2 text-sm uppercase tracking-[0.24em] text-onSurfaceVariant">{shop.ens_name}</p>
+              <p className="mt-3 text-xs uppercase tracking-[0.22em] text-[#d8caa3]">{ensVerificationLabel(shop.ens_verification_status)}</p>
+              {shop.ens_verified_owner_address ? <p className="mt-2 break-all text-xs text-[#cbb68c]">Resolved owner {shop.ens_verified_owner_address}</p> : null}
               <p className="mt-3 text-sm text-[#f0dfb4]">
                 {shop.description || 'State your token, amount, and ask. The merchant will respond in-line.'}
               </p>
@@ -255,6 +261,10 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
                 <div>
                   <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Store keeper</dt>
                   <dd className="mt-1 text-base text-onSurface">{selectedPortrait.name}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">ENS route</dt>
+                  <dd className="mt-1 text-base text-onSurface">{ensVerificationLabel(shop.ens_verification_status)}</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant wallet</dt>
