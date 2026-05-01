@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { isAddress } from 'viem';
 import MerchantChat from '../../../components/MerchantChat';
+import MerchantPortrait from '../../../components/Storefront/MerchantPortrait';
 import RainbowConnectAction from '../../../components/RainbowConnectAction';
 import { Negotiations, Shops, type NegotiationSession, type Shop } from '../../../lib/api';
 import { getMerchantPortraitById } from '../../../lib/merchantPortraits';
@@ -133,9 +134,10 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#171305] px-6 text-onSurface">
-        <div className="mx-auto flex min-h-screen max-w-5xl items-center justify-center">
-          <p className="text-sm uppercase tracking-[0.28em] text-[#f0dfb4]">Opening the storefront…</p>
+      <main className="min-h-screen relative" style={{ background: 'var(--wood-dark)' }}>
+        <div className="candle-edge-glow" />
+        <div className="mx-auto flex min-h-screen items-center justify-center" style={{ position: 'relative', zIndex: 1 }}>
+          <p className="tavern-muted">Opening the storefront…</p>
         </div>
       </main>
     );
@@ -143,17 +145,20 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
 
   if (!shop) {
     return (
-      <main className="min-h-screen bg-[#171305] px-6 py-10 text-onSurface">
-        <div className="mx-auto max-w-3xl merchant-panel rounded-panel p-6">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-onSurfaceVariant">Pawn Agent Storefront</p>
-          <h1 className="mt-3 text-3xl text-onSurface">Store not found</h1>
-          <p className="mt-4 text-sm text-[#f0dfb4]">
-            {error ?? `We could not find a live storefront for ${ensName || 'that ENS name'}.`}
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/" className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
-              Back to marketplace
-            </Link>
+      <main className="min-h-screen relative" style={{ background: 'var(--wood-dark)' }}>
+        <div className="candle-edge-glow" />
+        <div className="mx-auto max-w-3xl px-6 py-10" style={{ position: 'relative', zIndex: 1 }}>
+          <div className="shop-card rounded-panel p-6">
+            <p className="tavern-muted">Pawn Agent Storefront</p>
+            <h1 className="tavern-heading mt-3 text-3xl">Store not found</h1>
+            <p className="tavern-body-text mt-4">
+              {error ?? `We could not find a live storefront for ${ensName || 'that ENS name'}.`}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/" className="tavern-sign-link">
+                Back to marketplace
+              </Link>
+            </div>
           </div>
         </div>
       </main>
@@ -161,41 +166,56 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
   }
 
   return (
-    <main className="min-h-screen bg-[#171305] px-4 py-6 text-onSurface sm:px-8 sm:py-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <section className="merchant-panel rounded-panel px-5 py-5 sm:px-6 sm:py-6">
+    <main className="min-h-screen relative" style={{ background: 'var(--wood-dark)' }}>
+      {/* Ambient candle glow */}
+      <div className="candle-edge-glow" />
+
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-8 sm:py-8" style={{ position: 'relative', zIndex: 1 }}>
+        {/* ── Shop header ── */}
+        <section className="shop-card rounded-panel px-5 py-5 sm:px-6 sm:py-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <p className="text-[11px] uppercase tracking-[0.34em] text-onSurfaceVariant">Pawn Agent Storefront</p>
-              <h1 className="mt-2 text-3xl text-onSurface">{headline}</h1>
-              <p className="mt-2 text-sm uppercase tracking-[0.24em] text-onSurfaceVariant">{shop.ens_name}</p>
-              <p className="mt-3 text-xs uppercase tracking-[0.22em] text-[#d8caa3]">{ensVerificationLabel(shop.ens_verification_status)}</p>
-              {shop.ens_verified_owner_address ? <p className="mt-2 break-all text-xs text-[#cbb68c]">Resolved owner {shop.ens_verified_owner_address}</p> : null}
-              <p className="mt-3 text-sm text-[#f0dfb4]">
+              <p className="tavern-muted">Pawn Agent Storefront</p>
+              <h1 className="tavern-heading mt-2 text-3xl">{headline}</h1>
+              <p className="mt-2 tavern-muted">{shop.ens_name}</p>
+              <p className="mt-3 text-xs uppercase tracking-[0.22em]" style={{ color: 'rgba(216,202,163,0.8)' }}>{ensVerificationLabel(shop.ens_verification_status)}</p>
+              {shop.ens_verified_owner_address ? <p className="mt-2 break-all text-xs" style={{ color: 'rgba(196,168,112,0.8)' }}>Resolved owner {shop.ens_verified_owner_address}</p> : null}
+              <p className="mt-3 tavern-body-text">
                 {shop.description || 'State your token, amount, and ask. The merchant will respond in-line.'}
               </p>
             </div>
-            <div className="merchant-inset rounded-panel p-3 sm:min-w-[14rem]">
-              <div className="relative mx-auto h-40 w-32 overflow-hidden rounded-panel bg-[#120e04]">
-                <Image src={selectedPortrait.imageSrc} alt={selectedPortrait.name} fill className="origin-bottom scale-[2] object-cover object-bottom" sizes="128px" />
+
+            {/* Merchant portrait — using Storefront component */}
+            <div className="merchant-inset rounded-panel p-3 sm:min-w-[14rem]" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ width: '128px', height: '160px', position: 'relative' }}>
+                <Image
+                  src={selectedPortrait.imageSrc}
+                  alt={selectedPortrait.name}
+                  fill
+                  className="object-cover object-bottom"
+                  sizes="128px"
+                  style={{ transformOrigin: 'bottom', transform: 'scale(2)' }}
+                />
               </div>
               <p className="mt-3 text-center text-sm text-onSurface">{selectedPortrait.name}</p>
-              <p className="mt-1 text-center text-xs text-[#d8caa3]">{selectedPortrait.vibe}</p>
+              <p className="mt-1 text-center text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>{selectedPortrait.vibe}</p>
             </div>
+
+            {/* Navigation links */}
             <div className="flex flex-wrap gap-2">
-              <Link href="/" className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
+              <Link href="/" className="tavern-sign-link">
                 Browse shops
               </Link>
               <Link
                 href={`/owner?ens=${encodeURIComponent(shop.ens_name)}&owner=${encodeURIComponent(shop.owner_address)}`}
-                className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow"
+                className="tavern-sign-link"
               >
                 Owner dashboard
               </Link>
               {sellerAddress ? (
                 <Link
                   href={startFreshHref}
-                  className="rounded-panel border border-primary bg-brassButton px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-onPrimary"
+                  className="tavern-sign-link brass"
                 >
                   Start another fresh session
                 </Link>
@@ -204,18 +224,19 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
           </div>
         </section>
 
+        {/* ── No negotiation state: show launch panel ── */}
         {!negotiation ? (
           <section className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-            <section className="merchant-panel rounded-panel p-5 sm:p-6">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Start selling</p>
-              <h2 className="mt-2 text-2xl text-onSurface">Open a clean negotiation session</h2>
-              <p className="mt-3 text-sm text-[#f0dfb4]">
+            <section className="shop-card rounded-panel p-5 sm:p-6">
+              <p className="tavern-muted">Start selling</p>
+              <h2 className="tavern-heading mt-2 text-2xl">Open a clean negotiation session</h2>
+              <p className="tavern-body-text mt-3">
                 This storefront no longer auto-loads a shared conversation. Connect a seller wallet and launch a fresh session for this shop directly, or browse other shops from the marketplace.
               </p>
-              <div className="mt-4 rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#f0dfb4]">
-                <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Seller wallet</p>
+              <div className="mt-4 rounded-panel border px-4 py-4 text-sm" style={{ borderColor: 'rgba(196,168,112,0.25)', background: 'rgba(18,14,5,0.8)', color: 'rgba(240,224,179,0.9)' }}>
+                <p className="tavern-muted">Seller wallet</p>
                 <p className="mt-2 text-onSurface">{walletAddress ? formatWallet(walletAddress) : 'Not connected yet'}</p>
-                <p className="mt-1 text-xs text-[#d8caa3]">
+                <p className="mt-1 text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>
                   {walletAddress
                     ? `Connected through ${walletConnectorName ?? 'wallet'}. Starting here will create a fresh session for this seller wallet.`
                     : 'Choose the wallet you want to sell from, then launch a fresh session here.'}
@@ -224,65 +245,67 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
               </div>
               <div className="mt-5 flex flex-wrap gap-3">
                 {walletLaunchHref ? (
-                  <Link href={walletLaunchHref} className="rounded-panel border border-primary bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary">
+                  <Link href={walletLaunchHref} className="tavern-sign-link brass">
                     Start fresh chat here
                   </Link>
                 ) : (
                   <RainbowConnectAction
                     connectLabel="Choose wallet to start here"
                     connectedLabel="Wallet connected"
-                    className="rounded-panel border border-primary bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary"
+                    className="tavern-sign-link brass"
                   />
                 )}
-                <Link href="/" className="rounded-panel border border-outlineVariant px-4 py-3 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
+                <Link href="/" className="tavern-sign-link">
                   Browse marketplace
                 </Link>
                 <Link
                   href={`/owner?ens=${encodeURIComponent(shop.ens_name)}&owner=${encodeURIComponent(shop.owner_address)}`}
-                  className="rounded-panel border border-outlineVariant px-4 py-3 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow"
+                  className="tavern-sign-link"
                 >
                   Open owner dashboard
                 </Link>
               </div>
               {error ? (
-                <p className="mt-5 rounded-panel border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+                <p className="mt-5 rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(248,113,113,0.4)', background: 'rgba(127,29,29,0.3)', color: '#fecaca' }}>
                   {error}
                 </p>
               ) : null}
             </section>
 
-            <aside className="merchant-panel rounded-panel p-5 sm:p-6">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Storefront status</p>
-              <dl className="mt-4 space-y-3 text-sm text-[#f0dfb4]">
+            {/* Store status aside */}
+            <aside className="shop-card rounded-panel p-5 sm:p-6">
+              <p className="tavern-muted">Storefront status</p>
+              <dl className="mt-4 space-y-3 text-sm tavern-body-text">
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">ENS</dt>
+                  <dt className="tavern-muted">ENS</dt>
                   <dd className="mt-1 text-base text-onSurface">{shop.ens_name}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Store keeper</dt>
+                  <dt className="tavern-muted">Store keeper</dt>
                   <dd className="mt-1 text-base text-onSurface">{selectedPortrait.name}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">ENS route</dt>
+                  <dt className="tavern-muted">ENS route</dt>
                   <dd className="mt-1 text-base text-onSurface">{ensVerificationLabel(shop.ens_verification_status)}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant wallet</dt>
+                  <dt className="tavern-muted">Merchant wallet</dt>
                   <dd className="mt-1 text-base text-onSurface">{formatWallet(shop.merchant_address)}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Wallet state</dt>
+                  <dt className="tavern-muted">Wallet state</dt>
                   <dd className="mt-1 text-base text-onSurface">{shop.wallet_status}</dd>
                 </div>
                 <div>
-                  <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Owner</dt>
+                  <dt className="tavern-muted">Owner</dt>
                   <dd className="mt-1 text-base text-onSurface">{formatWallet(shop.owner_address)}</dd>
                 </div>
               </dl>
             </aside>
           </section>
         ) : (
-          <section className="merchant-panel rounded-panel p-4 sm:p-5">
+          /* ── Active negotiation: show MerchantChat ── */
+          <section className="shop-card rounded-panel p-4 sm:p-5">
             <MerchantChat negotiationId={negotiation.id} shopEnsName={shop.ens_name} />
           </section>
         )}

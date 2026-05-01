@@ -246,22 +246,26 @@ export default function HomePage() {
   const walletError = error ?? connectError;
 
   return (
-    <main className="min-h-screen bg-maritime px-4 py-6 text-onSurface sm:px-8 sm:py-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <section className="merchant-panel rounded-panel p-5 sm:p-7">
+    <main className="min-h-screen relative" style={{ background: 'var(--wood-dark)' }}>
+      {/* Ambient candle glow */}
+      <div className="candle-edge-glow" />
+
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-8 sm:py-8" style={{ position: 'relative', zIndex: 1 }}>
+        {/* ── Hero / wallet section ── */}
+        <section className="shop-card rounded-panel p-5 sm:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <p className="text-[11px] uppercase tracking-[0.34em] text-onSurfaceVariant">Pawn Agent Marketplace</p>
-              <h1 className="mt-2 text-3xl text-onSurface sm:text-4xl">Browse active pawn shops and open a fresh seller chat</h1>
-              <p className="mt-3 text-sm text-[#f0dfb4] sm:text-[15px]">
+              <p className="tavern-muted">Pawn Agent Marketplace</p>
+              <h1 className="tavern-heading mt-2 text-3xl sm:text-4xl">Browse active pawn shops and open a fresh seller chat</h1>
+              <p className="tavern-body-text mt-3">
                 Search for live storefronts, pick the wallet you want to sell from, and launch a clean negotiation session with that pawn shop agent.
               </p>
             </div>
 
             <div className="merchant-inset rounded-panel p-4 sm:min-w-[20rem]">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">Seller wallet</p>
+              <p className="tavern-muted">Seller wallet</p>
               <p className="mt-2 text-base text-onSurface">{walletAddress ? formatWallet(walletAddress) : 'Not connected yet'}</p>
-              <p className="mt-1 text-xs text-[#d8caa3]">
+              <p className="mt-1 text-xs" style={{ color: 'rgba(240,224,179,0.75)' }}>
                 {walletAddress
                   ? `Connected through ${walletConnectorName ?? 'wallet'}. Use this wallet to launch a fresh session with any active shop below.`
                   : 'Choose MetaMask, Coinbase Wallet, or another injected browser wallet before starting a chat.'}
@@ -274,7 +278,8 @@ export default function HomePage() {
                 {walletAddress ? (
                   <button
                     onClick={handleDisconnectWallet}
-                    className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow"
+                    className="tavern-sign-link"
+                    style={{ fontSize: '0.75rem', padding: '0.5rem 1rem' }}
                   >
                     Disconnect
                   </button>
@@ -284,13 +289,15 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ── Main content grid ── */}
         <section className="grid gap-5 xl:grid-cols-[1.35fr_0.9fr]">
-          <section className="merchant-panel rounded-panel p-5 sm:p-6">
-            <div className="flex flex-col gap-4 border-b border-outlineVariant/60 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          {/* ── Published shops listing ── */}
+          <section className="shop-card rounded-panel p-5 sm:p-6">
+            <div className="flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-end sm:justify-between" style={{ borderColor: 'rgba(196,168,112,0.2)' }}>
               <div>
-                <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Published pawn shops</p>
-                <h2 className="mt-2 text-2xl text-onSurface">Find a buyer</h2>
-                <p className="mt-2 max-w-2xl text-sm text-[#f0dfb4]">
+                <p className="tavern-muted">Published pawn shops</p>
+                <h2 className="tavern-heading mt-2 text-2xl">Find a buyer</h2>
+                <p className="tavern-body-text mt-2 max-w-2xl">
                   Every launch below starts a new negotiation session. No reused storefront state, no inherited prior conversation.
                 </p>
               </div>
@@ -301,135 +308,132 @@ export default function HomePage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search ENS or shop name"
-                  className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-3 text-sm text-onSurface outline-none placeholder:text-[#8d744d]"
+                  className="parchment-input"
                 />
               </label>
             </div>
 
-              <div className="mt-5 space-y-4">
-                {shopsLoading ? <p className="text-sm text-[#f0dfb4]">Loading published pawn shops…</p> : null}
-                {shopsError ? (
-                  <div className="rounded-panel border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
-                    {shopsError}
-                  </div>
-                ) : null}
+            <div className="mt-5 space-y-4">
+              {shopsLoading ? <p className="tavern-body-text">Loading published pawn shops…</p> : null}
+              {shopsError ? (
+                <div className="rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(248,113,113,0.4)', background: 'rgba(127,29,29,0.3)', color: '#fecaca' }}>
+                  {shopsError}
+                </div>
+              ) : null}
 
-                {!shopsLoading && !shopsError && sellerFilteredShops.length === 0 ? (
-                  <div className="rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#f0dfb4]">
-                    {marketShops.length === 0
-                      ? 'No published pawn shops are live yet. Create a storefront to make one appear here.'
-                      : 'No published pawn shops match that search.'}
-                  </div>
-                ) : null}
+              {!shopsLoading && !shopsError && sellerFilteredShops.length === 0 ? (
+                <div className="rounded-panel border px-4 py-4 text-sm" style={{ borderColor: 'rgba(196,168,112,0.25)', background: 'rgba(18,14,5,0.8)', color: 'rgba(240,224,179,0.85)' }}>
+                  {marketShops.length === 0
+                    ? 'No published pawn shops are live yet. Create a storefront to make one appear here.'
+                    : 'No published pawn shops match that search.'}
+                </div>
+              ) : null}
 
-                {sellerFilteredShops.map((candidate) => {
-                  const freshSessionHref = walletAddress
-                    ? `/shop/${encodeURIComponent(candidate.ens_name)}?seller=${encodeURIComponent(walletAddress)}`
-                    : null;
+              {sellerFilteredShops.map((candidate) => {
+                const freshSessionHref = walletAddress
+                  ? `/shop/${encodeURIComponent(candidate.ens_name)}?seller=${encodeURIComponent(walletAddress)}`
+                  : null;
 
-                  return (
-                    <article key={candidate.id} className="merchant-inset rounded-panel p-4 sm:p-5">
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-lg text-onSurface">{candidate.display_name}</p>
-                            <span className="rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-emerald-300">
-                              Published storefront
-                            </span>
-                            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-amber-200">
-                              Wallet {candidate.wallet_status}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">{candidate.ens_name}</p>
-                          <p className="mt-3 text-sm text-[#f0dfb4]">
-                            {candidate.description || 'State the token, amount, and your ask. This pawn shop will quote in-line.'}
-                          </p>
-                          <div className="mt-4 flex flex-wrap gap-4 text-xs uppercase tracking-[0.18em] text-[#cbb68c]">
-                            <span>Status {candidate.status}</span>
-                            <span>{ensVerificationLabel(candidate.ens_verification_status)}</span>
-                            <span>Merchant {formatWallet(candidate.merchant_address)}</span>
-                          </div>
+                return (
+                  <article key={candidate.id} className="merchant-inset rounded-panel p-4 sm:p-5">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-lg text-onSurface">{candidate.display_name}</p>
+                          <span className="tavern-badge published">Published storefront</span>
+                          <span className="tavern-badge pending">Wallet {candidate.wallet_status}</span>
                         </div>
-
-                        <div className="flex w-full flex-col gap-2 lg:w-auto lg:min-w-[13rem]">
-                          {freshSessionHref ? (
-                            <Link
-                              href={freshSessionHref}
-                              className="rounded-panel border border-primary bg-brassButton px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.22em] text-onPrimary"
-                            >
-                              Start fresh chat
-                            </Link>
-                          ) : (
-                            <RainbowConnectAction
-                              connectLabel="Choose wallet to start"
-                              connectedLabel="Wallet connected"
-                              className="rounded-panel border border-outlineVariant px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-[#f4e7c7] hover:bg-surfaceLow"
-                            />
-                          )}
-                          <Link
-                            href={`/shop/${encodeURIComponent(candidate.ens_name)}`}
-                            className="rounded-panel border border-outlineVariant px-4 py-3 text-center text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow"
-                          >
-                            Preview storefront
-                          </Link>
+                        <p className="mt-1 tavern-muted">{candidate.ens_name}</p>
+                        <p className="mt-3 tavern-body-text">
+                          {candidate.description || 'State the token, amount, and your ask. This pawn shop will quote in-line.'}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-4 text-xs uppercase tracking-[0.18em]" style={{ color: 'rgba(196,168,112,0.75)' }}>
+                          <span>Status {candidate.status}</span>
+                          <span>{ensVerificationLabel(candidate.ens_verification_status)}</span>
+                          <span>Merchant {formatWallet(candidate.merchant_address)}</span>
                         </div>
                       </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
 
+                      <div className="flex w-full flex-col gap-2 lg:w-auto lg:min-w-[13rem]">
+                        {freshSessionHref ? (
+                          <Link href={freshSessionHref} className="tavern-sign-link brass" style={{ textAlign: 'center' }}>
+                            Start fresh chat
+                          </Link>
+                        ) : (
+                          <RainbowConnectAction
+                            connectLabel="Choose wallet to start"
+                            connectedLabel="Wallet connected"
+                            className="tavern-sign-link"
+                            />
+                        )}
+                        <Link
+                          href={`/shop/${encodeURIComponent(candidate.ens_name)}`}
+                          className="tavern-sign-link"
+                          style={{ textAlign: 'center' }}
+                        >
+                          Preview storefront
+                        </Link>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* ── Sidebar ── */}
           <aside className="space-y-5">
-            <section className="merchant-panel rounded-panel p-5 sm:p-6">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">How seller sessions work now</p>
-              <ol className="mt-4 space-y-3 text-sm text-[#f0dfb4]">
+            {/* How it works */}
+            <section className="shop-card rounded-panel p-5 sm:p-6">
+              <p className="tavern-muted">How seller sessions work now</p>
+              <ol className="mt-4 space-y-3 tavern-body-text" style={{ paddingLeft: '1rem' }}>
                 <li>1. Choose your wallet once.</li>
                 <li>2. Search for a live pawn shop.</li>
-                <li>3. Click <span className="text-[#f5e9c9]">Start fresh chat</span>.</li>
+                <li>3. Click <span className="text-onSurface">Start fresh chat</span>.</li>
                 <li>4. Pawn Agent creates a new negotiation just for that seller session.</li>
                 <li>5. Refreshing that session keeps your thread instead of leaking another seller&apos;s state.</li>
               </ol>
             </section>
 
-            <section className="merchant-panel rounded-panel p-5 sm:p-6">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Open your own pawn shop</p>
-              <h2 className="mt-2 text-2xl text-onSurface">Owner setup</h2>
-              <p className="mt-2 text-sm text-[#f0dfb4]">
+            {/* Owner setup */}
+            <section className="shop-card rounded-panel p-5 sm:p-6">
+              <p className="tavern-muted">Open your own pawn shop</p>
+              <h2 className="tavern-heading mt-2 text-2xl">Owner setup</h2>
+              <p className="tavern-body-text mt-2">
                 Choose the wallet that will own this shop, pick the .eth route customers will use, and create the storefront.
               </p>
 
               <div className="mt-5 space-y-4">
                 <div className="merchant-inset rounded-panel p-4">
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">Connected owner wallet</p>
+                  <p className="tavern-muted">Connected owner wallet</p>
                   <p className="mt-2 text-base text-onSurface">{walletAddress ? formatWallet(walletAddress) : 'Not connected yet'}</p>
-                  {walletAddress ? <p className="mt-1 text-xs text-[#d8caa3]">{walletAddress}</p> : null}
+                  {walletAddress ? <p className="mt-1 text-xs" style={{ color: 'rgba(216,202,163,0.8)' }}>{walletAddress}</p> : null}
                 </div>
 
                 <div className="merchant-inset rounded-panel p-4">
-                  <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">Detected ENS on this wallet</p>
+                  <p className="tavern-muted">Detected ENS on this wallet</p>
                   <p className="mt-2 text-base text-onSurface">{primaryEns ?? 'No ENS detected on this wallet'}</p>
-                  <p className="mt-2 text-xs text-[#d8caa3]">
+                  <p className="mt-2 text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>
                     This wallet lookup is live. If your chosen route resolves back to this wallet, Pawn Agent will mark it as a verified ENS route.
                   </p>
                 </div>
 
-                <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Shop route (.eth for now)</span>
+                <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                  <span className="tavern-muted">Shop route (.eth for now)</span>
                   <input
                     value={ensInput}
                     onChange={(e) => setEnsInput(e.target.value)}
                     placeholder="ted.eth or pawn.ted.eth"
-                    className="rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-3 text-onSurface outline-none placeholder:text-[#8d744d]"
+                    className="parchment-input"
                   />
-                  <span className="text-xs text-[#d8caa3]">
+                  <span className="text-xs" style={{ color: 'rgba(216,202,163,0.7)' }}>
                     This creates your storefront identity inside Pawn Agent. It does not create or register the ENS name onchain.
                   </span>
                 </label>
 
                 {looksLikeEns(ensInput) ? (
-                  <div className={`rounded-panel border px-4 py-4 text-sm ${ensVerificationStatus === 'verified' ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200' : ensVerificationStatus === 'checking' ? 'border-amber-500/40 bg-amber-950/20 text-amber-100' : 'border-outlineVariant bg-surfaceLowest text-[#f0dfb4]'}`}>
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Route verification</p>
+                  <div className={`rounded-panel border px-4 py-4 text-sm ${ensVerificationStatus === 'verified' ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-300' : ensVerificationStatus === 'checking' ? 'border-amber-500/40 bg-amber-950/20 text-amber-200' : 'border-outlineVariant bg-surfaceLowest text-onSurface'}`}>
+                    <p className="tavern-muted">Route verification</p>
                     <p className="mt-2 text-onSurface">
                       {ensVerificationStatus === 'checking'
                         ? 'Checking ENS ownership…'
@@ -437,15 +441,16 @@ export default function HomePage() {
                           ? 'Connect wallet to verify this route'
                           : ensVerificationLabel(ensVerificationStatus)}
                     </p>
-                    {ensVerificationMessage ? <p className="mt-2 text-xs text-current/90">{ensVerificationMessage}</p> : null}
-                    {ensVerifiedOwnerAddress ? <p className="mt-2 text-xs text-current/90">Resolved owner: {ensVerifiedOwnerAddress}</p> : null}
+                    {ensVerificationMessage ? <p className="mt-2 text-xs" style={{ color: 'inherit', opacity: 0.9 }}>{ensVerificationMessage}</p> : null}
+                    {ensVerifiedOwnerAddress ? <p className="mt-2 text-xs" style={{ color: 'inherit', opacity: 0.9 }}>Resolved owner: {ensVerifiedOwnerAddress}</p> : null}
                   </div>
                 ) : null}
 
                 <button
                   onClick={createOrLoadStore}
                   disabled={creating || !walletAddress}
-                  className="rounded-panel border border-outlineVariant bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary disabled:opacity-60"
+                  className="tavern-sign-link brass w-full"
+                  style={{ textAlign: 'center', opacity: (creating || !walletAddress) ? 0.6 : 1, cursor: (creating || !walletAddress) ? 'not-allowed' : 'pointer' }}
                 >
                   {creating ? 'Preparing shop…' : 'Create or load shop'}
                 </button>
@@ -454,33 +459,43 @@ export default function HomePage() {
           </aside>
         </section>
 
-        {status ? <p className="rounded-panel border border-emerald-500/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">{status}</p> : null}
-        {walletError ? <p className="rounded-panel border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">{walletError}</p> : null}
+        {/* ── Status / error notices ── */}
+        {status ? (
+          <p className="rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(52,211,153,0.4)', background: 'rgba(6,78,59,0.3)', color: '#6ee7b7' }}>
+            {status}
+          </p>
+        ) : null}
+        {walletError ? (
+          <p className="rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(248,113,113,0.4)', background: 'rgba(127,29,29,0.3)', color: '#fecaca' }}>
+            {walletError}
+          </p>
+        ) : null}
 
+        {/* ── Current owner storefront ── */}
         {shop ? (
-          <section className="merchant-panel rounded-panel p-5 sm:p-6">
-            <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Current owner storefront</p>
+          <section className="shop-card rounded-panel p-5 sm:p-6">
+            <p className="tavern-muted">Current owner storefront</p>
             <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="text-2xl text-onSurface">{shop.ens_name}</p>
-                <p className="mt-2 text-sm text-[#f0dfb4]">Owner {formatWallet(shop.owner_address)}</p>
-                <p className="mt-1 text-sm text-[#f0dfb4]">{ensVerificationLabel(shop.ens_verification_status)}</p>
-                {shop.ens_verified_owner_address ? <p className="mt-1 break-all text-xs text-[#d8caa3]">Resolved owner {shop.ens_verified_owner_address}</p> : null}
-                <p className="mt-1 text-sm text-[#f0dfb4]">
+                <p className="mt-2 tavern-body-text">Owner {formatWallet(shop.owner_address)}</p>
+                <p className="mt-1 tavern-body-text">{ensVerificationLabel(shop.ens_verification_status)}</p>
+                {shop.ens_verified_owner_address ? <p className="mt-1 break-all text-xs" style={{ color: 'rgba(196,168,112,0.8)' }}>Resolved owner {shop.ens_verified_owner_address}</p> : null}
+                <p className="mt-1 tavern-body-text">
                   Merchant wallet {shop.wallet_status === 'pending' ? 'not provisioned yet' : formatWallet(shop.merchant_address)}
                 </p>
-                <p className="mt-2 text-xs uppercase tracking-[0.22em] text-onSurfaceVariant">
+                <p className="mt-2 text-xs uppercase tracking-[0.22em] tavern-muted">
                   {shop.wallet_provider} • {shop.wallet_status}
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
                 {ownerHref ? (
-                  <Link href={ownerHref} className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
+                  <Link href={ownerHref} className="tavern-sign-link">
                     Open owner dashboard
                   </Link>
                 ) : null}
                 {sellerHref ? (
-                  <Link href={sellerHref} className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
+                  <Link href={sellerHref} className="tavern-sign-link">
                     Preview storefront
                   </Link>
                 ) : null}
