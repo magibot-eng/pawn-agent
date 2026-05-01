@@ -210,7 +210,7 @@ export default function HomePage() {
   const walletError = error ?? connectError;
 
   return (
-    <div className="crossroads-root">
+    <div className="crossroads-root home-page-wrapper">
       {/* ── Atmospheric background ── */}
       <div className="crossroads-bg">
         <div className="stone-wall" />

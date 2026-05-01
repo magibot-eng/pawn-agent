@@ -1718,3 +1718,67 @@ main, [data-page-content], .page-content {
   border-color: rgba(248,113,113,0.4);
   color: #fecaca;
 }
+
+/* ============================================
+   MOBILE RESPONSIVE — DOORS & HOME
+   ============================================ */
+
+/* Doors: stack vertically on mobile */
+@media (max-width: 768px) {
+  .doors-section {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+    padding-top: 1rem;
+  }
+
+  /* Hide the center floor divider on mobile */
+  .doors-section > *:nth-child(2) {
+    display: none;
+  }
+
+  .door-arch {
+    min-height: 280px !important;
+    padding: 1.5rem 1.25rem !important;
+  }
+
+  /* Merchant setup inside door — reduce on mobile */
+  .door-merchant-setup {
+    padding: 0 0.5rem;
+  }
+}
+
+/* Main page wrapper — ensure horizontal overflow is hidden */
+@media (max-width: 768px) {
+  .home-page-wrapper {
+    overflow-x: hidden !important;
+  }
+}
+
+/* Shop card row — horizontal scroll on mobile */
+@media (max-width: 640px) {
+  .shop-card-row {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .shop-card-row::-webkit-scrollbar {
+    display: none;
+  }
+  .glass-shop-card {
+    min-width: 220px !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* Merchant strip — tavern sign mobile */
+@media (max-width: 640px) {
+  .merchant-strip {
+    padding: 1rem 0.5rem !important;
+  }
+  .tavern-sign-wrap {
+    transform: scale(0.85);
+    transform-origin: top center;
+  }
+}
