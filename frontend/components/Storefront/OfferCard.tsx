@@ -25,6 +25,12 @@ function formatEth(wei: string): string {
   }
 }
 
+function formatAsk(value: string): string {
+  const normalized = value.trim();
+  if (/\beth\b/i.test(normalized)) return normalized;
+  return `${normalized} ETH`;
+}
+
 export default function OfferCard({ token, amount, payoutToken, payoutAmount, sellerAsk, quote, onAccept, onCounter }: OfferCardProps) {
   const displayPayout = payoutAmount ?? quote?.payout_amount;
   const displaySellerAsk = sellerAsk ?? quote?.seller_ask_amount;
@@ -43,7 +49,7 @@ export default function OfferCard({ token, amount, payoutToken, payoutAmount, se
         border: '1px solid rgba(180,120,50,0.25)',
         borderRadius: '8px',
         padding: '20px',
-        transform: `rotate(${Math.random() * 4 - 2}deg)`,
+        transform: 'rotate(-1deg)',
         position: 'relative',
       }}
     >
@@ -100,7 +106,7 @@ export default function OfferCard({ token, amount, payoutToken, payoutAmount, se
             Your Ask
           </p>
           <p style={{ color: '#f0dfb4', fontSize: '14px', margin: 0 }}>
-            {displaySellerAsk} ETH
+            {formatAsk(displaySellerAsk)}
           </p>
         </div>
       )}

@@ -26,6 +26,31 @@ function isStorefrontActive(shop: Shop) {
   return shopStatus === 'published';
 }
 
+function emberStyle(index: number) {
+  return {
+    left: `${(index * 17 + 11) % 100}%`,
+    animationDuration: `${4 + (index % 6)}s`,
+    animationDelay: `${(index % 5) * 0.45}s`,
+    width: `${2 + (index % 3)}px`,
+    height: `${2 + ((index + 1) % 3)}px`,
+    opacity: 0.45 + (index % 4) * 0.1,
+  };
+}
+
+function hoverEmberStyle(index: number) {
+  return {
+    left: `${14 + ((index * 13) % 70)}%`,
+    animationDelay: `${index * 0.3}s`,
+  };
+}
+
+function sparkStyle(index: number) {
+  return {
+    left: `${(index * 19 + 7) % 100}%`,
+    animationDelay: `${(index % 5) * 0.28}s`,
+  };
+}
+
 export default function HomePage() {
   const {
     walletAddress,
@@ -221,14 +246,7 @@ export default function HomePage() {
         {/* Ember particles */}
         <div className="embers-container" aria-hidden="true">
           {Array.from({ length: 18 }).map((_, i) => (
-            <div key={i} className="ember" style={{
-              left: `${Math.random() * 100}%`,
-              animationDuration: `${4 + Math.random() * 6}s`,
-              animationDelay: `${Math.random() * 5}s`,
-              width: `${2 + Math.random() * 2}px`,
-              height: `${2 + Math.random() * 2}px`,
-              opacity: 0.4 + Math.random() * 0.5,
-            }} />
+            <div key={i} className="ember" style={emberStyle(i)} />
           ))}
         </div>
       </div>
@@ -299,10 +317,7 @@ export default function HomePage() {
               </div>
               <div className="door-hover-embers" aria-hidden="true">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="hover-ember" style={{
-                    left: `${10 + Math.random() * 80}%`,
-                    animationDelay: `${i * 0.3}s`,
-                  }} />
+                  <div key={i} className="hover-ember" style={hoverEmberStyle(i)} />
                 ))}
               </div>
             </div>
@@ -381,10 +396,7 @@ export default function HomePage() {
               {/* Iron sparks on hover */}
               <div className="iron-sparks" aria-hidden="true">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="spark" style={{
-                    left: `${Math.random() * 100}%`,
-                    animationDelay: `${Math.random() * 1.5}s`,
-                  }} />
+                  <div key={i} className="spark" style={sparkStyle(i)} />
                 ))}
               </div>
             </div>
