@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { createPublicClient, formatEther, getAddress, http, parseEther } from 'viem';
@@ -7,6 +8,7 @@ import { baseSepolia } from 'viem/chains';
 import { useSendTransaction, useSwitchChain } from 'wagmi';
 import RainbowConnectAction from '../../components/RainbowConnectAction';
 import { ProviderKeys, Shops, type CreateProviderKey, type ProviderKey, type ProviderKeyTestResult, type Shop, type ShopWalletStatus, type ShopWalletTransferResponse } from '../../lib/api';
+import { DEFAULT_MERCHANT_PORTRAIT_ID, MERCHANT_PORTRAITS, getMerchantPortraitById } from '../../lib/merchantPortraits';
 import { useUnifiedWallet } from '../../lib/useUnifiedWallet';
 
 const STORAGE_KEY = 'pawn-agent:selected-store';
@@ -37,6 +39,7 @@ type OwnerForm = {
   pricing_style: string;
   refusal_rules: string;
   welcome_message: string;
+  merchant_portrait: string;
 };
 
 const EMPTY_FORM: OwnerForm = {
@@ -47,6 +50,7 @@ const EMPTY_FORM: OwnerForm = {
   pricing_style: '',
   refusal_rules: '',
   welcome_message: '',
+  merchant_portrait: DEFAULT_MERCHANT_PORTRAIT_ID,
 };
 
 const PROVIDER_DEFAULTS: Record<CreateProviderKey['provider'], { model: string; help: string }> = {
@@ -154,6 +158,7 @@ export default function OwnerPage() {
           pricing_style: activeShop.pricing_style ?? '',
           refusal_rules: activeShop.refusal_rules ?? '',
           welcome_message: activeShop.welcome_message ?? '',
+          merchant_portrait: activeShop.merchant_portrait ?? DEFAULT_MERCHANT_PORTRAIT_ID,
         });
 
         const [keys, wallet] = await Promise.all([
@@ -198,6 +203,7 @@ export default function OwnerPage() {
   }, [connectedWallet]);
 
   const activeKey = useMemo(() => providerKeys.find((key) => key.is_active) ?? null, [providerKeys]);
+  const selectedPortrait = useMemo(() => getMerchantPortraitById(form.merchant_portrait || shop?.merchant_portrait), [form.merchant_portrait, shop?.merchant_portrait]);
   const storefrontHref = shop ? `/shop/${encodeURIComponent(shop.ens_name)}` : '/';
   const walletError = error ?? connectError;
 
@@ -441,6 +447,13 @@ export default function OwnerPage() {
               </p>
               <p className="mt-2 text-xs uppercase tracking-[0.24em] text-onSurfaceVariant">Owner {ownerAddress ?? shop.owner_address}</p>
             </div>
+            <div className="merchant-inset rounded-panel p-3 sm:min-w-[13rem]">
+              <div className="relative mx-auto h-32 w-28 overflow-hidden rounded-panel bg-[#120e04]">
+                <Image src={selectedPortrait.imageSrc} alt={selectedPortrait.name} fill className="object-contain" sizes="112px" />
+              </div>
+              <p className="mt-3 text-center text-sm text-onSurface">{selectedPortrait.name}</p>
+              <p className="mt-1 text-center text-xs text-[#d8caa3]">{selectedPortrait.vibe}</p>
+            </div>
             <div className="flex gap-2">
               <Link href={storefrontHref} className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
                 Storefront chat
@@ -471,6 +484,29 @@ export default function OwnerPage() {
               </div>
 
               <div className="mt-5 grid gap-4">
+                <div className="grid gap-3">
+                  <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Store keeper portrait</span>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {MERCHANT_PORTRAITS.map((portrait) => {
+                      const selected = form.merchant_portrait === portrait.id;
+                      return (
+                        <button
+                          key={portrait.id}
+                          type="button"
+                          onClick={() => updateField('merchant_portrait', portrait.id)}
+                          className={`rounded-panel border p-3 text-left transition ${selected ? 'border-primary bg-[#3a2b14]' : 'border-outlineVariant bg-surfaceLowest hover:bg-surfaceLow'}`}
+                        >
+                          <div className="relative mx-auto h-40 w-full overflow-hidden rounded-panel bg-[#120e04]">
+                            <Image src={portrait.imageSrc} alt={portrait.name} fill className="object-contain" sizes="(max-width: 768px) 50vw, 25vw" />
+                          </div>
+                          <p className="mt-3 text-sm text-onSurface">{portrait.name}</p>
+                          <p className="mt-1 text-xs text-[#d8caa3]">{portrait.vibe}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <label className="grid gap-2 text-sm text-[#f4e7c7]">
                   <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Merchant name</span>
                   <input value={form.display_name} onChange={(e) => updateField('display_name', e.target.value)} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />

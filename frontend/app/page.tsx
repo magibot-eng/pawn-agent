@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import RainbowConnectAction from '../components/RainbowConnectAction';
 import { Shops, type Shop } from '../lib/api';
+import { DEFAULT_MERCHANT_PORTRAIT_ID } from '../lib/merchantPortraits';
 import { useUnifiedWallet } from '../lib/useUnifiedWallet';
 
 const STORAGE_KEY = 'pawn-agent:selected-store';
@@ -130,6 +131,7 @@ export default function HomePage() {
           pricing_style: 'Conservative on risk, fair on clean opportunities, never overpay.',
           refusal_rules: 'Refuse unclear token identity, fake urgency, or missing details.',
           welcome_message: 'State the token, amount, and your ask.',
+          merchant_portrait: DEFAULT_MERCHANT_PORTRAIT_ID,
           payout_token: '0x0000000000000000000000000000000000000000',
           wallet_provider: 'cdp_agentic_wallet',
           wallet_status: 'pending',

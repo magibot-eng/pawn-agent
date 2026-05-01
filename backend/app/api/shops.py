@@ -42,6 +42,7 @@ async def create_shop(
         pricing_style=data.pricing_style,
         refusal_rules=data.refusal_rules,
         welcome_message=data.welcome_message,
+        merchant_portrait=data.merchant_portrait,
         payout_token=data.payout_token,
         merchant_address=data.merchant_address or "0x0000000000000000000000000000000000000000",
         wallet_provider=data.wallet_provider,

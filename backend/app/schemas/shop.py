@@ -45,6 +45,10 @@ class ShopCreate(BaseModel):
     pricing_style: str | None = None
     refusal_rules: str | None = None
     welcome_message: str | None = None
+    merchant_portrait: Annotated[
+        str,
+        Field(max_length=64, default="brass-ledger-broker", description="Selected merchant portrait slug for the storefront character art."),
+    ]
     payout_token: Annotated[
         str,
         Field(
@@ -93,6 +97,7 @@ class ShopUpdate(BaseModel):
     pricing_style: str | None = None
     refusal_rules: str | None = None
     welcome_message: str | None = None
+    merchant_portrait: Annotated[str | None, Field(max_length=64)] = None
     status: str | None = Field(
         default=None,
         description="One of: draft, published, paused, closed",
@@ -119,6 +124,7 @@ class ShopResponse(BaseModel):
     pricing_style: str | None
     refusal_rules: str | None
     welcome_message: str | None
+    merchant_portrait: str
     status: str
     contract_address: str | None
     payout_token: str

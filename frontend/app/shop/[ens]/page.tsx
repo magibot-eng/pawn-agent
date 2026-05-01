@@ -1,11 +1,13 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { isAddress } from 'viem';
 import MerchantChat from '../../../components/MerchantChat';
 import { Negotiations, Shops, type NegotiationSession, type Shop } from '../../../lib/api';
+import { getMerchantPortraitById } from '../../../lib/merchantPortraits';
 
 const DEFAULT_INPUT_TOKEN = '0x0000000000000000000000000000000000000000';
 const DEFAULT_INPUT_AMOUNT = '0';
@@ -112,6 +114,7 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
   }, [params, router, searchParams]);
 
   const headline = useMemo(() => shop?.display_name ?? ensName ?? 'Pawn Agent Storefront', [shop, ensName]);
+  const selectedPortrait = useMemo(() => getMerchantPortraitById(shop?.merchant_portrait), [shop?.merchant_portrait]);
   const startFreshHref = useMemo(() => {
     if (!shop || !sellerAddress) return '/';
     return `/shop/${encodeURIComponent(shop.ens_name)}?seller=${encodeURIComponent(sellerAddress)}&fresh=1`;
@@ -158,6 +161,13 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
               <p className="mt-3 text-sm text-[#f0dfb4]">
                 {shop.description || 'State your token, amount, and ask. The merchant will respond in-line.'}
               </p>
+            </div>
+            <div className="merchant-inset rounded-panel p-3 sm:min-w-[14rem]">
+              <div className="relative mx-auto h-40 w-32 overflow-hidden rounded-panel bg-[#120e04]">
+                <Image src={selectedPortrait.imageSrc} alt={selectedPortrait.name} fill className="object-contain" sizes="128px" />
+              </div>
+              <p className="mt-3 text-center text-sm text-onSurface">{selectedPortrait.name}</p>
+              <p className="mt-1 text-center text-xs text-[#d8caa3]">{selectedPortrait.vibe}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Link href="/" className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
@@ -213,6 +223,10 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
                 <div>
                   <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">ENS</dt>
                   <dd className="mt-1 text-base text-onSurface">{shop.ens_name}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Store keeper</dt>
+                  <dd className="mt-1 text-base text-onSurface">{selectedPortrait.name}</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant wallet</dt>

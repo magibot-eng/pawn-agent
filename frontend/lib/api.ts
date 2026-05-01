@@ -36,6 +36,7 @@ export interface Shop {
   pricing_style: string | null;
   refusal_rules: string | null;
   welcome_message: string | null;
+  merchant_portrait: string;
   status: string;
   contract_address: string | null;
   payout_token: string;
@@ -69,6 +70,7 @@ export interface CreateShop {
   pricing_style?: string;
   refusal_rules?: string;
   welcome_message?: string;
+  merchant_portrait?: string;
   payout_token?: string;
   merchant_address?: string;
   wallet_provider?: string;

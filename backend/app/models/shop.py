@@ -50,6 +50,7 @@ class Shop(Base):
     pricing_style: Mapped[str | None] = mapped_column(Text, nullable=True)
     refusal_rules: Mapped[str | None] = mapped_column(Text, nullable=True)
     welcome_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    merchant_portrait: Mapped[str] = mapped_column(String(64), nullable=False, default="brass-ledger-broker")
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default=ShopStatus.DRAFT, index=True
     )

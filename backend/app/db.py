@@ -68,6 +68,7 @@ SHOP_COLUMN_MIGRATIONS = {
     "pricing_style": "TEXT",
     "refusal_rules": "TEXT",
     "welcome_message": "TEXT",
+    "merchant_portrait": "VARCHAR(64) NOT NULL DEFAULT 'brass-ledger-broker'",
     "wallet_provider": "VARCHAR(32) NOT NULL DEFAULT 'cdp_agentic_wallet'",
     "wallet_provider_account_id": "VARCHAR(128)",
     "wallet_status": "VARCHAR(16) NOT NULL DEFAULT 'pending'",
