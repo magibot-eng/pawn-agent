@@ -692,3 +692,14 @@ body {
   pointer-events: none;
   border-radius: inherit;
 }
+
+
+/* ============================================
+   TAVERN — PAGE CONTENT Z-INDEX LAYER
+   ============================================ */
+
+main, [data-page-content], .page-content {
+  position: relative;
+  z-index: 1;
+}
+

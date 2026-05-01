@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Serif } from "next/font/google";
 import AppProviders from '../components/AppProviders';
+import TavernBackground from '../components/Storefront/TavernBackground';
 import "./globals.css";
 
 const notoSerif = Noto_Serif({
@@ -18,7 +19,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body className={notoSerif.variable}>
-        <AppProviders>{children}</AppProviders>
+        <AppProviders>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
+            <TavernBackground />
+          </div>
+          {children}
+        </AppProviders>
       </body>
     </html>
   );
