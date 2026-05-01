@@ -138,6 +138,16 @@ export const Shops = {
     }),
 };
 
+export interface PrimaryEnsLookup {
+  address: string;
+  primary_ens: string | null;
+  verified: boolean;
+}
+
+export const Ens = {
+  primary: (address: string) => request<PrimaryEnsLookup>(`/ens/primary/${encodeURIComponent(address)}`),
+};
+
 // ---------------------------------------------------------------------------
 // Negotiations
 // ---------------------------------------------------------------------------

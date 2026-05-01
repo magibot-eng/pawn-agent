@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import shops_router, negotiations_router, deals_router, provider_keys_router
+from app.api import shops_router, negotiations_router, deals_router, provider_keys_router, ens_router
 from app.config import get_settings
 from app.db import init_db
 
@@ -41,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(negotiations_router)
     app.include_router(deals_router)
     app.include_router(provider_keys_router)
+    app.include_router(ens_router)
 
     @app.get("/health")
     async def health():

@@ -366,7 +366,10 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
       setNegotiationState(resp.negotiation.negotiation_state ?? null);
       setTyping({
         active: true,
-        text: `⚓ Terms accepted. Base Sepolia settlement ${resp.execution.state}. Tx ${resp.execution.tx_hash ?? 'pending'}.`,
+        text:
+          resp.execution.state === 'simulated'
+            ? `⚓ Terms accepted. Demo settlement recorded in simulated mode. Ref ${resp.execution.tx_hash ?? 'pending'}.`
+            : `⚓ Terms accepted. Base Sepolia settlement ${resp.execution.state}. Tx ${resp.execution.tx_hash ?? 'pending'}.`,
         charIndex: 0,
       });
     } catch (err) {

@@ -111,6 +111,12 @@ def _submit_eth_settlement(recipient: str, payout_amount: str) -> tuple[str, str
     return tx_hash, state, payout_sent_wei
 
 
+def _simulate_eth_settlement(recipient: str, payout_amount: str, negotiation_id: str) -> tuple[str, str, str]:
+    payout_sent_wei = _eth_amount_to_wei(payout_amount)
+    fake_hash = "0x" + hashlib.sha256(f"{negotiation_id}:{recipient}:{payout_amount}:simulated".encode()).hexdigest()
+    return fake_hash, "simulated", payout_sent_wei
+
+
 async def accept_quote_and_execute(
     negotiation_id: str,
     payout_token: str,
@@ -135,10 +141,14 @@ async def accept_quote_and_execute(
     ):
         raise SettlementError("Merchant wallet is not active. Provision the merchant wallet before accepting quotes.")
 
-    if not shop.wallet_provider_account_id or not shop.wallet_provider_account_id.startswith("cdpwa_live_"):
-        raise SettlementError(
-            "Merchant wallet is not in live Base Sepolia mode yet. Authenticate the CDP Agentic Wallet and re-provision before accepting quotes."
-        )
+    simulate_only = False
+    settings = get_settings()
+    if (
+        not settings.cdp_wallet_live_enabled
+        or not shop.wallet_provider_account_id
+        or not shop.wallet_provider_account_id.startswith("cdpwa_live_")
+    ):
+        simulate_only = True
 
     if not _is_eth_payout_token(payout_token):
         raise SettlementError("Real Base Sepolia settlement currently supports ETH payouts only.")
@@ -177,7 +187,10 @@ async def accept_quote_and_execute(
     await db.flush()
 
     try:
-        tx_hash, execution_state, payout_sent_wei = _submit_eth_settlement(seller, payout_amount)
+        if simulate_only:
+            tx_hash, execution_state, payout_sent_wei = _simulate_eth_settlement(seller, payout_amount, negotiation.id)
+        else:
+            tx_hash, execution_state, payout_sent_wei = _submit_eth_settlement(seller, payout_amount)
     except SettlementError as exc:
         offer.state = "failed"
         execution.state = "failed"
