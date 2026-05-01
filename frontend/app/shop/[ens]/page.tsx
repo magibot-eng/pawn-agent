@@ -6,27 +6,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { isAddress } from 'viem';
 import MerchantChat from '../../../components/MerchantChat';
-import MerchantPortrait from '../../../components/Storefront/MerchantPortrait';
 import RainbowConnectAction from '../../../components/RainbowConnectAction';
-import { Negotiations, Shops, type NegotiationSession, type Shop } from '../../../lib/api';
+import { Negotiations, type NegotiationSession, Shops, type Shop } from '../../../lib/api';
+import { DEFAULT_SUPPORTED_SELLER_TOKEN, pawnTokenConfigured } from '../../../lib/baseSepoliaTokens';
 import { getMerchantPortraitById } from '../../../lib/merchantPortraits';
+import { useDetectedSellerTokens } from '../../../lib/useDetectedSellerTokens';
 import { useUnifiedWallet } from '../../../lib/useUnifiedWallet';
 
-type DemoInventoryToken = {
-  symbol: string;
-  address: `0x${string}`;
-  available: string;
-  label: string;
-};
-
-const DEMO_TOKENS: DemoInventoryToken[] = [
-  { symbol: 'DEGEN', address: '0x1111111111111111111111111111111111111111', available: '12,500', label: 'Degen Runoff' },
-  { symbol: 'TIDE', address: '0x2222222222222222222222222222222222222222', available: '18,000', label: 'Tidal Governance' },
-  { symbol: 'FROG', address: '0x3333333333333333333333333333333333333333', available: '42,000', label: 'Frog Liquidity' },
-  { symbol: 'ORB', address: '0x4444444444444444444444444444444444444444', available: '7,200', label: 'Orb Credits' },
-];
-
-const DEFAULT_INPUT_TOKEN = DEMO_TOKENS[0].address;
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
+const DEFAULT_INPUT_TOKEN = DEFAULT_SUPPORTED_SELLER_TOKEN?.address ?? ZERO_ADDRESS;
 const DEFAULT_INPUT_AMOUNT = '1000';
 const SESSION_STORAGE_PREFIX = 'pawn-agent:shop-session:';
 
@@ -52,9 +40,10 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sellerAddress, setSellerAddress] = useState<string | null>(null);
-  const [selectedTokenAddress, setSelectedTokenAddress] = useState<`0x${string}`>(DEFAULT_INPUT_TOKEN);
+  const [selectedTokenAddress, setSelectedTokenAddress] = useState<`0x${string}` | null>(DEFAULT_SUPPORTED_SELLER_TOKEN?.address ?? null);
   const [selectedQuantity, setSelectedQuantity] = useState(DEFAULT_INPUT_AMOUNT);
   const [sessionStarting, setSessionStarting] = useState(false);
+  const { tokens: detectedTokens, loading: tokensLoading, error: tokenDetectionError, hasConfiguredTokens } = useDetectedSellerTokens(walletAddress);
 
   useEffect(() => {
     let active = true;
@@ -140,11 +129,27 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
 
   const headline = useMemo(() => shop?.display_name ?? ensName ?? 'Pawn Agent Storefront', [shop, ensName]);
   const selectedPortrait = useMemo(() => getMerchantPortraitById(shop?.merchant_portrait), [shop?.merchant_portrait]);
-  const selectedToken = useMemo(() => DEMO_TOKENS.find((token) => token.address === selectedTokenAddress) ?? DEMO_TOKENS[0], [selectedTokenAddress]);
+  const selectedToken = useMemo(
+    () => detectedTokens.find((token) => token.address === selectedTokenAddress) ?? detectedTokens[0] ?? null,
+    [detectedTokens, selectedTokenAddress]
+  );
   const startFreshHref = useMemo(() => {
     if (!shop) return '/';
     return `/shop/${encodeURIComponent(shop.ens_name)}`;
   }, [shop]);
+
+  useEffect(() => {
+    if (detectedTokens.length === 0) {
+      if (selectedTokenAddress && !hasConfiguredTokens) {
+        setSelectedTokenAddress(null);
+      }
+      return;
+    }
+
+    if (!selectedTokenAddress || !detectedTokens.some((token) => token.address === selectedTokenAddress)) {
+      setSelectedTokenAddress(detectedTokens[0].address);
+    }
+  }, [detectedTokens, hasConfiguredTokens, selectedTokenAddress]);
 
   async function handleStartSession() {
     if (!shop || !walletAddress) {
@@ -153,6 +158,14 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
     }
 
     const normalizedQuantity = selectedQuantity.trim();
+    if (!selectedToken) {
+      setError(
+        hasConfiguredTokens
+          ? 'No supported Base Sepolia token balance was detected in this wallet yet.'
+          : 'No supported seller token is configured yet. Set NEXT_PUBLIC_PAWN_TOKEN_ADDRESS first.'
+      );
+      return;
+    }
     if (!normalizedQuantity || Number(normalizedQuantity) <= 0) {
       setError('Enter how many tokens you want to sell.');
       return;
@@ -286,7 +299,7 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
               <p className="tavern-muted">Start selling</p>
               <h2 className="tavern-heading mt-2 text-2xl">Open a clean negotiation session</h2>
               <p className="tavern-body-text mt-3">
-                Start with a clean intake card so the merchant knows exactly which token lot you want to unload. For demo purposes, the shop assumes the token is distressed and quotes a tiny ETH amount based on quantity and the merchant's mood.
+                Start with a clean intake card so the merchant knows exactly which real Base Sepolia token lot you want to unload. This step now reads from supported live ERC-20 balances in the connected seller wallet instead of placeholder inventory.
               </p>
               <div className="mt-4 rounded-panel border px-4 py-4 text-sm" style={{ borderColor: 'rgba(196,168,112,0.25)', background: 'rgba(18,14,5,0.8)', color: 'rgba(240,224,179,0.9)' }}>
                 <p className="tavern-muted">Seller wallet</p>
@@ -301,18 +314,28 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
               <div className="mt-5 grid gap-4">
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
-                    <span className="tavern-muted">Token lot</span>
+                    <span className="tavern-muted">Detected token balance</span>
                     <select
-                      value={selectedTokenAddress}
-                      onChange={(e) => setSelectedTokenAddress(e.target.value as `0x${string}`)}
+                      value={selectedTokenAddress ?? ''}
+                      onChange={(e) => setSelectedTokenAddress((e.target.value || null) as `0x${string}` | null)}
                       className="ledger-select"
-                      disabled={!walletAddress || sessionStarting}
+                      disabled={!walletAddress || sessionStarting || tokensLoading || detectedTokens.length === 0}
                     >
-                      {DEMO_TOKENS.map((token) => (
-                        <option key={token.address} value={token.address}>
-                          {token.symbol} — {token.available} available — {token.label}
+                      {detectedTokens.length > 0 ? (
+                        detectedTokens.map((token) => (
+                          <option key={token.address} value={token.address}>
+                            {token.symbol} — {token.balance} available — {token.label}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">
+                          {tokensLoading
+                            ? 'Scanning Base Sepolia balances…'
+                            : hasConfiguredTokens
+                              ? 'No supported token balance detected'
+                              : 'PAWN token address not configured yet'}
                         </option>
-                      ))}
+                      )}
                     </select>
                   </label>
                   <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
@@ -327,10 +350,25 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
                   </label>
                 </div>
                 <div className="rounded-panel border px-4 py-4 text-sm" style={{ borderColor: 'rgba(196,168,112,0.25)', background: 'rgba(18,14,5,0.8)', color: 'rgba(240,224,179,0.9)' }}>
-                  <p className="tavern-muted">Selected inventory</p>
-                  <p className="mt-2 text-onSurface">{selectedToken.symbol} • {selectedToken.available} available</p>
-                  <p className="mt-1 text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>The merchant will treat this as distressed inventory and open with a tiny ETH quote in the demo flow.</p>
+                  <p className="tavern-muted">Detected inventory</p>
+                  <p className="mt-2 text-onSurface">
+                    {selectedToken
+                      ? `${selectedToken.symbol} • ${selectedToken.balance} available`
+                      : hasConfiguredTokens
+                        ? 'No supported token balance detected in this wallet yet.'
+                        : 'Set NEXT_PUBLIC_PAWN_TOKEN_ADDRESS to enable PAWN detection.'}
+                  </p>
+                  <p className="mt-1 text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>
+                    {selectedToken
+                      ? `Token contract ${selectedToken.address}`
+                      : 'This screen now reflects live wallet balances for supported Base Sepolia tokens only.'}
+                  </p>
                 </div>
+                {tokenDetectionError ? (
+                  <p className="rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(248,113,113,0.4)', background: 'rgba(127,29,29,0.3)', color: '#fecaca' }}>
+                    {tokenDetectionError}
+                  </p>
+                ) : null}
                 <div className="flex flex-wrap gap-3">
                   {walletAddress ? (
                     <button onClick={handleStartSession} className="tavern-sign-link brass" disabled={sessionStarting}>
