@@ -34,6 +34,7 @@ class WalletStatusDetails:
     authenticated_email: str | None
     balance: str | None
     balance_symbol: str | None
+    holdings: list[dict[str, str | None]]
 
 
 @dataclass
@@ -157,6 +158,47 @@ def _get_awal_balance() -> tuple[str | None, str | None]:
     return None, None
 
 
+def _get_awal_holdings() -> list[dict[str, str | None]]:
+    settings = get_settings()
+    try:
+        output = _run_awal(["balance", "--chain", settings.cdp_wallet_chain, "--json"])
+    except WalletProvisioningError:
+        return []
+
+    try:
+        payload = json.loads(output)
+    except json.JSONDecodeError:
+        return []
+
+    balances = []
+    chain = settings.cdp_wallet_chain
+
+    if isinstance(payload, dict):
+        chain = payload.get("chain") or payload.get("network") or chain
+        raw_balances = payload.get("balances") or payload.get("assets") or []
+    elif isinstance(payload, list):
+        raw_balances = payload
+    else:
+        raw_balances = []
+
+    for entry in raw_balances:
+        if not isinstance(entry, dict):
+            continue
+        asset = entry.get("asset") or entry.get("symbol") or entry.get("token") or entry.get("name")
+        balance = entry.get("balance") or entry.get("formatted") or entry.get("amount") or entry.get("value")
+        entry_chain = entry.get("chain") or entry.get("network") or chain
+        if asset and balance is not None:
+            balances.append(
+                {
+                    "asset": str(asset),
+                    "balance": str(balance),
+                    "chain": str(entry_chain) if entry_chain is not None else None,
+                }
+            )
+
+    return balances
+
+
 def get_wallet_status_details(shop: Shop) -> WalletStatusDetails:
     """Return display-ready wallet status details for owner UI."""
     provisioning_mode = "stub"
@@ -164,6 +206,7 @@ def get_wallet_status_details(shop: Shop) -> WalletStatusDetails:
     authenticated_email = None
     balance = None
     balance_symbol = None
+    holdings: list[dict[str, str | None]] = []
 
     settings = get_settings()
     if settings.cdp_wallet_live_enabled and shop.wallet_provider == "cdp_agentic_wallet":
@@ -174,6 +217,7 @@ def get_wallet_status_details(shop: Shop) -> WalletStatusDetails:
                 authenticated = True
                 authenticated_email = status.email
                 balance, balance_symbol = _get_awal_balance()
+                holdings = _get_awal_holdings()
         except WalletProvisioningError:
             pass
 
@@ -187,6 +231,7 @@ def get_wallet_status_details(shop: Shop) -> WalletStatusDetails:
         authenticated_email=authenticated_email,
         balance=balance,
         balance_symbol=balance_symbol,
+        holdings=holdings,
     )
 
 

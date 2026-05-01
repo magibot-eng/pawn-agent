@@ -80,6 +80,12 @@ export interface CreateShop {
   auto_settlement_enabled?: boolean;
 }
 
+export interface ShopWalletHolding {
+  asset: string;
+  balance: string;
+  chain: string | null;
+}
+
 export interface ShopWalletStatus {
   wallet_provider: string;
   wallet_status: string;
@@ -90,6 +96,7 @@ export interface ShopWalletStatus {
   authenticated_email: string | null;
   balance: string | null;
   balance_symbol: string | null;
+  holdings: ShopWalletHolding[];
 }
 
 export interface ShopWalletTransferResponse {

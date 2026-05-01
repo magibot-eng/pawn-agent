@@ -132,6 +132,12 @@ class ShopResponse(BaseModel):
     ens_identities: list[ShopEnsIdentityResponse] = []
 
 
+class ShopWalletHoldingResponse(BaseModel):
+    asset: str
+    balance: str
+    chain: str | None = None
+
+
 class ShopWalletStatusResponse(BaseModel):
     wallet_provider: str
     wallet_status: str
@@ -142,6 +148,7 @@ class ShopWalletStatusResponse(BaseModel):
     authenticated_email: str | None
     balance: str | None
     balance_symbol: str | None
+    holdings: list[ShopWalletHoldingResponse] = []
 
 
 class ShopWalletWithdrawRequest(BaseModel):

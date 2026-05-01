@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { getAddress, isAddress, parseEther } from 'viem';
+import { createPublicClient, formatEther, getAddress, http, isAddress, parseEther } from 'viem';
+import { baseSepolia } from 'viem/chains';
 import { ProviderKeys, Shops, type CreateProviderKey, type ProviderKey, type ProviderKeyTestResult, type Shop, type ShopWalletStatus, type ShopWalletTransferResponse } from '../../lib/api';
 
 const STORAGE_KEY = 'pawn-agent:selected-store';
 const BASE_SEPOLIA_CHAIN_ID = '0x14a34';
+const baseSepoliaClient = createPublicClient({ chain: baseSepolia, transport: http() });
 
 type EthereumProvider = {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;
@@ -26,6 +28,15 @@ function formatWallet(address: string) {
 
 function normalizeEthAmount(value: string) {
   return value.trim();
+}
+
+function formatBalanceLine(balance: string | null | undefined, symbol: string | null | undefined) {
+  if (!balance) return 'Unavailable';
+  return `${balance} ${symbol ?? ''}`.trim();
+}
+
+function formatHoldingLabel(asset: string, chain?: string | null) {
+  return chain ? `${asset} • ${chain}` : asset;
 }
 
 type OwnerForm = {
@@ -84,6 +95,8 @@ export default function OwnerPage() {
   const [ensName, setEnsName] = useState<string | null>(null);
   const [connectedWallet, setConnectedWallet] = useState<string | null>(null);
   const [walletConnecting, setWalletConnecting] = useState(false);
+  const [ownerWalletBalance, setOwnerWalletBalance] = useState<string | null>(null);
+  const [walletRefreshing, setWalletRefreshing] = useState(false);
   const [fundAmount, setFundAmount] = useState('0.0001');
   const [withdrawAmount, setWithdrawAmount] = useState('0.0001');
   const [funding, setFunding] = useState(false);
@@ -200,6 +213,25 @@ export default function OwnerPage() {
     };
   }, []);
 
+  useEffect(() => {
+    async function loadOwnerWalletBalance() {
+      if (!connectedWallet) {
+        setOwnerWalletBalance(null);
+        return;
+      }
+
+      try {
+        const balanceWei = await baseSepoliaClient.getBalance({ address: getAddress(connectedWallet) });
+        setOwnerWalletBalance(formatEther(balanceWei));
+      } catch (err) {
+        console.error(err);
+        setOwnerWalletBalance(null);
+      }
+    }
+
+    loadOwnerWalletBalance();
+  }, [connectedWallet]);
+
   const activeKey = useMemo(() => providerKeys.find((key) => key.is_active) ?? null, [providerKeys]);
   const storefrontHref = shop ? `/shop/${encodeURIComponent(shop.ens_name)}` : '/';
 
@@ -207,6 +239,19 @@ export default function OwnerPage() {
     const wallet = await Shops.walletStatus(shopId);
     setWalletStatus(wallet);
     return wallet;
+  }
+
+  async function refreshTreasuryData(shopId: string) {
+    try {
+      setWalletRefreshing(true);
+      await refreshWalletStatus(shopId);
+      if (connectedWallet) {
+        const balanceWei = await baseSepoliaClient.getBalance({ address: getAddress(connectedWallet) });
+        setOwnerWalletBalance(formatEther(balanceWei));
+      }
+    } finally {
+      setWalletRefreshing(false);
+    }
   }
 
   async function connectOwnerWallet() {
@@ -320,7 +365,7 @@ export default function OwnerPage() {
         }],
       }) as string;
       setFundTransfer({ tx_hash: txHash, amount_eth: amountEth });
-      await refreshWalletStatus(shop.id);
+      await refreshTreasuryData(shop.id);
       setNotice(`Funding transaction submitted from owner wallet to merchant wallet. Tx ${txHash}.`);
     } catch (err) {
       console.error(err);
@@ -346,7 +391,7 @@ export default function OwnerPage() {
       setWithdrawTransfer(null);
       const transfer = await Shops.withdrawToOwner(shop.id, amountEth);
       setWithdrawTransfer(transfer);
-      await refreshWalletStatus(shop.id);
+      await refreshTreasuryData(shop.id);
       setNotice(`Merchant-wallet withdrawal submitted back to owner wallet. Tx ${transfer.tx_hash}.`);
     } catch (err) {
       console.error(err);
@@ -413,7 +458,7 @@ export default function OwnerPage() {
       setError(null);
       const updated = await Shops.provisionWallet(shop.id);
       setShop(updated);
-      await refreshWalletStatus(shop.id);
+      await refreshTreasuryData(shop.id);
       setNotice('Merchant wallet provisioned. This shop can now use a separate operational wallet for automated settlement.');
     } catch (err) {
       console.error(err);
@@ -556,49 +601,12 @@ export default function OwnerPage() {
             </section>
 
             <section className="grid gap-6">
-              <section className="merchant-inset rounded-panel p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-3">
+              <section className="merchant-inset treasury-panel rounded-panel p-4 sm:p-5">
+                <div className="flex flex-col gap-3 border-b border-[rgba(212,175,55,0.16)] pb-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Merchant wallet</p>
-                    <p className="mt-2 text-sm text-[#f0dfb4]">
-                      This is the agent-controlled settlement wallet. The owner wallet administers the shop, but this wallet will eventually quote, pay, and settle automatically.
-                    </p>
-                  </div>
-                  <button
-                    onClick={provisionMerchantWallet}
-                    disabled={walletProvisioning || shop.wallet_status === 'active'}
-                    className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow disabled:opacity-60"
-                  >
-                    {shop.wallet_status === 'active'
-                      ? 'Wallet active'
-                      : walletProvisioning
-                        ? 'Provisioning…'
-                        : 'Provision merchant wallet'}
-                  </button>
-                </div>
-                <div className="mt-3 rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#f4e7c7]">
-                  <div className="space-y-2">
-                    <p><span className="text-onSurfaceVariant">Provider:</span> {walletStatus?.wallet_provider ?? shop.wallet_provider}</p>
-                    <p><span className="text-onSurfaceVariant">Status:</span> {walletStatus?.wallet_status ?? shop.wallet_status}</p>
-                    <p><span className="text-onSurfaceVariant">Operational address:</span> {(walletStatus?.wallet_status ?? shop.wallet_status) === 'pending' ? 'Not provisioned yet' : (walletStatus?.merchant_address ?? shop.merchant_address)}</p>
-                    <p><span className="text-onSurfaceVariant">Provider account:</span> {walletStatus?.wallet_provider_account_id ?? shop.wallet_provider_account_id ?? 'Not linked yet'}</p>
-                    <p><span className="text-onSurfaceVariant">Provisioning mode:</span> {walletStatus?.provisioning_mode ?? 'stub'}</p>
-                    <p><span className="text-onSurfaceVariant">Authenticated:</span> {walletStatus?.authenticated ? `Yes${walletStatus.authenticated_email ? ` • ${walletStatus.authenticated_email}` : ''}` : 'No'}</p>
-                    <p><span className="text-onSurfaceVariant">Balance:</span> {walletStatus?.balance ? `${walletStatus.balance} ${walletStatus.balance_symbol ?? ''}`.trim() : 'Unavailable'}</p>
-                    <p><span className="text-onSurfaceVariant">Auto settlement:</span> {shop.auto_settlement_enabled ? 'Enabled' : 'Disabled'}</p>
-                  </div>
-                </div>
-                <div className="mt-3 rounded-panel border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-xs text-amber-100">
-                  Live settlement and merchant-wallet withdrawals require a live `awal` wallet on Base Sepolia. Stub wallets are useful for flow testing only.
-                </div>
-              </section>
-
-              <section className="merchant-inset rounded-panel p-4 sm:p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Wallet funding</p>
-                    <p className="mt-2 text-sm text-[#f0dfb4]">
-                      Move Base Sepolia ETH between the owner wallet and the merchant wallet so settlement testing can happen without leaving the product flow.
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Treasury</p>
+                    <p className="mt-2 max-w-2xl text-sm text-[#f0dfb4]">
+                      This section shows the two wallets that matter operationally: the owner wallet that funds the system, and the merchant wallet that holds acquired assets and settles trades.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -617,55 +625,139 @@ export default function OwnerPage() {
                         Disconnect
                       </button>
                     ) : null}
+                    <button
+                      onClick={() => refreshTreasuryData(shop.id)}
+                      disabled={walletRefreshing}
+                      className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow disabled:opacity-60"
+                    >
+                      {walletRefreshing ? 'Refreshing…' : 'Refresh balances'}
+                    </button>
                   </div>
                 </div>
 
-                <div className="mt-3 rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#f4e7c7]">
-                  <div className="space-y-2">
-                    <p><span className="text-onSurfaceVariant">Shop owner wallet:</span> {ownerAddress ? `${formatWallet(ownerAddress)} • ${ownerAddress}` : 'Unknown'}</p>
-                    <p><span className="text-onSurfaceVariant">Connected browser wallet:</span> {connectedWallet ? `${formatWallet(connectedWallet)} • ${connectedWallet}` : 'Not connected'}</p>
-                    <p><span className="text-onSurfaceVariant">Merchant wallet:</span> {walletStatus?.merchant_address ?? shop.merchant_address}</p>
-                    <p><span className="text-onSurfaceVariant">Network:</span> Base Sepolia</p>
+                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                  <div className="treasury-card rounded-panel p-4">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Owner wallet</p>
+                    <p className="mt-2 text-lg text-onSurface">{ownerAddress ? formatWallet(ownerAddress) : 'Unknown'}</p>
+                    <p className="mt-1 break-all text-xs text-[#d8caa3]">{ownerAddress ?? 'No owner wallet found for this shop.'}</p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Connected browser</p>
+                        <p className="mt-1 text-sm text-[#f5e9c9]">{connectedWallet ? formatWallet(connectedWallet) : 'Not connected'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Base Sepolia ETH</p>
+                        <p className="mt-1 text-sm text-[#f5e9c9]">{formatBalanceLine(ownerWalletBalance, 'ETH')}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="treasury-card rounded-panel p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant wallet</p>
+                        <p className="mt-2 text-lg text-onSurface">{(walletStatus?.wallet_status ?? shop.wallet_status) === 'pending' ? 'Not provisioned yet' : formatWallet(walletStatus?.merchant_address ?? shop.merchant_address)}</p>
+                        <p className="mt-1 break-all text-xs text-[#d8caa3]">{walletStatus?.merchant_address ?? shop.merchant_address}</p>
+                      </div>
+                      <button
+                        onClick={provisionMerchantWallet}
+                        disabled={walletProvisioning || shop.wallet_status === 'active'}
+                        className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow disabled:opacity-60"
+                      >
+                        {shop.wallet_status === 'active'
+                          ? 'Wallet active'
+                          : walletProvisioning
+                            ? 'Provisioning…'
+                            : 'Provision merchant wallet'}
+                      </button>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Status</p>
+                        <p className="mt-1 text-sm text-[#f5e9c9]">{walletStatus?.wallet_status ?? shop.wallet_status}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Mode</p>
+                        <p className="mt-1 text-sm text-[#f5e9c9]">{walletStatus?.provisioning_mode ?? 'stub'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Primary balance</p>
+                        <p className="mt-1 text-sm text-[#f5e9c9]">{formatBalanceLine(walletStatus?.balance, walletStatus?.balance_symbol)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Authenticated</p>
+                        <p className="mt-1 text-sm text-[#f5e9c9]">{walletStatus?.authenticated ? `Yes${walletStatus.authenticated_email ? ` • ${walletStatus.authenticated_email}` : ''}` : 'No'}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 rounded-panel border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-xs text-amber-100">
+                      Live settlement, holdings, and merchant-wallet withdrawals require a live `awal` wallet on Base Sepolia. Stub wallets are useful for flow testing only.
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div className="rounded-panel border border-outlineVariant bg-surfaceLowest p-4">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Owner → Merchant</p>
-                    <p className="mt-2 text-sm text-[#f0dfb4]">Use the connected browser owner wallet to top up the merchant wallet with Base Sepolia ETH.</p>
-                    <label className="mt-3 grid gap-2 text-sm text-[#f4e7c7]">
-                      <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Amount (ETH)</span>
-                      <input value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} className="rounded-panel border border-outlineVariant bg-maritime px-3 py-3 text-onSurface outline-none" />
-                    </label>
-                    <button
-                      onClick={fundMerchantWallet}
-                      disabled={funding}
-                      className="mt-3 w-full rounded-panel border border-outlineVariant bg-primary px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-black disabled:opacity-60"
-                    >
-                      {funding ? 'Funding…' : 'Fund merchant wallet'}
-                    </button>
-                    {fundTransfer ? (
-                      <p className="mt-3 text-xs text-emerald-200">Submitted {fundTransfer.amount_eth} ETH. Tx: {fundTransfer.tx_hash}</p>
-                    ) : null}
+                <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                  <div className="treasury-card rounded-panel p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant holdings</p>
+                        <p className="mt-2 text-sm text-[#f0dfb4]">Current balances reported by the live merchant wallet on Base Sepolia.</p>
+                      </div>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">{walletStatus?.holdings?.length ?? 0} assets</p>
+                    </div>
+                    {walletStatus?.holdings && walletStatus.holdings.length > 0 ? (
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {walletStatus.holdings.map((holding) => (
+                          <div key={`${holding.asset}-${holding.chain ?? 'unknown'}`} className="treasury-holding rounded-panel px-3 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">{formatHoldingLabel(holding.asset, holding.chain)}</p>
+                            <p className="mt-1 text-base text-onSurface">{holding.balance}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#d8caa3]">
+                        No live token holdings are available yet. Authenticate `awal`, fund the merchant wallet, or let the merchant acquire assets through the settlement flow to populate this section.
+                      </div>
+                    )}
                   </div>
 
-                  <div className="rounded-panel border border-outlineVariant bg-surfaceLowest p-4">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant → Owner</p>
-                    <p className="mt-2 text-sm text-[#f0dfb4]">Use the live merchant wallet to withdraw Base Sepolia ETH back to the owner wallet.</p>
-                    <label className="mt-3 grid gap-2 text-sm text-[#f4e7c7]">
-                      <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Amount (ETH)</span>
-                      <input value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="rounded-panel border border-outlineVariant bg-maritime px-3 py-3 text-onSurface outline-none" />
-                    </label>
-                    <button
-                      onClick={withdrawMerchantFunds}
-                      disabled={withdrawing}
-                      className="mt-3 w-full rounded-panel border border-outlineVariant bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary disabled:opacity-60"
-                    >
-                      {withdrawing ? 'Withdrawing…' : 'Withdraw to owner wallet'}
-                    </button>
-                    {withdrawTransfer ? (
-                      <p className="mt-3 text-xs text-emerald-200">Submitted {withdrawTransfer.amount_eth} ETH back to {formatWallet(withdrawTransfer.recipient_address)}. Tx: {withdrawTransfer.tx_hash}</p>
-                    ) : null}
+                  <div className="grid gap-4">
+                    <div className="treasury-card rounded-panel p-4">
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Owner → Merchant</p>
+                      <p className="mt-2 text-sm text-[#f0dfb4]">Use the connected browser owner wallet to top up the merchant wallet with Base Sepolia ETH.</p>
+                      <label className="mt-3 grid gap-2 text-sm text-[#f4e7c7]">
+                        <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Amount (ETH)</span>
+                        <input value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} className="rounded-panel border border-outlineVariant bg-maritime px-3 py-3 text-onSurface outline-none" />
+                      </label>
+                      <button
+                        onClick={fundMerchantWallet}
+                        disabled={funding}
+                        className="mt-3 w-full rounded-panel border border-outlineVariant bg-primary px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-black disabled:opacity-60"
+                      >
+                        {funding ? 'Funding…' : 'Fund merchant wallet'}
+                      </button>
+                      {fundTransfer ? (
+                        <p className="mt-3 text-xs text-emerald-200">Submitted {fundTransfer.amount_eth} ETH. Tx: {fundTransfer.tx_hash}</p>
+                      ) : null}
+                    </div>
+
+                    <div className="treasury-card rounded-panel p-4">
+                      <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant → Owner</p>
+                      <p className="mt-2 text-sm text-[#f0dfb4]">Use the live merchant wallet to withdraw Base Sepolia ETH back to the owner wallet.</p>
+                      <label className="mt-3 grid gap-2 text-sm text-[#f4e7c7]">
+                        <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Amount (ETH)</span>
+                        <input value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="rounded-panel border border-outlineVariant bg-maritime px-3 py-3 text-onSurface outline-none" />
+                      </label>
+                      <button
+                        onClick={withdrawMerchantFunds}
+                        disabled={withdrawing}
+                        className="mt-3 w-full rounded-panel border border-outlineVariant bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary disabled:opacity-60"
+                      >
+                        {withdrawing ? 'Withdrawing…' : 'Withdraw to owner wallet'}
+                      </button>
+                      {withdrawTransfer ? (
+                        <p className="mt-3 text-xs text-emerald-200">Submitted {withdrawTransfer.amount_eth} ETH back to {formatWallet(withdrawTransfer.recipient_address)}. Tx: {withdrawTransfer.tx_hash}</p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </section>

@@ -205,6 +205,8 @@ async def test_wallet_status_endpoint_reports_live_awal_details(client, monkeypa
     def fake_run_awal(args: list[str]) -> str:
         if args == ["status"]:
             return "Wallet Server\n✓ Running\n\nAuthentication\n✓ Authenticated\nLogged in as: agent@example.com"
+        if args == ["balance", "--chain", "base-sepolia", "--json"]:
+            return '{"chain":"base-sepolia","balances":[]}'
         if args == ["balance", "--chain", "base-sepolia"]:
             return "USDC Balance: 12.34"
         raise AssertionError(f"Unexpected args: {args}")
@@ -220,3 +222,41 @@ async def test_wallet_status_endpoint_reports_live_awal_details(client, monkeypa
     assert data["authenticated_email"] == "agent@example.com"
     assert data["balance"] == "12.34"
     assert data["balance_symbol"] == "USDC"
+
+
+@pytest.mark.asyncio
+async def test_wallet_status_endpoint_reports_live_holdings(client, monkeypatch):
+    shop = await _create_pending_shop(client)
+    provision = await client.post(f"/shops/{shop['id']}/wallet/provision")
+    assert provision.status_code == 200, provision.text
+
+    monkeypatch.setattr(
+        wallet_service,
+        "get_settings",
+        lambda: SimpleNamespace(
+            cdp_wallet_live_enabled=True,
+            cdp_wallet_fallback_to_stub=True,
+            cdp_wallet_chain="base-sepolia",
+            cdp_wallet_cli_command="npx awal",
+        ),
+    )
+
+    def fake_run_awal(args: list[str]) -> str:
+        if args == ["status"]:
+            return "Wallet Server\n✓ Running\n\nAuthentication\n✓ Authenticated\nLogged in as: agent@example.com"
+        if args == ["balance", "--chain", "base-sepolia", "--json"]:
+            return '{"chain":"base-sepolia","balances":[{"asset":"ETH","balance":"0.42"},{"asset":"USDC","balance":"15.50"}]}'
+        if args == ["balance", "--chain", "base-sepolia"]:
+            return "ETH Balance: 0.42"
+        raise AssertionError(f"Unexpected args: {args}")
+
+    monkeypatch.setattr(wallet_service, "_run_awal", fake_run_awal)
+
+    response = await client.get(f"/shops/{shop['id']}/wallet/status")
+    assert response.status_code == 200, response.text
+    data = response.json()
+
+    assert data["holdings"] == [
+        {"asset": "ETH", "balance": "0.42", "chain": "base-sepolia"},
+        {"asset": "USDC", "balance": "15.50", "chain": "base-sepolia"},
+    ]
