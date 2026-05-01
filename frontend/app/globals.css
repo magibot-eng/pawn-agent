@@ -1782,3 +1782,159 @@ main, [data-page-content], .page-content {
     transform-origin: top center;
   }
 }
+
+/* ── OWNER STUDY — merchant's private study ── */
+.merchant-study {
+  background: var(--mahogany, #1e1208) !important;
+}
+
+/* Parchment cards on the desk */
+.parchment-card {
+  background: linear-gradient(145deg, #f0e0c0 0%, #e0c890 60%, #c8a870 100%);
+  border: 1px solid rgba(139,90,43,0.5);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  padding: 1.25rem 1.5rem;
+  color: var(--ink);
+}
+
+/* Study section header — inked chapter title */
+.study-section-header {
+  font-family: serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #5a3d1a;
+  border-bottom: 1px solid rgba(139,90,43,0.3);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Ledger inputs — parchment text fields */
+.ledger-input {
+  width: 100%;
+  background: rgba(255,248,230,0.85) !important;
+  border: 1px solid rgba(139,90,43,0.4) !important;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #2a1a0e !important;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ledger-input:focus {
+  border-color: rgba(196,152,58,0.7) !important;
+  box-shadow: 0 0 0 2px rgba(196,152,58,0.15);
+}
+.ledger-input::placeholder { color: rgba(90,60,30,0.5); }
+
+/* Ledger select */
+.ledger-select {
+  width: 100%;
+  background: rgba(255,248,230,0.85) !important;
+  border: 1px solid rgba(139,90,43,0.4) !important;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #2a1a0e !important;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+.ledger-select:focus {
+  border-color: rgba(196,152,58,0.7) !important;
+  box-shadow: 0 0 0 2px rgba(196,152,58,0.15);
+}
+
+/* Treasury — coin purse style */
+.treasury-coin-purse {
+  background: linear-gradient(145deg, #1e1208 0%, #2a1a0e 100%);
+  border: 2px solid rgba(196,152,58,0.4);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+.treasury-balance {
+  font-family: serif;
+  font-size: 2rem;
+  color: var(--amber);
+  letter-spacing: 0.05em;
+}
+.treasury-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: rgba(196,168,112,0.7);
+}
+
+/* Portrait frames on the wall */
+.wall-frame {
+  border: 2px solid rgba(196,168,112,0.2);
+  border-radius: 4px;
+  padding: 0.5rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.wall-frame:hover { border-color: rgba(196,168,112,0.5); }
+.wall-frame--selected {
+  border-color: var(--amber) !important;
+  box-shadow: 0 0 12px rgba(232,168,64,0.3);
+}
+
+/* Provider key — sealed document */
+.wax-sealed-doc {
+  background: linear-gradient(145deg, #2a1a0e 0%, #1e1208 100%);
+  border: 1px solid rgba(196,168,112,0.3);
+  border-radius: 6px;
+  padding: 1.25rem;
+}
+
+/* Save button — brass merchant seal */
+.brass-seal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  background: linear-gradient(180deg, #d4a84a 0%, #9b7020 100%);
+  border: 2px solid rgba(196,152,58,0.6);
+  border-radius: 50px;
+  color: #1e1208;
+  font-family: serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  transition: all 0.2s ease;
+}
+.brass-seal-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #e8b85a 0%, #b08028 100%);
+  box-shadow: 0 4px 20px rgba(196,152,58,0.4);
+}
+.brass-seal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Fund/withdraw buttons — smaller brass buttons */
+.brass-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(180deg, #c4963a 0%, #8b6914 100%);
+  border: 1px solid rgba(196,152,58,0.5);
+  border-radius: 6px;
+  color: #1e1208;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  margin-top: 0.75rem;
+  text-align: center;
+}
+.brass-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #d4a84a 0%, #9b7924 100%);
+}
+.brass-btn:disabled { opacity: 0.5; cursor: not-allowed; }

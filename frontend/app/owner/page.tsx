@@ -443,12 +443,12 @@ export default function OwnerPage() {
   }
 
   return (
-    <main className="min-h-screen relative" style={{ background: 'var(--wood-dark)' }}>
+    <main className="min-h-screen relative merchant-study" style={{ background: '#1e1208' }}>
       <div className="candle-edge-glow" />
 
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8" style={{ position: 'relative', zIndex: 1 }}>
         {/* ── Ledger shell ── */}
-        <div className="ledger-panel overflow-hidden rounded-panel p-4 sm:p-6">
+        <div className="parchment-card" style={{ padding: '1.5rem' }}>
           {/* ── Header ── */}
           <div className="flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-end sm:justify-between" style={{ borderColor: 'rgba(196,168,112,0.2)' }}>
             <div className="min-w-0 flex-1">
@@ -507,13 +507,12 @@ export default function OwnerPage() {
             <section className="merchant-inset min-w-0 overflow-hidden rounded-panel p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="tavern-muted">Store profile</p>
-                  <h2 className="tavern-heading mt-2 break-words text-xl">{ensName ?? shop.ens_name}</h2>
+                  <h2 className="study-section-header">Store Profile</h2>
                 </div>
                 <button
                   onClick={saveShopSettings}
                   disabled={saving}
-                  className="tavern-sign-link brass shrink-0"
+                  className="brass-seal-btn shrink-0"
                 >
                   {saving ? 'Saving…' : 'Save settings'}
                 </button>
@@ -531,11 +530,7 @@ export default function OwnerPage() {
                           key={portrait.id}
                           type="button"
                           onClick={() => updateField('merchant_portrait', portrait.id)}
-                          className="rounded-panel border p-3 text-left transition"
-                          style={{
-                            borderColor: selected ? 'var(--amber)' : 'rgba(196,168,112,0.25)',
-                            background: selected ? 'rgba(58,43,20,0.9)' : 'rgba(18,14,5,0.8)',
-                          }}
+                          className={`wall-frame${selected ? ' wall-frame--selected' : ''}`}
                         >
                           <div style={{ position: 'relative', height: '160px', width: '100%', overflow: 'hidden', borderRadius: '4px', background: '#120e04' }}>
                             <Image
@@ -589,7 +584,7 @@ export default function OwnerPage() {
             {/* ── Right: Treasury + LLM setup ── */}
             <section className="grid gap-6">
               {/* Treasury ledger */}
-              <section className="treasury-panel rounded-panel p-4 sm:p-5">
+              <section className="treasury-coin-purse">
                 <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between" style={{ borderColor: 'rgba(212,175,55,0.16)' }}>
                   <div>
                     <p className="tavern-muted">Treasury</p>
@@ -721,7 +716,7 @@ export default function OwnerPage() {
                       <button
                         onClick={fundMerchantWallet}
                         disabled={funding}
-                        className="tavern-sign-link brass w-full mt-3"
+                        className="brass-btn w-full mt-3"
                         style={{ textAlign: 'center' }}
                       >
                         {funding ? 'Funding…' : 'Fund merchant wallet'}
@@ -742,7 +737,7 @@ export default function OwnerPage() {
                       <button
                         onClick={withdrawMerchantFunds}
                         disabled={withdrawing}
-                        className="tavern-sign-link brass w-full mt-3"
+                        className="brass-btn w-full mt-3"
                         style={{ textAlign: 'center' }}
                       >
                         {withdrawing ? 'Withdrawing…' : 'Withdraw to owner wallet'}
