@@ -241,18 +241,27 @@ async def provision_managed_wallet(shop: Shop) -> Shop:
     Live mode uses a locally authenticated CDP Agentic Wallet (`awal`) session.
     If unavailable and fallback is enabled, use a deterministic stub wallet.
     """
-    if (
+    settings = get_settings()
+    has_active_wallet = (
         shop.wallet_status == ShopWalletStatus.ACTIVE
         and shop.merchant_address
         and shop.merchant_address != ZERO_ADDRESS
         and shop.wallet_provider_account_id
-    ):
+    )
+    has_live_wallet = bool(
+        has_active_wallet
+        and shop.wallet_provider_account_id
+        and shop.wallet_provider_account_id.startswith("cdpwa_live_")
+    )
+
+    if has_live_wallet:
+        return shop
+
+    if has_active_wallet and not settings.cdp_wallet_live_enabled:
         return shop
 
     if shop.wallet_provider != "cdp_agentic_wallet":
         raise ValueError(f"Unsupported wallet provider: {shop.wallet_provider}")
-
-    settings = get_settings()
 
     try:
         if settings.cdp_wallet_live_enabled:

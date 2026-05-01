@@ -167,6 +167,44 @@ def test_provision_managed_wallet_falls_back_to_stub_when_live_unavailable(monke
     assert result.wallet_provider_account_id.startswith("cdpwa_")
 
 
+def test_provision_managed_wallet_upgrades_existing_stub_wallet_to_live(monkeypatch):
+    shop = SimpleNamespace(
+        id="shop-3",
+        ens_name="upgrade-test.eth",
+        wallet_provider="cdp_agentic_wallet",
+        wallet_status=ShopWalletStatus.ACTIVE,
+        merchant_address="0xf69038f851a839c3fe010b9e716d92c7c64adee0",
+        wallet_provider_account_id="cdpwa_f69038f851a839c3",
+    )
+
+    monkeypatch.setattr(
+        wallet_service,
+        "get_settings",
+        lambda: SimpleNamespace(
+            cdp_wallet_live_enabled=True,
+            cdp_wallet_fallback_to_stub=False,
+            cdp_wallet_chain="base-sepolia",
+            cdp_wallet_cli_command="npx awal",
+        ),
+    )
+
+    def fake_run_awal(args: list[str]) -> str:
+        if args == ["status"]:
+            return "Wallet Server\n✓ Running\n\nAuthentication\n✓ Authenticated\nLogged in as: agent@example.com"
+        if args == ["address", "--chain", "base-sepolia"]:
+            return "0x1234567890abcdef1234567890abcdef12345678"
+        raise AssertionError(f"Unexpected args: {args}")
+
+    monkeypatch.setattr(wallet_service, "_run_awal", fake_run_awal)
+
+    import asyncio
+    result = asyncio.run(wallet_service.provision_managed_wallet(shop))
+
+    assert result.wallet_status == ShopWalletStatus.ACTIVE
+    assert result.merchant_address == "0x1234567890abcdef1234567890abcdef12345678"
+    assert result.wallet_provider_account_id == "cdpwa_live_agent-example-com_base-sepolia"
+
+
 @pytest.mark.asyncio
 async def test_wallet_status_endpoint_reports_stub_wallet_details(client):
     shop = await _create_pending_shop(client)

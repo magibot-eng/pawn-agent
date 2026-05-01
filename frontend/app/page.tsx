@@ -424,9 +424,7 @@ export default function HomePage() {
           ) : (
             <div className="shop-card-row">
               {sellerFilteredShops.map((candidate) => {
-                const freshHref = walletAddress
-                  ? `/shop/${encodeURIComponent(candidate.ens_name)}?seller=${encodeURIComponent(walletAddress)}`
-                  : null;
+                const storefrontHref = `/shop/${encodeURIComponent(candidate.ens_name)}`;
                 return (
                   <article key={candidate.id} className="glass-shop-card">
                     <div className="glass-shop-card-inner">
@@ -439,11 +437,7 @@ export default function HomePage() {
                         <p className="glass-desc">{candidate.description.slice(0, 80)}{candidate.description.length > 80 ? '…' : ''}</p>
                       )}
                       <div className="glass-actions">
-                        {freshHref ? (
-                          <Link href={freshHref} className="glass-enter-btn">Start Chat</Link>
-                        ) : (
-                          <RainbowConnectAction connectLabel="Connect to chat" connectedLabel="Ready" />
-                        )}
+                        <Link href={storefrontHref} className="glass-enter-btn">View Store</Link>
                       </div>
                     </div>
                   </article>
