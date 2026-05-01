@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     cdp_wallet_chain: str = "base-sepolia"
     cdp_wallet_cli_command: str = "npx awal"
 
+    # ENS verification
+    ens_rpc_url: str = "https://cloudflare-eth.com"
+    ens_registry_address: str = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
+
     # Frontend URL(s) for CORS
     frontend_url: str = "http://localhost:3000"
     frontend_origins: list[str] = Field(default_factory=list)

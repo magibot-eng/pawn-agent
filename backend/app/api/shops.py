@@ -20,6 +20,7 @@ from app.schemas.shop import (
     ShopWalletWithdrawRequest,
     ShopWalletTransferResponse,
 )
+from app.services.ens import verify_ens_route
 from app.services.wallets import provision_managed_wallet, get_wallet_status_details, withdraw_eth_to_owner, WalletProvisioningError
 
 router = APIRouter(prefix="/shops", tags=["shops"])
@@ -31,6 +32,14 @@ def _normalize_ens_name(ens_name: str) -> str:
 
 def _normalize_address(address: str) -> str:
     return address.strip().lower()
+
+
+def _validate_verified_owner_match(owner_address: str, verified_owner_address: str | None) -> str | None:
+    if not verified_owner_address:
+        raise HTTPException(status_code=400, detail="A verified ENS route must include a verified owner address")
+    if _normalize_address(verified_owner_address) != _normalize_address(owner_address):
+        raise HTTPException(status_code=400, detail="A verified ENS owner address must match the shop owner wallet")
+    return verified_owner_address
 
 
 async def _ensure_ens_route_available(
@@ -45,17 +54,6 @@ async def _ensure_ens_route_available(
         raise HTTPException(status_code=409, detail=f"ENS route {ens_name} is already claimed by another shop")
 
 
-def _validate_ens_verification(owner_address: str, verification_status: str | None, verified_owner_address: str | None) -> tuple[str, str | None]:
-    normalized_status = (verification_status or "manual").strip().lower()
-    if normalized_status == "verified":
-        if not verified_owner_address:
-            raise HTTPException(status_code=400, detail="A verified ENS route must include a verified owner address")
-        if _normalize_address(verified_owner_address) != _normalize_address(owner_address):
-            raise HTTPException(status_code=400, detail="A verified ENS owner address must match the shop owner wallet")
-        return normalized_status, verified_owner_address
-    return "manual", None
-
-
 @router.post("", response_model=ShopResponse, status_code=status.HTTP_201_CREATED)
 async def create_shop(
     data: ShopCreate,
@@ -63,11 +61,13 @@ async def create_shop(
 ):
     """Create a new pawn shop for a merchant ENS identity."""
     normalized_ens_name = _normalize_ens_name(data.ens_name)
-    normalized_verification_status, normalized_verified_owner_address = _validate_ens_verification(
-        owner_address=data.owner_address,
-        verification_status=data.ens_verification_status,
-        verified_owner_address=data.ens_verified_owner_address,
-    )
+    ens_verification = await verify_ens_route(normalized_ens_name, data.owner_address)
+    if ens_verification.status == "verified":
+        normalized_verified_owner_address = _validate_verified_owner_match(data.owner_address, ens_verification.verified_owner_address)
+        normalized_verification_status = "verified"
+    else:
+        normalized_verification_status = "manual"
+        normalized_verified_owner_address = None
     await _ensure_ens_route_available(db, normalized_ens_name)
 
     shop = Shop(
@@ -154,12 +154,22 @@ async def update_shop(
     updates = data.model_dump(exclude_unset=True)
 
     next_ens_name = _normalize_ens_name(updates.get("ens_name", shop.ens_name))
-    next_verification_status, next_verified_owner_address = _validate_ens_verification(
-        owner_address=shop.owner_address,
-        verification_status=updates.get("ens_verification_status", shop.ens_verification_status),
-        verified_owner_address=updates.get("ens_verified_owner_address", shop.ens_verified_owner_address),
-    )
     await _ensure_ens_route_available(db, next_ens_name, current_shop_id=shop.id)
+
+    if "ens_name" in updates:
+        ens_verification = await verify_ens_route(next_ens_name, shop.owner_address)
+        if ens_verification.status == "verified":
+            next_verification_status = "verified"
+            next_verified_owner_address = _validate_verified_owner_match(shop.owner_address, ens_verification.verified_owner_address)
+        else:
+            next_verification_status = "manual"
+            next_verified_owner_address = None
+    else:
+        next_verification_status = shop.ens_verification_status
+        next_verified_owner_address = shop.ens_verified_owner_address
+
+    updates.pop("ens_verification_status", None)
+    updates.pop("ens_verified_owner_address", None)
 
     for field, value in updates.items():
         setattr(shop, field, value)

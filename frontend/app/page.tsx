@@ -185,7 +185,6 @@ export default function HomePage() {
       setStatus(null);
 
       const existing = await Shops.list({ owner_address: walletAddress, ens_name: normalizedEns });
-      const ensVerification = await verifyEnsRoute(normalizedEns, walletAddress);
       const activeShop =
         existing[0] ??
         (await Shops.create({
@@ -203,8 +202,6 @@ export default function HomePage() {
           wallet_provider: 'cdp_agentic_wallet',
           wallet_status: 'pending',
           auto_settlement_enabled: false,
-          ens_verification_status: ensVerification.status,
-          ens_verified_owner_address: ensVerification.verifiedOwnerAddress ?? undefined,
         }));
 
       setShop(activeShop);
@@ -212,7 +209,7 @@ export default function HomePage() {
       setStatus(
         existing[0]
           ? 'Loaded existing store.'
-          : `Store created and listed. ${ensVerification.status === 'verified' ? 'ENS route verified against the connected wallet.' : 'ENS route saved as a manual route.'} The owner wallet is linked as admin only — provision the separate merchant wallet from the owner dashboard when you are ready for settlement.`
+          : `Store created and listed. ${activeShop.ens_verification_status === 'verified' ? 'ENS route verified by the backend against the connected wallet.' : 'ENS route saved as a manual route by the backend.'} The owner wallet is linked as admin only — provision the separate merchant wallet from the owner dashboard when you are ready for settlement.`
       );
       await loadMarketplaceShops();
     } catch (err) {
