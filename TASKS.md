@@ -2,6 +2,9 @@
 
 ## Now / Next
 
+- [ ] Refine the actual trade / negotiation experience from first seller message through quote, counter, and acceptance
+- [ ] Tighten the AI shopkeeper behavior, pacing, and response quality so the merchant feels consistent and intentional
+- [ ] Polish the storefront and owner UI around the core trade flow
 - [ ] Decide whether accepted negotiation outcomes create `DealOffer` records automatically or via explicit action
 - [ ] Normalize merchant rules into structured schema instead of mostly freeform text
 - [ ] Make `next_action` in negotiation state drive explicit seller/merchant workflow transitions
@@ -17,7 +20,7 @@
 - [ ] Wire negotiation outcomes into `DealOffer` creation
 - [ ] Define explicit offer acceptance / rejection / expiry flow
 - [ ] Connect execution records to actual Base Sepolia settlement path
-- [ ] Add real ENS ownership verification flow
+- [ ] Add reverse-record and subdomain-aware ENS hardening after the current server-side claim flow
 
 ## Contracts Track
 
@@ -35,7 +38,7 @@
 - [ ] Add a lightweight deploy checklist for App Runner/Vercel env drift
 
 ## Current known-good verification
-- backend: `cd backend && source .venv/bin/activate && python -m pytest -q` → `19 passed`
+- backend targeted ENS/state tests: `cd backend && ./.venv/bin/python -m pytest tests/test_ens_verification_fields.py tests/test_shop_wallet_architecture.py tests/test_db_migrations.py -q` → `6 passed`
 - frontend: `cd frontend && npm run build`
 - production frontend: `GET https://pawn.solovibing.com` → `200`
 - production proxy health: `GET https://pawn.solovibing.com/api/health` → `200`
@@ -46,4 +49,4 @@
 ## Current resume priority
 If only one slice is tackled next, do this:
 
-**negotiation state → DealOffer bridge**
+**trade experience + AI shopkeeper flow + UI polish**

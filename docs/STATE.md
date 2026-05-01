@@ -11,6 +11,7 @@ The current repo already supports a real prototype loop:
 - connect a wallet and detect a primary ENS name when available
 - override with a manual ENS/subdomain for storefront identity
 - create/load a wallet-bound store
+- verify and secure ENS storefront routes server-side
 - edit merchant-facing shop settings
 - save encrypted provider API keys
 - open a dedicated storefront chat page by ENS route
@@ -26,12 +27,12 @@ It is still not enough for a complete buyout product yet.
 
 ## Verified During This Audit
 Read-only/runtime checks performed on 2026-05-01:
-- `backend`: `python -m pytest -q` → **19 passed**
-- `frontend`: `npm run build` → **passed**
+- backend targeted ENS/state tests: `./.venv/bin/python -m pytest tests/test_ens_verification_fields.py tests/test_shop_wallet_architecture.py tests/test_db_migrations.py -q` → **6 passed**
+- frontend: `npm run build` → **passed**
 - production frontend `GET https://pawn.solovibing.com` → **200**
 - production proxy health `GET https://pawn.solovibing.com/api/health` → **200**
 - production backend health `GET https://edhmvxs8fi.us-east-1.awsapprunner.com/health` → **200**
-- production shops list `GET /api/shops` → `[]` cleanly
+- production shops list `GET /api/shops` → responds cleanly
 
 Important deployment note:
 - the first App Runner create failed because the backend image was pushed as **`linux/arm64`** from Apple Silicon
@@ -44,7 +45,8 @@ Important deployment note:
   - wallet-first storefront setup
   - detects primary ENS from connected wallet when available
   - accepts manual ENS/subdomain override
-  - creates/loads stores bound to `owner_address + ens_name`
+  - requests shop creation/load by `owner_address + ens_name`
+  - displays backend-authored ENS verification / claim status
 - `frontend/app/owner/page.tsx`
   - dedicated owner dashboard
   - loads the selected wallet/ENS-bound store
@@ -70,6 +72,11 @@ Important deployment note:
 - `backend/app/api/shops.py`
   - create/list/get/update shop
   - add/list ENS identities
+  - enforces unique ENS storefront route claims
+  - rejects conflicting verified-owner matches
+- `backend/app/services/ens.py`
+  - server-side ENS resolution via Ethereum JSON-RPC
+  - authoritative verified/manual route classification
 - `backend/app/api/provider_keys.py`
   - save/list encrypted provider keys
 - `backend/app/api/negotiations.py`
@@ -105,7 +112,7 @@ Current DB-backed entities include:
 - rule schema normalization beyond freeform text fields
 - turning chat outcomes into explicit deal offers automatically
 - contract-backed buyout settlement flow wired end-to-end
-- production-grade ENS ownership verification/onchain integration
+- reverse-record / subdomain-aware ENS hardening beyond the new server-side claim verification flow
 - deeper backend test coverage around provider-key, wallet, and settlement paths
 - wallet-library build warning cleanup for production deploys
 - updated implementation plan reflecting current actual milestone order
@@ -119,12 +126,12 @@ The following older statements are no longer true and should not be repeated:
 The repo is now in **prototype implementation** phase, not planning phase.
 
 ## Recommended Next Slice
-**Turn structured negotiation state into actual workflow.**
+**Refine the actual trade experience.**
 
-Best follow-ups:
-1. convert accepted negotiation states into `DealOffer` records
-2. define normalized merchant-rule schema
-3. make `next_action` drive explicit seller/merchant workflow transitions
+Best follow-ups tomorrow:
+1. tighten the seller → merchant negotiation flow from first message through quote, counter, and acceptance
+2. improve AI shopkeeper behavior, pacing, and merchant voice consistency
+3. polish the storefront and owner UI around the trade loop
 
 ## Secondary Follow-Up Slice
 After structured negotiation state:

@@ -60,11 +60,12 @@ Each seller can:
 On the home page:
 1. connect the **owner wallet**
 2. choose the `.eth` route for the store
-3. create or load the shop
+3. let the backend verify the route and create or load the shop
 
 This creates a shop record tied to:
 - `owner_address`
 - `ens_name`
+- backend-authored ENS verification state
 
 At this stage the merchant wallet is still unprovisioned.
 
@@ -222,7 +223,7 @@ This repo is still an MVP prototype. Important limitations:
 - rule system is still mostly plain-language config, not fully normalized policy logic
 - settlement path currently targets **ETH only** on Base Sepolia for real execution
 - execution lifecycle does not yet provide robust post-submit confirmation tracking/polling
-- ENS ownership verification is not yet production-grade
+- ENS route claims and forward resolution are now enforced server-side, but reverse-record/subdomain handling is not fully hardened yet
 - the current prototype is local-first and operationally coupled to the machine running `awal`
 - wallet-library builds still emit warnings/noisy logs around MetaMask async-storage, `pino-pretty`, and Web3Modal/Reown fallback config, even though production builds complete successfully
 - seller chat session continuity is browser-session scoped on the storefront route; the app avoids putting raw negotiation IDs into the public URL
@@ -287,11 +288,10 @@ If docs drift, use this order:
 
 ## Current Recommended Next Step
 
-The highest-value next slice after the current flow is:
-- **add confirmation-aware settlement tracking** for submitted Base Sepolia txs
+The highest-value next slice after the current ENS-backed route work is:
+- **refine the actual trade experience, AI shopkeeper behavior, and UI polish**
 
-That would turn the current result from:
-- “submitted and recorded”
-
-into:
-- “submitted, tracked, and clearly confirmed/failed onchain”
+That means improving:
+- seller → merchant negotiation flow
+- quote / counter / accept interaction clarity
+- the feel and consistency of the merchant persona in the live trade loop
