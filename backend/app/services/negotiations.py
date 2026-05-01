@@ -1,8 +1,10 @@
 """Negotiation service — orchestrates the agent with database persistence."""
 
+import hashlib
 import json
 import re
 from datetime import datetime, timezone
+from decimal import Decimal, ROUND_DOWN
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -78,6 +80,37 @@ def extract_message_terms(message: str, fallback_token: str, fallback_amount: st
         ask_display = f"{ask_match.group(1).replace(',', '')} {ask_match.group(2).upper()}"
 
     return token, amount, ask_display
+
+
+def _quote_seed(negotiation: NegotiationSession, seller_message: str) -> int:
+    digest = hashlib.sha256(f"{negotiation.id}:{seller_message.strip().lower()}".encode()).hexdigest()
+    return int(digest[:8], 16)
+
+
+def _demo_quote_for_negotiation(negotiation: NegotiationSession, seller_message: str) -> dict | None:
+    try:
+        quantity = Decimal(str(negotiation.input_amount or "0"))
+    except Exception:
+        return None
+
+    if quantity <= 0:
+        return None
+
+    seed = _quote_seed(negotiation, seller_message)
+    steps = 9
+    rate_min = Decimal("0.00001")
+    rate_max = Decimal("0.00010")
+    rate = rate_min + (Decimal(seed % (steps + 1)) / Decimal(steps)) * (rate_max - rate_min)
+    payout = (quantity / Decimal("100")) * rate
+    payout = payout.quantize(Decimal("0.000001"), rounding=ROUND_DOWN)
+    if payout <= 0:
+        payout = Decimal("0.000001")
+
+    return {
+        "token": "ETH",
+        "amount": format(payout.normalize(), "f"),
+        "expiry": "10m",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +218,13 @@ async def process_seller_message(
     # Parse seller structured quote
     seller_quote = extract_seller_quote(seller_message)
 
+    if parsed_quote is None and negotiation.input_token != "0x0000000000000000000000000000000000000000":
+        parsed_quote = _demo_quote_for_negotiation(negotiation, seller_message)
+        if parsed_quote:
+            merchant_text = (
+                f"{merchant_text.rstrip()} Today, I would take that lot for {parsed_quote['amount']} ETH."
+            ).strip()
+
     # Append messages to chat log
     timestamp = datetime.now(timezone.utc).isoformat()
     chat_log.append({"sender": "seller", "text": seller_message, "timestamp": timestamp})
@@ -231,6 +271,9 @@ def _apply_negotiation_state(
         negotiation.seller_ask_token = seller_quote["token"]
         negotiation.seller_ask_amount = seller_quote["amount"]
         negotiation.seller_ask_price = seller_quote["price"]
+    else:
+        negotiation.seller_ask_token = parsed_token
+        negotiation.seller_ask_amount = parsed_amount
 
     # Merchant quote
     if parsed_quote:

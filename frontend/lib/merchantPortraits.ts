@@ -3,6 +3,8 @@ export type MerchantPortrait = {
   name: string;
   vibe: string;
   imageSrc: string;
+  objectPosition?: string;
+  scale?: number;
 };
 
 export const MERCHANT_PORTRAITS: MerchantPortrait[] = [
@@ -11,24 +13,32 @@ export const MERCHANT_PORTRAITS: MerchantPortrait[] = [
     name: 'Brass Ledger Broker',
     vibe: 'Polished, calculating, premium counter energy.',
     imageSrc: '/merchant-portraits/brass-ledger-broker.png',
+    objectPosition: 'center 22%',
+    scale: 1.22,
   },
   {
     id: 'backroom-scrapper',
     name: 'Backroom Scrapper',
     vibe: 'Rougher, skeptical, gritty dealmaker energy.',
     imageSrc: '/merchant-portraits/backroom-scrapper.png',
+    objectPosition: 'center 18%',
+    scale: 1.2,
   },
   {
     id: 'arcane-appraiser',
     name: 'Arcane Appraiser',
     vibe: 'Mystical, strange, rare-asset specialist energy.',
     imageSrc: '/merchant-portraits/arcane-appraiser.png',
+    objectPosition: 'center 20%',
+    scale: 1.2,
   },
   {
     id: 'quiet-vault-keeper',
     name: 'Quiet Vault Keeper',
     vibe: 'Reserved, disciplined, high-trust vault energy.',
     imageSrc: '/merchant-portraits/quiet-vault-keeper.png',
+    objectPosition: 'center 20%',
+    scale: 1.18,
   },
 ];
 

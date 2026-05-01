@@ -101,6 +101,7 @@ export default function OwnerPage() {
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
   const [ensName, setEnsName] = useState<string | null>(null);
   const [ownerWalletBalance, setOwnerWalletBalance] = useState<string | null>(null);
+  const [merchantChainBalance, setMerchantChainBalance] = useState<string | null>(null);
   const [walletRefreshing, setWalletRefreshing] = useState(false);
   const [fundAmount, setFundAmount] = useState('0.0001');
   const [withdrawAmount, setWithdrawAmount] = useState('0.0001');
@@ -188,23 +189,31 @@ export default function OwnerPage() {
   }, []);
 
   useEffect(() => {
-    async function loadOwnerWalletBalance() {
-      if (!connectedWallet) {
-        setOwnerWalletBalance(null);
-        return;
-      }
-
+    async function loadWalletBalances() {
       try {
-        const balanceWei = await baseSepoliaClient.getBalance({ address: getAddress(connectedWallet) });
-        setOwnerWalletBalance(formatEther(balanceWei));
+        if (ownerAddress) {
+          const ownerWei = await baseSepoliaClient.getBalance({ address: getAddress(ownerAddress) });
+          setOwnerWalletBalance(formatEther(ownerWei));
+        } else {
+          setOwnerWalletBalance(null);
+        }
+
+        const merchantAddress = walletStatus?.merchant_address ?? shop?.merchant_address ?? null;
+        if (merchantAddress && merchantAddress !== '0x0000000000000000000000000000000000000000') {
+          const merchantWei = await baseSepoliaClient.getBalance({ address: getAddress(merchantAddress) });
+          setMerchantChainBalance(formatEther(merchantWei));
+        } else {
+          setMerchantChainBalance(null);
+        }
       } catch (err) {
         console.error(err);
         setOwnerWalletBalance(null);
+        setMerchantChainBalance(null);
       }
     }
 
-    loadOwnerWalletBalance();
-  }, [connectedWallet]);
+    loadWalletBalances();
+  }, [ownerAddress, walletStatus?.merchant_address, shop?.merchant_address]);
 
   const activeKey = useMemo(() => providerKeys.find((key) => key.is_active) ?? null, [providerKeys]);
   const selectedPortrait = useMemo(() => getMerchantPortraitById(form.merchant_portrait || shop?.merchant_portrait), [form.merchant_portrait, shop?.merchant_portrait]);
@@ -220,10 +229,19 @@ export default function OwnerPage() {
   async function refreshTreasuryData(shopId: string) {
     try {
       setWalletRefreshing(true);
-      await refreshWalletStatus(shopId);
-      if (connectedWallet) {
-        const balanceWei = await baseSepoliaClient.getBalance({ address: getAddress(connectedWallet) });
-        setOwnerWalletBalance(formatEther(balanceWei));
+      const refreshedWallet = await refreshWalletStatus(shopId);
+
+      if (ownerAddress) {
+        const ownerWei = await baseSepoliaClient.getBalance({ address: getAddress(ownerAddress) });
+        setOwnerWalletBalance(formatEther(ownerWei));
+      }
+
+      const merchantAddress = refreshedWallet.merchant_address || shop?.merchant_address;
+      if (merchantAddress && merchantAddress !== '0x0000000000000000000000000000000000000000') {
+        const merchantWei = await baseSepoliaClient.getBalance({ address: getAddress(merchantAddress) });
+        setMerchantChainBalance(formatEther(merchantWei));
+      } else {
+        setMerchantChainBalance(null);
       }
     } finally {
       setWalletRefreshing(false);
@@ -404,7 +422,7 @@ export default function OwnerPage() {
       const keys = await ProviderKeys.list(shop.id);
       setProviderKeys(keys);
       setApiKey('');
-      setNotice('Provider key saved and set active. Run the connection test to verify live chat.');
+      setNotice('Provider key saved and set active. A masked placeholder remains visible below so you know it is stored. Run the connection test to verify live chat.');
     } catch (err) {
       console.error(err);
       setError('Could not save provider key. Check backend encryption config.');
@@ -469,9 +487,13 @@ export default function OwnerPage() {
                   src={selectedPortrait.imageSrc}
                   alt={selectedPortrait.name}
                   fill
-                  className="object-cover object-bottom"
+                  className="object-cover"
                   sizes="112px"
-                  style={{ transform: 'scale(2)', transformOrigin: 'bottom' }}
+                  style={{
+                    objectPosition: selectedPortrait.objectPosition ?? 'center 20%',
+                    transform: `scale(${selectedPortrait.scale ?? 1.2})`,
+                    transformOrigin: 'center top',
+                  }}
                 />
               </div>
               <p className="mt-3 text-center text-sm text-onSurface">{selectedPortrait.name}</p>
@@ -537,9 +559,13 @@ export default function OwnerPage() {
                               src={portrait.imageSrc}
                               alt={portrait.name}
                               fill
-                              className="object-cover object-bottom"
+                              className="object-cover"
                               sizes="(max-width: 768px) 50vw, 25vw"
-                              style={{ transform: 'scale(2)', transformOrigin: 'bottom' }}
+                              style={{
+                                objectPosition: portrait.objectPosition ?? 'center 20%',
+                                transform: `scale(${portrait.scale ?? 1.2})`,
+                                transformOrigin: 'center top',
+                              }}
                             />
                           </div>
                           <p className="mt-3 break-words text-sm text-onSurface">{portrait.name}</p>
@@ -627,6 +653,7 @@ export default function OwnerPage() {
                       <div>
                         <p className="tavern-muted">Base Sepolia ETH</p>
                         <p className="mt-1 text-sm text-onSurface">{formatBalanceLine(ownerWalletBalance, 'ETH')}</p>
+                        <p className="mt-1 text-xs" style={{ color: 'rgba(205,185,141,0.8)' }}>Read directly from the owner wallet address on-chain.</p>
                       </div>
                     </div>
                   </div>
@@ -662,7 +689,11 @@ export default function OwnerPage() {
                         <p className="mt-1 text-sm text-onSurface">{walletStatus?.provisioning_mode ?? 'stub'}</p>
                       </div>
                       <div>
-                        <p className="tavern-muted">Primary balance</p>
+                        <p className="tavern-muted">On-chain ETH</p>
+                        <p className="mt-1 text-sm text-onSurface">{formatBalanceLine(merchantChainBalance, 'ETH')}</p>
+                      </div>
+                      <div>
+                        <p className="tavern-muted">Live wallet primary balance</p>
                         <p className="mt-1 text-sm text-onSurface">{formatBalanceLine(walletStatus?.balance, walletStatus?.balance_symbol)}</p>
                       </div>
                       <div>
@@ -767,6 +798,7 @@ export default function OwnerPage() {
                   {activeKey ? (
                     <div className="space-y-2">
                       <p><span className="tavern-muted">Status:</span> Active key configured</p>
+                      <p><span className="tavern-muted">Stored key:</span> ************</p>
                       <p><span className="tavern-muted">Provider:</span> {activeKey.provider}</p>
                       <p><span className="tavern-muted">Model:</span> {activeKey.model ?? 'default'}</p>
                       <p><span className="tavern-muted">Label:</span> {activeKey.label ?? 'unnamed key'}</p>
@@ -825,9 +857,10 @@ export default function OwnerPage() {
                       type="password"
                       value={apiKey}
                       onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="Paste provider API key"
+                      placeholder={activeKey ? '************' : 'Paste provider API key'}
                       className="ledger-input"
                     />
+                    {activeKey ? <span className="text-xs" style={{ color: 'rgba(216,202,163,0.7)' }}>A key is already stored for this shop. Enter a new one only if you want to replace it.</span> : null}
                   </label>
 
                   <button

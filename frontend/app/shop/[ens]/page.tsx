@@ -12,8 +12,22 @@ import { Negotiations, Shops, type NegotiationSession, type Shop } from '../../.
 import { getMerchantPortraitById } from '../../../lib/merchantPortraits';
 import { useUnifiedWallet } from '../../../lib/useUnifiedWallet';
 
-const DEFAULT_INPUT_TOKEN = '0x0000000000000000000000000000000000000000';
-const DEFAULT_INPUT_AMOUNT = '0';
+type DemoInventoryToken = {
+  symbol: string;
+  address: `0x${string}`;
+  available: string;
+  label: string;
+};
+
+const DEMO_TOKENS: DemoInventoryToken[] = [
+  { symbol: 'DEGEN', address: '0x1111111111111111111111111111111111111111', available: '12,500', label: 'Degen Runoff' },
+  { symbol: 'TIDE', address: '0x2222222222222222222222222222222222222222', available: '18,000', label: 'Tidal Governance' },
+  { symbol: 'FROG', address: '0x3333333333333333333333333333333333333333', available: '42,000', label: 'Frog Liquidity' },
+  { symbol: 'ORB', address: '0x4444444444444444444444444444444444444444', available: '7,200', label: 'Orb Credits' },
+];
+
+const DEFAULT_INPUT_TOKEN = DEMO_TOKENS[0].address;
+const DEFAULT_INPUT_AMOUNT = '1000';
 const SESSION_STORAGE_PREFIX = 'pawn-agent:shop-session:';
 
 function formatWallet(address: string) {
@@ -38,6 +52,9 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sellerAddress, setSellerAddress] = useState<string | null>(null);
+  const [selectedTokenAddress, setSelectedTokenAddress] = useState<`0x${string}`>(DEFAULT_INPUT_TOKEN);
+  const [selectedQuantity, setSelectedQuantity] = useState(DEFAULT_INPUT_AMOUNT);
+  const [sessionStarting, setSessionStarting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -123,14 +140,48 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
 
   const headline = useMemo(() => shop?.display_name ?? ensName ?? 'Pawn Agent Storefront', [shop, ensName]);
   const selectedPortrait = useMemo(() => getMerchantPortraitById(shop?.merchant_portrait), [shop?.merchant_portrait]);
-  const walletLaunchHref = useMemo(() => {
-    if (!shop || !walletAddress) return null;
-    return `/shop/${encodeURIComponent(shop.ens_name)}?seller=${encodeURIComponent(walletAddress)}`;
-  }, [shop, walletAddress]);
+  const selectedToken = useMemo(() => DEMO_TOKENS.find((token) => token.address === selectedTokenAddress) ?? DEMO_TOKENS[0], [selectedTokenAddress]);
   const startFreshHref = useMemo(() => {
-    if (!shop || !sellerAddress) return '/';
-    return `/shop/${encodeURIComponent(shop.ens_name)}?seller=${encodeURIComponent(sellerAddress)}&fresh=1`;
-  }, [shop, sellerAddress]);
+    if (!shop) return '/';
+    return `/shop/${encodeURIComponent(shop.ens_name)}`;
+  }, [shop]);
+
+  async function handleStartSession() {
+    if (!shop || !walletAddress) {
+      setError('Connect the seller wallet you want to sell from before starting a session.');
+      return;
+    }
+
+    const normalizedQuantity = selectedQuantity.trim();
+    if (!normalizedQuantity || Number(normalizedQuantity) <= 0) {
+      setError('Enter how many tokens you want to sell.');
+      return;
+    }
+
+    try {
+      setSessionStarting(true);
+      setError(null);
+      const newSession = await Negotiations.create({
+        shop_id: shop.id,
+        seller_address: walletAddress,
+        input_token: selectedToken.address,
+        input_amount: normalizedQuantity,
+      });
+      const introMessage = `I want to sell ${normalizedQuantity} ${selectedToken.symbol} tokens. What can you offer?`;
+      await Negotiations.chat(newSession.id, introMessage);
+      const hydratedSession = await Negotiations.get(newSession.id);
+      const storageKey = sessionStorageKey(shop.ens_name, walletAddress);
+      window.sessionStorage.setItem(storageKey, hydratedSession.id);
+      setSellerAddress(walletAddress);
+      setNegotiation(hydratedSession);
+      router.replace(`/shop/${encodeURIComponent(shop.ens_name)}?seller=${encodeURIComponent(walletAddress)}`);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Could not start the selling session.');
+    } finally {
+      setSessionStarting(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -192,9 +243,13 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
                   src={selectedPortrait.imageSrc}
                   alt={selectedPortrait.name}
                   fill
-                  className="object-cover object-bottom"
+                  className="object-cover"
                   sizes="128px"
-                  style={{ transformOrigin: 'bottom', transform: 'scale(2)' }}
+                  style={{
+                    objectPosition: selectedPortrait.objectPosition ?? 'center 20%',
+                    transformOrigin: 'center top',
+                    transform: `scale(${selectedPortrait.scale ?? 1.2})`,
+                  }}
                 />
               </div>
               <p className="mt-3 text-center text-sm text-onSurface">{selectedPortrait.name}</p>
@@ -231,7 +286,7 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
               <p className="tavern-muted">Start selling</p>
               <h2 className="tavern-heading mt-2 text-2xl">Open a clean negotiation session</h2>
               <p className="tavern-body-text mt-3">
-                This storefront no longer auto-loads a shared conversation. Connect a seller wallet and launch a fresh session for this shop directly, or browse other shops from the marketplace.
+                Start with a clean intake card so the merchant knows exactly which token lot you want to unload. For demo purposes, the shop assumes the token is distressed and quotes a tiny ETH amount based on quantity and the merchant's mood.
               </p>
               <div className="mt-4 rounded-panel border px-4 py-4 text-sm" style={{ borderColor: 'rgba(196,168,112,0.25)', background: 'rgba(18,14,5,0.8)', color: 'rgba(240,224,179,0.9)' }}>
                 <p className="tavern-muted">Seller wallet</p>
@@ -243,27 +298,61 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
                 </p>
                 {connectError ? <p className="mt-3 text-xs text-red-200">{connectError}</p> : null}
               </div>
-              <div className="mt-5 flex flex-wrap gap-3">
-                {walletLaunchHref ? (
-                  <Link href={walletLaunchHref} className="tavern-sign-link brass">
-                    Start fresh chat here
+              <div className="mt-5 grid gap-4">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                    <span className="tavern-muted">Token lot</span>
+                    <select
+                      value={selectedTokenAddress}
+                      onChange={(e) => setSelectedTokenAddress(e.target.value as `0x${string}`)}
+                      className="ledger-select"
+                      disabled={!walletAddress || sessionStarting}
+                    >
+                      {DEMO_TOKENS.map((token) => (
+                        <option key={token.address} value={token.address}>
+                          {token.symbol} — {token.available} available — {token.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                    <span className="tavern-muted">Quantity to sell</span>
+                    <input
+                      value={selectedQuantity}
+                      onChange={(e) => setSelectedQuantity(e.target.value)}
+                      className="ledger-input"
+                      inputMode="decimal"
+                      disabled={!walletAddress || sessionStarting}
+                    />
+                  </label>
+                </div>
+                <div className="rounded-panel border px-4 py-4 text-sm" style={{ borderColor: 'rgba(196,168,112,0.25)', background: 'rgba(18,14,5,0.8)', color: 'rgba(240,224,179,0.9)' }}>
+                  <p className="tavern-muted">Selected inventory</p>
+                  <p className="mt-2 text-onSurface">{selectedToken.symbol} • {selectedToken.available} available</p>
+                  <p className="mt-1 text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>The merchant will treat this as distressed inventory and open with a tiny ETH quote in the demo flow.</p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {walletAddress ? (
+                    <button onClick={handleStartSession} className="tavern-sign-link brass" disabled={sessionStarting}>
+                      {sessionStarting ? 'Opening session…' : 'Start selling session'}
+                    </button>
+                  ) : (
+                    <RainbowConnectAction
+                      connectLabel="Choose wallet to start here"
+                      connectedLabel="Wallet connected"
+                      className="tavern-sign-link brass"
+                    />
+                  )}
+                  <Link href="/" className="tavern-sign-link">
+                    Browse marketplace
                   </Link>
-                ) : (
-                  <RainbowConnectAction
-                    connectLabel="Choose wallet to start here"
-                    connectedLabel="Wallet connected"
-                    className="tavern-sign-link brass"
-                  />
-                )}
-                <Link href="/" className="tavern-sign-link">
-                  Browse marketplace
-                </Link>
-                <Link
-                  href={`/owner?ens=${encodeURIComponent(shop.ens_name)}&owner=${encodeURIComponent(shop.owner_address)}`}
-                  className="tavern-sign-link"
-                >
-                  Open owner dashboard
-                </Link>
+                  <Link
+                    href={`/owner?ens=${encodeURIComponent(shop.ens_name)}&owner=${encodeURIComponent(shop.owner_address)}`}
+                    className="tavern-sign-link"
+                  >
+                    Open owner dashboard
+                  </Link>
+                </div>
               </div>
               {error ? (
                 <p className="mt-5 rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(248,113,113,0.4)', background: 'rgba(127,29,29,0.3)', color: '#fecaca' }}>
