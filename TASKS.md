@@ -31,12 +31,15 @@
 - [ ] Update `docs/IMPLEMENTATION_PLAN.md` so it matches actual implementation order and current repo reality
 - [ ] Expand backend test coverage beyond smoke test + negotiation-state tests
 - [ ] Add a lightweight seeded demo/reset workflow for local testing
-- [ ] Document local run commands cleanly in README if they drift
+- [ ] Reduce wallet-library build warnings/noise in production builds
+- [ ] Add a lightweight deploy checklist for App Runner/Vercel env drift
 
 ## Current known-good verification
-- backend: `cd backend && source .venv/bin/activate && python -m pytest -q`
+- backend: `cd backend && source .venv/bin/activate && python -m pytest -q` → `19 passed`
 - frontend: `cd frontend && npm run build`
-- backend health: `uvicorn app.main:app --host 127.0.0.1 --port 8011` then `GET /health`
+- production frontend: `GET https://pawn.solovibing.com` → `200`
+- production proxy health: `GET https://pawn.solovibing.com/api/health` → `200`
+- production backend health: `GET https://edhmvxs8fi.us-east-1.awsapprunner.com/health` → `200`
 - provider-key save: `POST /shops/{shop_id}/provider-keys`
 - structured negotiation state: `POST /negotiations/{id}/chat` and inspect `negotiation_state`
 

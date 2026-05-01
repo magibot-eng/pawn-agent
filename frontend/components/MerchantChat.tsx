@@ -402,19 +402,19 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
   return (
     <div className="flex h-full flex-col">
       {/* Runtime badge */}
-      <div className={`mb-3 flex items-center gap-2 rounded-panel border px-3 py-2 ${statusStyles(runtimeStatus)}`}>
+      <div className={`mb-4 flex items-center gap-2 rounded-panel border px-4 py-3 ${statusStyles(runtimeStatus)}`}>
         <span className="h-2 w-2 rounded-full bg-current" />
         <p className="text-[11px] uppercase tracking-widest">
           {describeRuntimeStatus(runtimeStatus)}
         </p>
       </div>
 
-      <div className="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="flex min-h-0 flex-col">
           {/* Message List */}
           <div
             ref={listRef}
-            className="flex-1 space-y-4 overflow-y-auto pr-2"
+            className="flex-1 space-y-3 overflow-y-auto pr-1"
             style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(212,175,55,0.3) transparent' }}
           >
             {messages.map((msg) => (
@@ -485,7 +485,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
           </div>
 
           {/* Input Bar */}
-          <div className="mt-4 flex items-end gap-3">
+          <div className="mt-5 flex items-end gap-3 border-t border-outlineVariant/50 pt-4">
             <div className="flex-1">
               <textarea
                 ref={inputRef}
@@ -508,7 +508,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
           </div>
         </div>
 
-        <aside className="merchant-panel rounded-panel border border-outlineVariant/70 p-4 text-sm text-[#f4e7c7] xl:self-start">
+        <aside className="merchant-panel rounded-panel border border-outlineVariant/70 p-5 text-sm text-[#f4e7c7] xl:self-start">
           <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Negotiation State</p>
           {negotiationState ? (
             <dl className="mt-4 space-y-3">

@@ -1,6 +1,7 @@
-"""SQLAlchemy async engine and session management for SQLite."""
+"""SQLAlchemy async engine and session management."""
 
 from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -21,10 +22,14 @@ def get_engine():
     global _engine
     if _engine is None:
         settings = get_settings()
+        engine_kwargs = {
+            "echo": settings.debug,
+        }
+        if settings.database_url.startswith("sqlite"):
+            engine_kwargs["connect_args"] = {"check_same_thread": False}
         _engine = create_async_engine(
             settings.database_url,
-            echo=settings.debug,
-            connect_args={"check_same_thread": False},
+            **engine_kwargs,
         )
     return _engine
 

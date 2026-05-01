@@ -9,7 +9,9 @@ Pawn Agent lets an ENS holder launch a configurable AI-powered token buyout shop
 - **Phase:** Active hackathon MVP prototype
 - **MVP chain:** Base Sepolia
 - **Product model:** Buyout-first, not collateralized lending first
-- **Current reality:** frontend + backend prototype is live locally; contracts are still incomplete relative to the full long-term vision
+- **Current reality:** frontend + backend prototype is live in production and locally; contracts are still incomplete relative to the full long-term vision
+- **Live frontend:** `https://pawn.solovibing.com`
+- **Live backend:** `https://edhmvxs8fi.us-east-1.awsapprunner.com`
 - **Real settlement path today:** accepted quotes can submit **live Base Sepolia ETH** payouts through a CDP Agentic Wallet (`awal`) flow when the merchant wallet is live-authenticated and funded with faucet ETH
 
 ## What Exists Today
@@ -174,10 +176,13 @@ On LAN, the frontend can be loaded from another device, e.g.:
 ### Frontend/backend connection model
 The frontend defaults to same-origin `/api` calls and uses a Next.js rewrite proxy to forward to the backend.
 
-Current rewrite target default:
+Local rewrite target default:
 - `http://127.0.0.1:8000`
 
-So if you change backend host/port behavior, keep `frontend/next.config.ts` aligned.
+Production rewrite target:
+- `BACKEND_BASE_URL=https://edhmvxs8fi.us-east-1.awsapprunner.com`
+
+So if you change backend host/port behavior, keep `frontend/next.config.ts` and the deployed `BACKEND_BASE_URL` env aligned.
 
 ## Suggested End-to-End Test Script
 
@@ -219,6 +224,31 @@ This repo is still an MVP prototype. Important limitations:
 - execution lifecycle does not yet provide robust post-submit confirmation tracking/polling
 - ENS ownership verification is not yet production-grade
 - the current prototype is local-first and operationally coupled to the machine running `awal`
+- wallet-library builds still emit warnings/noisy logs around MetaMask async-storage, `pino-pretty`, and Web3Modal/Reown fallback config, even though production builds complete successfully
+- seller chat session continuity is browser-session scoped on the storefront route; the app avoids putting raw negotiation IDs into the public URL
+
+## Deployment Notes
+
+### Current production surfaces
+- frontend: `https://pawn.solovibing.com`
+- backend: `https://edhmvxs8fi.us-east-1.awsapprunner.com`
+- frontend proxy health: `https://pawn.solovibing.com/api/health`
+
+### App Runner image architecture gotcha
+If you deploy the backend from Apple Silicon, do **not** push a default Mac-built image and assume App Runner will accept it.
+
+The working production path used here was:
+- build and push the backend image as `linux/amd64`
+- then create/update the App Runner service from that image
+
+Example:
+```bash
+docker buildx build --platform linux/amd64 \
+  -t 047719626550.dkr.ecr.us-east-1.amazonaws.com/pawn-agent-backend:latest \
+  --push .
+```
+
+The earlier `linux/arm64` image created from this Mac caused App Runner service creation to fail.
 
 ## What Is Not Done Yet
 

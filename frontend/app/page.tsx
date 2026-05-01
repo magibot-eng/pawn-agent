@@ -2,24 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { createPublicClient, getAddress, http, isAddress } from 'viem';
-import { mainnet } from 'viem/chains';
+import RainbowConnectAction from '../components/RainbowConnectAction';
 import { Shops, type Shop } from '../lib/api';
+import { useUnifiedWallet } from '../lib/useUnifiedWallet';
 
 const STORAGE_KEY = 'pawn-agent:selected-store';
-const mainnetClient = createPublicClient({ chain: mainnet, transport: http() });
-
-type EthereumProvider = {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
-  on?(event: string, listener: (...args: unknown[]) => void): void;
-  removeListener?(event: string, listener: (...args: unknown[]) => void): void;
-};
-
-declare global {
-  interface Window {
-    ethereum?: EthereumProvider;
-  }
-}
 
 function looksLikeEns(value: string) {
   return value.trim().toLowerCase().endsWith('.eth');
@@ -29,77 +16,79 @@ function formatWallet(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
-async function resolveWalletState(address: string) {
-  const checksum = getAddress(address);
-
-  try {
-    const ensName = await mainnetClient.getEnsName({ address: checksum });
-
-    return {
-      address: checksum,
-      ensName: ensName ?? null,
-      ensLookupError: null,
-    };
-  } catch (error) {
-    console.error('ENS lookup failed:', error);
-
-    return {
-      address: checksum,
-      ensName: null,
-      ensLookupError: 'Could not look up ENS for this wallet right now.',
-    };
-  }
+function isStorefrontActive(shop: Shop) {
+  const shopStatus = (shop.status ?? '').toLowerCase();
+  const walletStatus = (shop.wallet_status ?? '').toLowerCase();
+  return walletStatus === 'active' && shopStatus === 'published';
 }
 
 export default function HomePage() {
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [primaryEns, setPrimaryEns] = useState<string | null>(null);
+  const {
+    walletAddress,
+    ensName: primaryEns,
+    ensLookupError,
+    disconnectWallet,
+    connectError,
+    walletConnectorName,
+  } = useUnifiedWallet();
+
   const [ensInput, setEnsInput] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [shop, setShop] = useState<Shop | null>(null);
-  const [connecting, setConnecting] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [marketShops, setMarketShops] = useState<Shop[]>([]);
+  const [shopsLoading, setShopsLoading] = useState(true);
+  const [shopsError, setShopsError] = useState<string | null>(null);
 
-  async function applyWallet(address: string, options?: { source?: 'connect' | 'restore' | 'account_change' }) {
-    const { address: checksum, ensName, ensLookupError } = await resolveWalletState(address);
-    setWalletAddress(checksum);
-    setPrimaryEns(ensName);
-    setShop(null);
-
-    if (ensName) {
-      setEnsInput((current) => current || ensName);
-    }
-
-    if (options?.source === 'connect') {
-      setStatus(
-        ensName
-          ? `Wallet connected. Detected existing ENS: ${ensName}. You can use it as your shop route or enter another .eth name for now.`
-          : ensLookupError
-            ? `Wallet connected. ${ensLookupError} You can still choose a .eth route for this storefront.`
-            : 'Wallet connected. No ENS detected on this wallet. You can still choose a .eth route name for this storefront.'
-      );
-    }
-
-    if (options?.source === 'account_change') {
-      setStatus(
-        ensName
-          ? `Wallet changed. Detected existing ENS: ${ensName}. Review the shop route before continuing.`
-          : ensLookupError
-            ? `Wallet changed. ${ensLookupError} Review the shop route before continuing.`
-            : 'Wallet changed. No ENS detected on this wallet, so review the shop route before continuing.'
-      );
+  async function loadMarketplaceShops() {
+    try {
+      setShopsLoading(true);
+      setShopsError(null);
+      const allShops = await Shops.list();
+      setMarketShops(allShops.filter(isStorefrontActive));
+    } catch (err) {
+      console.error(err);
+      setShopsError(err instanceof Error ? err.message : 'Could not load active pawn shops.');
+    } finally {
+      setShopsLoading(false);
     }
   }
 
-  function disconnectWallet() {
-    setWalletAddress(null);
-    setPrimaryEns(null);
-    setShop(null);
-    setStatus('Wallet disconnected. Reconnect or switch accounts to continue.');
-    setError(null);
-
+  useEffect(() => {
     try {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as { owner?: string; ens?: string };
+        if (parsed.ens) setEnsInput(parsed.ens);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+
+    loadMarketplaceShops();
+  }, []);
+
+  useEffect(() => {
+    if (!walletAddress) return;
+    setStatus(
+      primaryEns
+        ? `Wallet connected through ${walletConnectorName ?? 'your wallet'}. Detected existing ENS: ${primaryEns}. You can browse live pawn shops or use it as your owner route below.`
+        : ensLookupError
+          ? `Wallet connected through ${walletConnectorName ?? 'your wallet'}. ${ensLookupError} You can still browse shops or choose a .eth route for your own storefront.`
+          : `Wallet connected through ${walletConnectorName ?? 'your wallet'}. No ENS detected on this wallet. You can still browse shops or choose a .eth route for your own storefront.`
+    );
+    setError(null);
+  }, [walletAddress, primaryEns, ensLookupError, walletConnectorName]);
+
+  async function handleDisconnectWallet() {
+    try {
+      await disconnectWallet();
+      setShop(null);
+      setStatus('Wallet disconnected. Reconnect or switch wallets to continue.');
+      setError(null);
+
       const saved = window.localStorage.getItem(STORAGE_KEY);
       const parsed = saved ? (JSON.parse(saved) as { owner?: string; ens?: string }) : null;
       const typedEns = ensInput.trim().toLowerCase();
@@ -107,115 +96,7 @@ export default function HomePage() {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preservedEns ? { ens: preservedEns } : {}));
     } catch (err) {
       console.error(err);
-    }
-  }
-
-  async function switchWallet() {
-    await promptWalletSwitch();
-  }
-
-  useEffect(() => {
-    async function restoreWallet() {
-      if (!window.ethereum) return;
-      try {
-        const accounts = (await window.ethereum.request({ method: 'eth_accounts' })) as string[];
-        const first = accounts[0];
-        if (!first || !isAddress(first)) return;
-        await applyWallet(first, { source: 'restore' });
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as { owner?: string; ens?: string };
-        if (parsed.ens) setEnsInput(parsed.ens);
-        if (parsed.owner && isAddress(parsed.owner)) setWalletAddress(getAddress(parsed.owner));
-      }
-    } catch (err) {
-      console.error(err);
-    }
-
-    const provider = window.ethereum;
-    const handleAccountsChanged = async (...args: unknown[]) => {
-      const [accounts] = args as [string[]];
-      const first = accounts?.[0];
-      if (!first || !isAddress(first)) {
-        disconnectWallet();
-        return;
-      }
-
-      try {
-        setError(null);
-        await applyWallet(first, { source: 'account_change' });
-      } catch (err) {
-        console.error(err);
-        setError(err instanceof Error ? err.message : 'Could not refresh wallet state.');
-      }
-    };
-
-    provider?.on?.('accountsChanged', handleAccountsChanged);
-    restoreWallet();
-
-    return () => {
-      provider?.removeListener?.('accountsChanged', handleAccountsChanged);
-    };
-  }, []);
-
-  async function connectWallet() {
-    if (!window.ethereum) {
-      setError('No browser wallet detected. Install MetaMask or another injected wallet.');
-      return;
-    }
-
-    try {
-      setConnecting(true);
-      setError(null);
-      setStatus(null);
-      const accounts = (await window.ethereum.request({ method: 'eth_requestAccounts' })) as string[];
-      const first = accounts[0];
-      if (!first || !isAddress(first)) {
-        throw new Error('Wallet did not return a valid address.');
-      }
-      await applyWallet(first, { source: 'connect' });
-    } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : 'Could not connect wallet.');
-    } finally {
-      setConnecting(false);
-    }
-  }
-
-  async function promptWalletSwitch() {
-    if (!window.ethereum) {
-      setError('No browser wallet detected. Install MetaMask or another injected wallet.');
-      return;
-    }
-
-    try {
-      setConnecting(true);
-      setError(null);
-      setStatus('Choose the wallet account you want to use for this shop.');
-
-      await window.ethereum.request({
-        method: 'wallet_requestPermissions',
-        params: [{ eth_accounts: {} }],
-      });
-
-      const accounts = (await window.ethereum.request({ method: 'eth_requestAccounts' })) as string[];
-      const first = accounts[0];
-      if (!first || !isAddress(first)) {
-        throw new Error('Wallet did not return a valid address after switching accounts.');
-      }
-
-      await applyWallet(first, { source: 'account_change' });
-    } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : 'Could not switch wallet.');
-    } finally {
-      setConnecting(false);
+      setError(err instanceof Error ? err.message : 'Could not disconnect wallet.');
     }
   }
 
@@ -260,8 +141,9 @@ export default function HomePage() {
       setStatus(
         existing[0]
           ? 'Loaded existing store.'
-          : 'Store created. The owner wallet is now linked as admin only — provision the separate merchant wallet from the owner dashboard next.'
+          : 'Store created. The owner wallet is linked as admin only — provision the separate merchant wallet from the owner dashboard next.'
       );
+      await loadMarketplaceShops();
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Could not create or load store.');
@@ -269,6 +151,15 @@ export default function HomePage() {
       setCreating(false);
     }
   }
+
+  const sellerFilteredShops = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return marketShops;
+    return marketShops.filter((candidate) => {
+      const haystack = [candidate.display_name, candidate.ens_name, candidate.description ?? ''].join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [marketShops, searchQuery]);
 
   const sellerHref = useMemo(() => (shop ? `/shop/${encodeURIComponent(shop.ens_name)}` : null), [shop]);
   const ownerHref = useMemo(
@@ -279,38 +170,37 @@ export default function HomePage() {
     [shop]
   );
 
-  return (
-    <main className="min-h-screen bg-maritime text-onSurface px-4 py-8 sm:px-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <section className="merchant-panel rounded-panel p-5 sm:p-6">
-          <p className="text-[11px] uppercase tracking-[0.34em] text-onSurfaceVariant">Pawn Agent Setup</p>
-          <h1 className="mt-2 text-3xl text-onSurface">Open your pawn shop</h1>
-          <p className="mt-3 max-w-3xl text-sm text-[#f0dfb4]">
-            Connect the wallet that will own this shop, choose the .eth route customers will use inside Pawn Agent, and create the storefront. Real ENS registration or subdomain creation comes later as a separate wallet transaction.
-          </p>
-        </section>
+  const walletError = error ?? connectError;
 
-        <section className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="merchant-panel rounded-panel p-5 sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Wallet</p>
-                <h2 className="mt-2 text-xl text-onSurface">Connect owner wallet</h2>
-                <p className="mt-2 max-w-xl text-sm text-[#f0dfb4]">
-                  Use the wallet that will own and manage this shop. You can disconnect or switch accounts before creating the storefront.
-                </p>
-              </div>
-              <div className="flex flex-wrap justify-end gap-2">
-                <button
-                  onClick={walletAddress ? switchWallet : connectWallet}
-                  disabled={connecting}
-                  className="rounded-panel border border-primary px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary/10 disabled:opacity-60"
-                >
-                  {connecting ? 'Connecting…' : walletAddress ? 'Switch wallet' : 'Connect wallet'}
-                </button>
+  return (
+    <main className="min-h-screen bg-maritime px-4 py-6 text-onSurface sm:px-8 sm:py-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <section className="merchant-panel rounded-panel p-5 sm:p-7">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-[11px] uppercase tracking-[0.34em] text-onSurfaceVariant">Pawn Agent Marketplace</p>
+              <h1 className="mt-2 text-3xl text-onSurface sm:text-4xl">Browse active pawn shops and open a fresh seller chat</h1>
+              <p className="mt-3 text-sm text-[#f0dfb4] sm:text-[15px]">
+                Search for live storefronts, pick the wallet you want to sell from, and launch a clean negotiation session with that pawn shop agent.
+              </p>
+            </div>
+
+            <div className="merchant-inset rounded-panel p-4 sm:min-w-[20rem]">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">Seller wallet</p>
+              <p className="mt-2 text-base text-onSurface">{walletAddress ? formatWallet(walletAddress) : 'Not connected yet'}</p>
+              <p className="mt-1 text-xs text-[#d8caa3]">
+                {walletAddress
+                  ? `Connected through ${walletConnectorName ?? 'wallet'}. Use this wallet to launch a fresh session with any active shop below.`
+                  : 'Choose MetaMask, Coinbase Wallet, or another injected browser wallet before starting a chat.'}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <RainbowConnectAction
+                  connectLabel="Choose wallet"
+                  connectedLabel="Wallet connected"
+                />
                 {walletAddress ? (
                   <button
-                    onClick={disconnectWallet}
+                    onClick={handleDisconnectWallet}
                     className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow"
                   >
                     Disconnect
@@ -318,93 +208,193 @@ export default function HomePage() {
                 ) : null}
               </div>
             </div>
+          </div>
+        </section>
 
-            <div className="mt-5 grid gap-4">
-              <div className="merchant-inset rounded-panel p-4">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">Connected wallet</p>
-                <p className="mt-2 text-base text-onSurface">{walletAddress ? formatWallet(walletAddress) : 'Not connected yet'}</p>
-                {walletAddress ? <p className="mt-1 text-xs text-[#d8caa3]">{walletAddress}</p> : null}
-              </div>
-
-              <div className="merchant-inset rounded-panel p-4">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">Detected ENS on this wallet</p>
-                <p className="mt-2 text-base text-onSurface">{primaryEns ?? 'No ENS detected on this wallet'}</p>
-                <p className="mt-2 text-xs text-[#d8caa3]">
-                  Detection is informational only. You can use an existing ENS later, but this screen does not register one yet.
+        <section className="grid gap-5 xl:grid-cols-[1.35fr_0.9fr]">
+          <section className="merchant-panel rounded-panel p-5 sm:p-6">
+            <div className="flex flex-col gap-4 border-b border-outlineVariant/60 pb-5 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Active pawn shops</p>
+                <h2 className="mt-2 text-2xl text-onSurface">Find a buyer</h2>
+                <p className="mt-2 max-w-2xl text-sm text-[#f0dfb4]">
+                  Every launch below starts a new negotiation session. No reused storefront state, no inherited prior conversation.
                 </p>
               </div>
 
-              <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Shop route (.eth for now)</span>
+              <label className="block sm:max-w-xs sm:flex-1">
+                <span className="sr-only">Search pawn shops</span>
                 <input
-                  value={ensInput}
-                  onChange={(e) => setEnsInput(e.target.value)}
-                  placeholder="ted.eth or pawn.ted.eth"
-                  className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search ENS or shop name"
+                  className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-3 text-sm text-onSurface outline-none placeholder:text-[#8d744d]"
                 />
-                <span className="text-xs text-[#d8caa3]">
-                  This creates your storefront identity inside Pawn Agent. It does not create or register the ENS name onchain.
-                </span>
               </label>
-
-              <button
-                onClick={createOrLoadStore}
-                disabled={creating || !walletAddress}
-                className="rounded-panel border border-outlineVariant bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary disabled:opacity-60"
-              >
-                {creating ? 'Preparing shop…' : 'Create or load shop'}
-              </button>
-            </div>
-          </section>
-
-          <aside className="merchant-panel rounded-panel p-5 sm:p-6">
-            <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Current flow</p>
-            <ol className="mt-4 space-y-3 text-sm text-[#f0dfb4]">
-              <li>1. Connect the wallet that will own and administer the shop</li>
-              <li>2. Review any ENS detected on that wallet</li>
-              <li>3. Choose the .eth route Pawn Agent should use for this storefront</li>
-              <li>4. Create or load the shop bound to that owner wallet + route</li>
-              <li>5. Provision a separate merchant wallet for automated settlement</li>
-              <li>6. Open the owner dashboard or storefront chat</li>
-            </ol>
-
-            <div className="mt-5 rounded-panel border border-outlineVariant bg-surfaceLowest p-4 text-sm text-[#f0dfb4]">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">ENS note</p>
-              <p className="mt-2">
-                This setup screen uses a .eth route as the shop identity inside the app today. Linking an existing ENS or registering a new ENS/subdomain will be a separate wallet transaction later.
-              </p>
             </div>
 
-            {status ? <p className="mt-5 rounded-panel border border-emerald-500/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">{status}</p> : null}
-            {error ? <p className="mt-5 rounded-panel border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">{error}</p> : null}
+              <div className="mt-5 space-y-4">
+                {shopsLoading ? <p className="text-sm text-[#f0dfb4]">Loading active pawn shops…</p> : null}
+                {shopsError ? (
+                  <div className="rounded-panel border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+                    {shopsError}
+                  </div>
+                ) : null}
 
-            {shop ? (
-              <div className="mt-5 space-y-3 rounded-panel border border-outlineVariant bg-surfaceLowest p-4">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">Current shop</p>
-                <p className="text-lg text-onSurface">{shop.ens_name}</p>
-                <p className="text-sm text-[#f0dfb4]">Owner {formatWallet(shop.owner_address)}</p>
-                <p className="text-sm text-[#f0dfb4]">
-                  Merchant wallet {shop.wallet_status === 'pending' ? 'not provisioned yet' : formatWallet(shop.merchant_address)}
-                </p>
-                <p className="text-xs uppercase tracking-[0.22em] text-onSurfaceVariant">
-                  {shop.wallet_provider} • {shop.wallet_status}
-                </p>
-                <div className="flex flex-wrap gap-3 pt-2">
-                  {ownerHref ? (
-                    <Link href={ownerHref} className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
-                      Open owner dashboard
-                    </Link>
-                  ) : null}
-                  {sellerHref ? (
-                    <Link href={sellerHref} className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
-                      Open storefront chat
-                    </Link>
-                  ) : null}
-                </div>
+                {!shopsLoading && !shopsError && sellerFilteredShops.length === 0 ? (
+                  <div className="rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#f0dfb4]">
+                    {marketShops.length === 0
+                      ? 'No active pawn shops are live yet. Provision a merchant wallet on an owner dashboard to make a shop appear here.'
+                      : 'No active pawn shops match that search.'}
+                  </div>
+                ) : null}
+
+                {sellerFilteredShops.map((candidate) => {
+                  const freshSessionHref = walletAddress
+                    ? `/shop/${encodeURIComponent(candidate.ens_name)}?seller=${encodeURIComponent(walletAddress)}`
+                    : null;
+
+                  return (
+                    <article key={candidate.id} className="merchant-inset rounded-panel p-4 sm:p-5">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg text-onSurface">{candidate.display_name}</p>
+                            <span className="rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-emerald-300">
+                              Live merchant wallet
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">{candidate.ens_name}</p>
+                          <p className="mt-3 text-sm text-[#f0dfb4]">
+                            {candidate.description || 'State the token, amount, and your ask. This pawn shop will quote in-line.'}
+                          </p>
+                          <div className="mt-4 flex flex-wrap gap-4 text-xs uppercase tracking-[0.18em] text-[#cbb68c]">
+                            <span>Status {candidate.status}</span>
+                            <span>Wallet {candidate.wallet_status}</span>
+                            <span>Merchant {formatWallet(candidate.merchant_address)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex w-full flex-col gap-2 lg:w-auto lg:min-w-[13rem]">
+                          {freshSessionHref ? (
+                            <Link
+                              href={freshSessionHref}
+                              className="rounded-panel border border-primary bg-brassButton px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.22em] text-onPrimary"
+                            >
+                              Start fresh chat
+                            </Link>
+                          ) : (
+                            <RainbowConnectAction
+                              connectLabel="Choose wallet to start"
+                              connectedLabel="Wallet connected"
+                              className="rounded-panel border border-outlineVariant px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-[#f4e7c7] hover:bg-surfaceLow"
+                            />
+                          )}
+                          <Link
+                            href={`/shop/${encodeURIComponent(candidate.ens_name)}`}
+                            className="rounded-panel border border-outlineVariant px-4 py-3 text-center text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow"
+                          >
+                            Preview storefront
+                          </Link>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
-            ) : null}
+            </section>
+
+          <aside className="space-y-5">
+            <section className="merchant-panel rounded-panel p-5 sm:p-6">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">How seller sessions work now</p>
+              <ol className="mt-4 space-y-3 text-sm text-[#f0dfb4]">
+                <li>1. Choose your wallet once.</li>
+                <li>2. Search for a live pawn shop.</li>
+                <li>3. Click <span className="text-[#f5e9c9]">Start fresh chat</span>.</li>
+                <li>4. Pawn Agent creates a new negotiation just for that seller session.</li>
+                <li>5. Refreshing that session keeps your thread instead of leaking another seller&apos;s state.</li>
+              </ol>
+            </section>
+
+            <section className="merchant-panel rounded-panel p-5 sm:p-6">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Open your own pawn shop</p>
+              <h2 className="mt-2 text-2xl text-onSurface">Owner setup</h2>
+              <p className="mt-2 text-sm text-[#f0dfb4]">
+                Choose the wallet that will own this shop, pick the .eth route customers will use, and create the storefront.
+              </p>
+
+              <div className="mt-5 space-y-4">
+                <div className="merchant-inset rounded-panel p-4">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">Connected owner wallet</p>
+                  <p className="mt-2 text-base text-onSurface">{walletAddress ? formatWallet(walletAddress) : 'Not connected yet'}</p>
+                  {walletAddress ? <p className="mt-1 text-xs text-[#d8caa3]">{walletAddress}</p> : null}
+                </div>
+
+                <div className="merchant-inset rounded-panel p-4">
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">Detected ENS on this wallet</p>
+                  <p className="mt-2 text-base text-onSurface">{primaryEns ?? 'No ENS detected on this wallet'}</p>
+                  <p className="mt-2 text-xs text-[#d8caa3]">
+                    Detection is informational only. You can use an existing ENS later, but this screen does not register one yet.
+                  </p>
+                </div>
+
+                <label className="grid gap-2 text-sm text-[#f4e7c7]">
+                  <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Shop route (.eth for now)</span>
+                  <input
+                    value={ensInput}
+                    onChange={(e) => setEnsInput(e.target.value)}
+                    placeholder="ted.eth or pawn.ted.eth"
+                    className="rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-3 text-onSurface outline-none placeholder:text-[#8d744d]"
+                  />
+                  <span className="text-xs text-[#d8caa3]">
+                    This creates your storefront identity inside Pawn Agent. It does not create or register the ENS name onchain.
+                  </span>
+                </label>
+
+                <button
+                  onClick={createOrLoadStore}
+                  disabled={creating || !walletAddress}
+                  className="rounded-panel border border-outlineVariant bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary disabled:opacity-60"
+                >
+                  {creating ? 'Preparing shop…' : 'Create or load shop'}
+                </button>
+              </div>
+            </section>
           </aside>
         </section>
+
+        {status ? <p className="rounded-panel border border-emerald-500/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">{status}</p> : null}
+        {walletError ? <p className="rounded-panel border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">{walletError}</p> : null}
+
+        {shop ? (
+          <section className="merchant-panel rounded-panel p-5 sm:p-6">
+            <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Current owner storefront</p>
+            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-2xl text-onSurface">{shop.ens_name}</p>
+                <p className="mt-2 text-sm text-[#f0dfb4]">Owner {formatWallet(shop.owner_address)}</p>
+                <p className="mt-1 text-sm text-[#f0dfb4]">
+                  Merchant wallet {shop.wallet_status === 'pending' ? 'not provisioned yet' : formatWallet(shop.merchant_address)}
+                </p>
+                <p className="mt-2 text-xs uppercase tracking-[0.22em] text-onSurfaceVariant">
+                  {shop.wallet_provider} • {shop.wallet_status}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {ownerHref ? (
+                  <Link href={ownerHref} className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
+                    Open owner dashboard
+                  </Link>
+                ) : null}
+                {sellerHref ? (
+                  <Link href={sellerHref} className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
+                    Preview storefront
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );

@@ -2,25 +2,15 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { createPublicClient, formatEther, getAddress, http, isAddress, parseEther } from 'viem';
+import { createPublicClient, formatEther, getAddress, http, parseEther } from 'viem';
 import { baseSepolia } from 'viem/chains';
+import { useSendTransaction, useSwitchChain } from 'wagmi';
+import RainbowConnectAction from '../../components/RainbowConnectAction';
 import { ProviderKeys, Shops, type CreateProviderKey, type ProviderKey, type ProviderKeyTestResult, type Shop, type ShopWalletStatus, type ShopWalletTransferResponse } from '../../lib/api';
+import { useUnifiedWallet } from '../../lib/useUnifiedWallet';
 
 const STORAGE_KEY = 'pawn-agent:selected-store';
-const BASE_SEPOLIA_CHAIN_ID = '0x14a34';
 const baseSepoliaClient = createPublicClient({ chain: baseSepolia, transport: http() });
-
-type EthereumProvider = {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
-  on?(event: string, listener: (...args: unknown[]) => void): void;
-  removeListener?(event: string, listener: (...args: unknown[]) => void): void;
-};
-
-declare global {
-  interface Window {
-    ethereum?: EthereumProvider;
-  }
-}
 
 function formatWallet(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -75,6 +65,15 @@ const PROVIDER_DEFAULTS: Record<CreateProviderKey['provider'], { model: string; 
 };
 
 export default function OwnerPage() {
+  const {
+    walletAddress: connectedWallet,
+    walletConnectorName,
+    disconnectWallet,
+    connectError,
+  } = useUnifiedWallet();
+  const { switchChainAsync } = useSwitchChain();
+  const { sendTransactionAsync } = useSendTransaction();
+
   const [shop, setShop] = useState<Shop | null>(null);
   const [form, setForm] = useState<OwnerForm>(EMPTY_FORM);
   const [providerKeys, setProviderKeys] = useState<ProviderKey[]>([]);
@@ -93,8 +92,6 @@ export default function OwnerPage() {
   const [error, setError] = useState<string | null>(null);
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
   const [ensName, setEnsName] = useState<string | null>(null);
-  const [connectedWallet, setConnectedWallet] = useState<string | null>(null);
-  const [walletConnecting, setWalletConnecting] = useState(false);
   const [ownerWalletBalance, setOwnerWalletBalance] = useState<string | null>(null);
   const [walletRefreshing, setWalletRefreshing] = useState(false);
   const [fundAmount, setFundAmount] = useState('0.0001');
@@ -182,38 +179,6 @@ export default function OwnerPage() {
   }, []);
 
   useEffect(() => {
-    async function restoreWallet() {
-      if (!window.ethereum) return;
-      try {
-        const accounts = (await window.ethereum.request({ method: 'eth_accounts' })) as string[];
-        const first = accounts[0];
-        if (!first || !isAddress(first)) return;
-        setConnectedWallet(getAddress(first));
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    const provider = window.ethereum;
-    const handleAccountsChanged = async (...args: unknown[]) => {
-      const [accounts] = args as [string[]];
-      const first = accounts?.[0];
-      if (!first || !isAddress(first)) {
-        setConnectedWallet(null);
-        return;
-      }
-      setConnectedWallet(getAddress(first));
-    };
-
-    provider?.on?.('accountsChanged', handleAccountsChanged);
-    restoreWallet();
-
-    return () => {
-      provider?.removeListener?.('accountsChanged', handleAccountsChanged);
-    };
-  }, []);
-
-  useEffect(() => {
     async function loadOwnerWalletBalance() {
       if (!connectedWallet) {
         setOwnerWalletBalance(null);
@@ -234,6 +199,7 @@ export default function OwnerPage() {
 
   const activeKey = useMemo(() => providerKeys.find((key) => key.is_active) ?? null, [providerKeys]);
   const storefrontHref = shop ? `/shop/${encodeURIComponent(shop.ens_name)}` : '/';
+  const walletError = error ?? connectError;
 
   async function refreshWalletStatus(shopId: string) {
     const wallet = await Shops.walletStatus(shopId);
@@ -254,72 +220,20 @@ export default function OwnerPage() {
     }
   }
 
-  async function connectOwnerWallet() {
-    if (!window.ethereum) {
-      setError('No browser wallet detected. Install MetaMask or another injected wallet.');
-      return;
-    }
-
+  async function disconnectOwnerWallet() {
     try {
-      setWalletConnecting(true);
+      await disconnectWallet();
+      setNotice('Browser wallet disconnected from this page.');
       setError(null);
-      const accounts = (await window.ethereum.request({ method: 'eth_requestAccounts' })) as string[];
-      const first = accounts[0];
-      if (!first || !isAddress(first)) {
-        throw new Error('Wallet did not return a valid address.');
-      }
-      setConnectedWallet(getAddress(first));
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : 'Could not connect owner wallet.');
-    } finally {
-      setWalletConnecting(false);
+      setError(err instanceof Error ? err.message : 'Could not disconnect owner wallet.');
     }
-  }
-
-  async function switchOwnerWallet() {
-    if (!window.ethereum) {
-      setError('No browser wallet detected. Install MetaMask or another injected wallet.');
-      return;
-    }
-
-    try {
-      setWalletConnecting(true);
-      setError(null);
-      await window.ethereum.request({
-        method: 'wallet_requestPermissions',
-        params: [{ eth_accounts: {} }],
-      });
-      const accounts = (await window.ethereum.request({ method: 'eth_requestAccounts' })) as string[];
-      const first = accounts[0];
-      if (!first || !isAddress(first)) {
-        throw new Error('Wallet did not return a valid address after switching accounts.');
-      }
-      setConnectedWallet(getAddress(first));
-    } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : 'Could not switch owner wallet.');
-    } finally {
-      setWalletConnecting(false);
-    }
-  }
-
-  function disconnectOwnerWallet() {
-    setConnectedWallet(null);
-    setNotice('Browser wallet disconnected from this page.');
-    setError(null);
   }
 
   async function ensureBaseSepoliaChain() {
-    if (!window.ethereum) {
-      throw new Error('No browser wallet detected.');
-    }
-
     try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: BASE_SEPOLIA_CHAIN_ID }],
-      });
+      await switchChainAsync({ chainId: baseSepolia.id });
     } catch (err) {
       throw new Error('Switch the connected browser wallet to Base Sepolia before funding the merchant wallet.');
     }
@@ -327,10 +241,6 @@ export default function OwnerPage() {
 
   async function fundMerchantWallet() {
     if (!shop) return;
-    if (!window.ethereum) {
-      setError('No browser wallet detected. Install MetaMask or another injected wallet.');
-      return;
-    }
     if (!connectedWallet) {
       setError('Connect the owner wallet in this browser before funding the merchant wallet.');
       return;
@@ -356,14 +266,12 @@ export default function OwnerPage() {
       setNotice(null);
       setFundTransfer(null);
       await ensureBaseSepoliaChain();
-      const txHash = await window.ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: connectedWallet,
-          to: shop.merchant_address,
-          value: `0x${parseEther(amountEth).toString(16)}`,
-        }],
-      }) as string;
+      const txHash = await sendTransactionAsync({
+        account: connectedWallet as `0x${string}`,
+        to: shop.merchant_address as `0x${string}`,
+        value: parseEther(amountEth),
+        chainId: baseSepolia.id,
+      });
       setFundTransfer({ tx_hash: txHash, amount_eth: amountEth });
       await refreshTreasuryData(shop.id);
       setNotice(`Funding transaction submitted from owner wallet to merchant wallet. Tx ${txHash}.`);
@@ -543,7 +451,7 @@ export default function OwnerPage() {
             </div>
           </div>
 
-          {error ? <p className="mt-4 rounded-panel border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">{error}</p> : null}
+          {walletError ? <p className="mt-4 rounded-panel border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">{walletError}</p> : null}
           {notice ? <p className="mt-4 rounded-panel border border-emerald-500/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">{notice}</p> : null}
 
           <section className="mt-6 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
@@ -610,13 +518,11 @@ export default function OwnerPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={connectedWallet ? switchOwnerWallet : connectOwnerWallet}
-                      disabled={walletConnecting}
-                      className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow disabled:opacity-60"
-                    >
-                      {walletConnecting ? 'Connecting…' : connectedWallet ? 'Switch owner wallet' : 'Connect owner wallet'}
-                    </button>
+                    <RainbowConnectAction
+                      connectLabel="Choose owner wallet"
+                      connectedLabel="Wallet connected"
+                      className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow"
+                    />
                     {connectedWallet ? (
                       <button
                         onClick={disconnectOwnerWallet}
@@ -644,6 +550,7 @@ export default function OwnerPage() {
                       <div>
                         <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Connected browser</p>
                         <p className="mt-1 text-sm text-[#f5e9c9]">{connectedWallet ? formatWallet(connectedWallet) : 'Not connected'}</p>
+                        <p className="mt-1 text-xs text-[#cdb98d]">{connectedWallet ? (walletConnectorName ?? 'Wallet connected') : 'Choose a wallet above to fund from this browser.'}</p>
                       </div>
                       <div>
                         <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Base Sepolia ETH</p>

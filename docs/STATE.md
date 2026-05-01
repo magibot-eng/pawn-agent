@@ -1,8 +1,8 @@
 # Pawn Agent — Project State
 
-**Status:** Active Hackathon MVP | Frontend/Backend Prototype Live | Contracts Incomplete
-**Last Updated:** 2026-04-30
-**Verification baseline:** local audit + passing backend tests + passing frontend build before this feature push
+**Status:** Active Hackathon MVP | Frontend/Backend Prototype Live in Production | Contracts Incomplete
+**Last Updated:** 2026-05-01
+**Verification baseline:** passing backend tests + passing frontend build + live frontend/backend health checks before this push
 
 ## Executive Summary
 Pawn Agent is no longer in a planning-only state.
@@ -18,18 +18,24 @@ The current repo already supports a real prototype loop:
 - inspect a structured negotiation summary beside the chat
 - visibly distinguish live LLM, scripted fallback, provider-error fallback, and disconnected demo mode
 
-This is enough for a convincing hackathon MVP demo shell, but not enough for a complete buyout product yet.
+This is enough for a convincing hackathon MVP demo shell, and the current production surfaces are now live at:
+- frontend: `https://pawn.solovibing.com`
+- backend: `https://edhmvxs8fi.us-east-1.awsapprunner.com`
+
+It is still not enough for a complete buyout product yet.
 
 ## Verified During This Audit
-Read-only/runtime checks performed on 2026-04-30:
-- `backend`: `python -m pytest -q` → **1 passed**
-- fresh Uvicorn boot on temp port → `/health` returned **200**
-- fresh `POST /shops/{shop_id}/provider-keys` → **201 Created**
-- local SQLite state confirmed existing shops, provider keys, and negotiation sessions
+Read-only/runtime checks performed on 2026-05-01:
+- `backend`: `python -m pytest -q` → **19 passed**
+- `frontend`: `npm run build` → **passed**
+- production frontend `GET https://pawn.solovibing.com` → **200**
+- production proxy health `GET https://pawn.solovibing.com/api/health` → **200**
+- production backend health `GET https://edhmvxs8fi.us-east-1.awsapprunner.com/health` → **200**
+- production shops list `GET /api/shops` → `[]` cleanly
 
-Important note:
-- the reported ASGI crash was caused by an **older runtime instance** using the bad `AESGCM.encrypt(..., aad=None)` call shape
-- current checked-in `backend/app/crypto/encryption.py` already uses the corrected call and the route now works live
+Important deployment note:
+- the first App Runner create failed because the backend image was pushed as **`linux/arm64`** from Apple Silicon
+- the working production fix was rebuilding/pushing the image as **`linux/amd64`** with Docker Buildx, then recreating the App Runner service
 
 ## What Is Implemented
 
@@ -100,7 +106,8 @@ Current DB-backed entities include:
 - turning chat outcomes into explicit deal offers automatically
 - contract-backed buyout settlement flow wired end-to-end
 - production-grade ENS ownership verification/onchain integration
-- serious backend test coverage
+- deeper backend test coverage around provider-key, wallet, and settlement paths
+- wallet-library build warning cleanup for production deploys
 - updated implementation plan reflecting current actual milestone order
 
 ## Reality vs Older Docs
