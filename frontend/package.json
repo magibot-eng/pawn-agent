@@ -13,6 +13,7 @@
     "@chatscope/chat-ui-kit-styles": "^1.4.0",
     "@rainbow-me/rainbowkit": "^2.2.10",
     "@tanstack/react-query": "^5.100.6",
+    "framer-motion": "^12.38.0",
     "next": "15.5.15",
     "react": "19.1.1",
     "react-dom": "19.1.1",

@@ -227,3 +227,1714 @@ button {
     transform: translateX(-50%) translateY(-4px);
   }
 }
+
+/* ============================================
+   TAVERN THEME — CSS VARIABLES
+   ============================================ */
+
+:root {
+  --amber: #e8a840;
+  --amber-glow: #f0b860;
+  --wood-dark: #2a1a0e;
+  --wood-mid: #4a2c17;
+  --wood-light: #6b3d1f;
+  --parchment: #f0e0c0;
+  --parchment-dark: #c4a870;
+  --shadow: #0d0805;
+  --ink: #2a1a0e;
+}
+
+/* ============================================
+   TAVERN — BODY OVERRIDE
+   ============================================ */
+
+body {
+  background: var(--wood-dark) !important;
+  color: var(--parchment) !important;
+  font-family: serif !important;
+}
+
+/* ============================================
+   TAVERN — TAILWIND COLOR BRIDGE
+   ============================================ */
+
+.bg-maritime,
+.bg-\\[\\#171305\\] { background-color: var(--wood-dark) !important; }
+.bg-surfaceLowest { background-color: #120e05 !important; }
+.bg-surfaceLow { background-color: var(--wood-mid) !important; }
+.bg-surface { background-color: var(--wood-mid) !important; }
+.bg-surfaceHigh { background-color: var(--wood-light) !important; }
+.bg-primary { background-color: var(--amber) !important; }
+.bg-brassButton { background: linear-gradient(180deg, #c4963a 0%, #8b6914 100%) !important; }
+.bg-emerald-500\/15 { background-color: rgba(52, 211, 153, 0.15) !important; }
+.bg-emerald-950\/30 { background-color: rgba(6, 78, 59, 0.3) !important; }
+.bg-red-950\/30 { background-color: rgba(127, 29, 29, 0.3) !important; }
+.bg-amber-950\/20 { background-color: rgba(120, 53, 15, 0.2) !important; }
+
+.text-onSurface { color: var(--parchment) !important; }
+.text-onSurfaceVariant { color: var(--parchment-dark) !important; }
+.text-primary { color: var(--amber) !important; }
+.text-onPrimary { color: var(--ink) !important; }
+.text-emerald-300 { color: #6ee7b7 !important; }
+.text-red-200 { color: #fecaca !important; }
+.text-amber-200 { color: #fcd34d !important; }
+.text-amber-300 { color: #fcd34d !important; }
+.text-green-400 { color: #4ade80 !important; }
+
+.border-outlineVariant { border-color: rgba(196, 168, 112, 0.25) !important; }
+.border-outline { border-color: rgba(196, 168, 112, 0.35) !important; }
+.border-primary { border-color: var(--amber) !important; }
+.border-emerald-500\/35 { border-color: rgba(52, 211, 153, 0.35) !important; }
+.border-emerald-500\/40 { border-color: rgba(52, 211, 153, 0.4) !important; }
+.border-emerald-500\/50 { border-color: rgba(52, 211, 153, 0.5) !important; }
+.border-amber-500\/30 { border-color: rgba(251, 191, 36, 0.3) !important; }
+.border-amber-500\/40 { border-color: rgba(251, 191, 36, 0.4) !important; }
+.border-red-500\/40 { border-color: rgba(248, 113, 113, 0.4) !important; }
+.border-\\[\\#d4af37\\]\/50 { border-color: rgba(212, 175, 55, 0.5) !important; }
+.border-\\[\\#d4af37\\]\/40 { border-color: rgba(212, 175, 55, 0.4) !important; }
+.border-\\[\\#d4af37\\]\/30 { border-color: rgba(212, 175, 55, 0.3) !important; }
+.border-\\[\\#d4af37\\]\/18 { border-color: rgba(212, 175, 55, 0.18) !important; }
+
+/* ============================================
+   TAVERN — SCROLLBAR
+   ============================================ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 175, 55, 0.3) transparent;
+}
+
+/* ============================================
+   TAVERN — AMBIENT CANDLE EDGE GLOW
+   ============================================ */
+
+.candle-edge-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  box-shadow: inset 0 0 80px rgba(232, 168, 64, 0.05);
+  animation: edgeGlow 6s ease-in-out infinite alternate;
+}
+
+@keyframes edgeGlow {
+  0% { box-shadow: inset 0 0 60px rgba(232, 168, 64, 0.04); }
+  50% { box-shadow: inset 0 0 100px rgba(232, 168, 64, 0.07); }
+  100% { box-shadow: inset 0 0 60px rgba(232, 168, 64, 0.04); }
+}
+
+/* ============================================
+   TAVERN — WOODEN SIGN NAV BUTTONS
+   ============================================ */
+
+.tavern-sign-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(180deg, #5a3520 0%, #3d2414 100%);
+  border: 1px solid rgba(196, 168, 112, 0.3);
+  border-radius: 6px;
+  color: var(--parchment);
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,200,100,0.08);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.tavern-sign-link:hover {
+  background: linear-gradient(180deg, #6b4028 0%, #4a2c17 100%);
+  box-shadow: 0 0 12px rgba(232, 168, 64, 0.2), 0 2px 8px rgba(0,0,0,0.4);
+  border-color: rgba(196, 168, 112, 0.5);
+}
+
+.tavern-sign-link.brass {
+  background: linear-gradient(180deg, #c4963a 0%, #8b6914 100%);
+  color: var(--ink);
+  border-color: rgba(212, 175, 55, 0.5);
+}
+
+.tavern-sign-link.brass:hover {
+  background: linear-gradient(180deg, #d4a84a 0%, #9b7924 100%);
+  box-shadow: 0 0 16px rgba(232, 168, 64, 0.35);
+}
+
+/* ============================================
+   TAVERN — PARCHMENT INPUT
+   ============================================ */
+
+.parchment-input {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(196, 168, 112, 0.3) !important;
+  border-radius: 6px !important;
+  padding: 0.75rem 1rem !important;
+  color: var(--parchment) !important;
+  font-family: serif !important;
+  font-size: 0.875rem !important;
+  outline: none !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.2) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+}
+
+.parchment-input::placeholder {
+  color: rgba(196, 168, 112, 0.5) !important;
+}
+
+.parchment-input:focus {
+  border-color: rgba(212, 175, 55, 0.5) !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.2), 0 0 8px rgba(232, 168, 64, 0.15) !important;
+}
+
+/* ============================================
+   TAVERN — CHAT MESSAGE BUBBLES
+   ============================================ */
+
+.tavern-message {
+  max-width: 82%;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-family: serif;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.tavern-message.merchant {
+  background: linear-gradient(135deg, rgba(245, 232, 196, 0.96) 0%, rgba(212, 188, 130, 0.96) 100%);
+  color: var(--ink);
+  border: 1px solid rgba(139, 90, 43, 0.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.tavern-message.seller {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(148, 112, 44, 0.18) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: var(--parchment);
+}
+
+.tavern-message-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.375rem;
+}
+
+.tavern-message-sender {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--parchment-dark);
+}
+
+.tavern-message.merchant .tavern-message-sender {
+  color: #8b6914;
+}
+
+.tavern-message-time {
+  font-size: 0.625rem;
+  color: rgba(139, 90, 43, 0.6);
+}
+
+/* ============================================
+   TAVERN — QUILL CHAT INPUT
+   ============================================ */
+
+.tavern-quill-input {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(196, 168, 112, 0.35) !important;
+  border-radius: 6px !important;
+  padding: 0.75rem 1rem !important;
+  color: var(--parchment) !important;
+  font-family: serif !important;
+  font-size: 0.875rem !important;
+  resize: none !important;
+  outline: none !important;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.2) !important;
+  line-height: 1.5 !important;
+  width: 100%;
+}
+
+.tavern-quill-input::placeholder {
+  color: rgba(196, 168, 112, 0.45) !important;
+  font-style: italic;
+}
+
+.tavern-quill-input:focus {
+  border-color: rgba(212, 175, 55, 0.5) !important;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.2), 0 0 8px rgba(232, 168, 64, 0.12) !important;
+}
+
+/* ============================================
+   TAVERN — LEDGER / OWNER DASHBOARD
+   ============================================ */
+
+.ledger-panel {
+  background: linear-gradient(180deg, rgba(50, 32, 16, 0.85), rgba(22, 15, 8, 0.92)),
+              radial-gradient(circle at top right, rgba(212, 175, 55, 0.06), transparent 30%);
+  border: 1px solid rgba(196, 168, 112, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+
+.ledger-input {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(196, 168, 112, 0.28) !important;
+  border-radius: 6px !important;
+  padding: 0.75rem !important;
+  color: var(--parchment) !important;
+  font-family: serif !important;
+  font-size: 0.875rem !important;
+  outline: none !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.25) !important;
+  width: 100% !important;
+  display: block;
+}
+
+.ledger-input:focus {
+  border-color: rgba(212, 175, 55, 0.45) !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.25), 0 0 6px rgba(232, 168, 64, 0.12) !important;
+}
+
+.ledger-input::placeholder {
+  color: rgba(196, 168, 112, 0.4) !important;
+}
+
+.ledger-select {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(196, 168, 112, 0.28) !important;
+  border-radius: 6px !important;
+  padding: 0.75rem !important;
+  color: var(--parchment) !important;
+  font-family: serif !important;
+  font-size: 0.875rem !important;
+  outline: none !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.25) !important;
+  width: 100% !important;
+  display: block;
+  cursor: pointer;
+}
+
+.ledger-select:focus {
+  border-color: rgba(212, 175, 55, 0.45) !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.25), 0 0 6px rgba(232, 168, 64, 0.12) !important;
+}
+
+/* ============================================
+   TAVERN — SHOP CARD (Marketplace listing)
+   ============================================ */
+
+.shop-card {
+  background: linear-gradient(135deg, #2b1d12 0%, #1a0f08 100%);
+  border: 3px double rgba(212, 175, 55, 0.4);
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.7), inset 0 0 8px rgba(212, 175, 55, 0.1);
+  transition: box-shadow 0.2s ease;
+}
+
+.shop-card:hover {
+  box-shadow: 0 12px 30px rgba(0,0,0,0.75), inset 0 0 12px rgba(212, 175, 55, 0.15);
+}
+
+/* ============================================
+   TAVERN — STATUS BADGES
+   ============================================ */
+
+.tavern-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+/* ============================================
+   TAVERN — PORTRAIT INMAIN PAGE
+   ============================================ */
+
+.page-merchant-portrait {
+  position: relative;
+  border: 3px solid #8b6914;
+  box-shadow: 0 0 20px rgba(232,168,64,0.3), inset 0 0 30px rgba(0,0,0,0.5);
+  background: linear-gradient(145deg, #c4963a 0%, #8b6914 40%, #5a4020 100%);
+  padding: 4px;
+}
+
+/* ============================================
+   TAVERN — NEGOTIATION SIDEBAR
+   ============================================ */
+
+.negotiation-sidebar {
+  background: linear-gradient(135deg, #2b1d12 0%, #1a0f08 100%);
+  border: 3px double rgba(212, 175, 55, 0.4);
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.7), inset 0 0 8px rgba(212, 175, 55, 0.1);
+  color: var(--parchment);
+  font-size: 0.875rem;
+}
+
+/* ============================================
+   TAVERN — QUOTE CARD OVERRIDES
+   ============================================ */
+
+.tavern-quote-card {
+  border-radius: 6px;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  background: rgba(212, 175, 55, 0.08);
+  padding: 1rem;
+}
+
+.tavern-quote-card .quote-header {
+  color: var(--amber);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  margin-bottom: 0.75rem;
+}
+
+.tavern-quote-card .quote-status {
+  border-radius: 9999px;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--amber);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding: 0.25rem 0.5rem;
+}
+
+/* ============================================
+   TAVERN — TYPOGRAPHY HELPERS
+   ============================================ */
+
+.tavern-body-text {
+  color: rgba(240, 224, 192, 0.9);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.tavern-muted {
+  color: var(--parchment-dark);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+}
+
+.tavern-heading {
+  color: var(--parchment);
+  font-family: serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================
+   TAVERN — SEND BUTTON
+   ============================================ */
+
+.tavern-send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 3.25rem;
+  padding: 0 1.25rem;
+  background: linear-gradient(180deg, #c4963a 0%, #8b6914 100%);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.tavern-send-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #d4a84a 0%, #9b7924 100%);
+  box-shadow: 0 0 12px rgba(232, 168, 64, 0.3), 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.tavern-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   TAVERN — PARCHMENT PANEL (Chat container)
+   ============================================ */
+
+.tavern-chat-panel {
+  background: linear-gradient(145deg, #f5e8c4 0%, #e8d4a8 50%, #d4bc82 100%);
+  border-radius: 8px;
+  border: 2px solid #b89a5c;
+  box-shadow: inset 0 2px 4px rgba(139,90,43,0.2), inset 0 -3px 10px rgba(0,0,0,0.1), 0 8px 32px rgba(0,0,0,0.5);
+  position: relative;
+  overflow: hidden;
+}
+
+.tavern-chat-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(139,109,47,0.03) 3px, rgba(139,109,47,0.03) 6px);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+
+/* ============================================
+   TAVERN — PAGE CONTENT Z-INDEX LAYER
+   ============================================ */
+
+main, [data-page-content], .page-content {
+  position: relative;
+  z-index: 1;
+}
+
+
+/* ============================================
+   CROSSROADS — RPG HOME PAGE REDESIGN
+   ============================================ */
+
+/* ── Root ── */
+.crossroads-root {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Atmospheric background ── */
+.crossroads-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+.stone-wall {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 30%, #2d1f10 0%, #1a0f05 60%, #0d0805 100%);
+}
+
+.wood-floor {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(to bottom, #3d2512 0%, #4a2c17 25%, #5a3520 60%, #3d2512 100%);
+  box-shadow: 0 -6px 40px rgba(0,0,0,0.7);
+}
+
+.bg-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 70% at 50% 50%, transparent 30%, rgba(0,0,0,0.65) 100%);
+}
+
+.candle-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.candle-glow-left {
+  top: 8%;
+  left: 15%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(240,184,96,0.14) 0%, transparent 70%);
+  animation: candlePulse 8s ease-in-out infinite;
+}
+
+.candle-glow-right {
+  top: 12%;
+  right: 18%;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(200,160,80,0.1) 0%, transparent 70%);
+  animation: candlePulse 10s ease-in-out infinite 2s;
+}
+
+@keyframes candlePulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+/* ── Mist layer ── */
+.mist-layer {
+  position: fixed;
+  bottom: 30%;
+  left: 0;
+  right: 0;
+  height: 30%;
+  background: linear-gradient(to top,
+    rgba(200,180,140,0.06) 0%,
+    rgba(180,160,120,0.03) 40%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Ember particles ── */
+.embers-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ember {
+  position: absolute;
+  top: -10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #f0c040 0%, #e88020 50%, #c04010 100%);
+  box-shadow: 0 0 4px rgba(240,160,32,0.8);
+  animation: emberDrift linear infinite;
+  opacity: 0;
+}
+
+@keyframes emberDrift {
+  0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.6; }
+  80% { opacity: 0.3; }
+  100% { transform: translateY(100vh) translateX(30px) rotate(360deg); opacity: 0; }
+}
+
+/* ── HUD top bar ── */
+.crossroads-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(to bottom, rgba(13,8,5,0.9) 0%, rgba(13,8,5,0) 100%);
+}
+
+.hud-ens-sigil {
+  flex: 1;
+}
+
+.ens-sigil-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ens-sigil-star {
+  color: #d4a017;
+  font-size: 1rem;
+  text-shadow: 0 0 8px rgba(212,160,23,0.8);
+  animation: torchFlicker 4s ease-in-out infinite;
+}
+
+.ens-sigil-label {
+  color: rgba(240,224,192,0.9);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+}
+
+.hud-title {
+  flex: 1;
+  text-align: center;
+}
+
+.hallway-title-text {
+  color: rgba(196,168,112,0.7);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4em;
+}
+
+.hud-wallet {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.base-sepolia-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(123,163,221,0.35);
+  border-radius: 9999px;
+  background: rgba(123,163,221,0.08);
+  color: rgba(123,163,221,0.85);
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.base-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #7ba3dd;
+  animation: basePulse 2s ease-in-out infinite;
+}
+
+@keyframes basePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.wallet-area {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wallet-address {
+  color: rgba(240,224,192,0.8);
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+.wallet-disconnect {
+  background: none;
+  border: 1px solid rgba(196,168,112,0.25);
+  border-radius: 4px;
+  color: rgba(196,168,112,0.6);
+  font-size: 0.625rem;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wallet-disconnect:hover {
+  border-color: rgba(196,168,112,0.5);
+  color: rgba(240,224,192,0.9);
+}
+
+/* ── Main layout ── */
+.crossroads-main {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  padding: 5rem 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── Doors section ── */
+.doors-section {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0;
+  align-items: stretch;
+  padding-top: 1.5rem;
+}
+
+/* ── Individual door panel ── */
+.door-panel {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.door-panel.door-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.door-arch {
+  position: relative;
+  background: linear-gradient(135deg, rgba(42,26,14,0.95) 0%, rgba(26,15,8,0.98) 100%);
+  border: 2px solid rgba(212,175,55,0.45);
+  border-radius: 12px 12px 4px 4px;
+  padding: 2.5rem 2rem;
+  cursor: default;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  overflow: hidden;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.door-arch::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+
+/* ── Seller door ── */
+.door-seller .door-arch {
+  border-color: rgba(232,168,64,0.4);
+  box-shadow: 0 0 20px rgba(232,168,64,0.1), inset 0 0 20px rgba(232,120,20,0.05);
+}
+
+.door-seller:hover .door-arch {
+  transform: scale(1.02);
+  border-color: rgba(232,168,64,0.7);
+  box-shadow: 0 0 40px rgba(232,168,64,0.3), inset 0 0 30px rgba(232,120,20,0.1);
+}
+
+.door-glow-torch {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 80px;
+  background: radial-gradient(ellipse, rgba(240,184,64,0.35) 0%, transparent 70%);
+  pointer-events: none;
+  animation: torchFlicker 3s ease-in-out infinite;
+}
+
+@keyframes torchFlicker {
+  0%, 100% { opacity: 0.7; transform: translateX(-50%) scaleX(1); }
+  25% { opacity: 1; transform: translateX(-50%) scaleX(1.1); }
+  75% { opacity: 0.85; transform: translateX(-50%) scaleX(0.95); }
+}
+
+/* ── Iron/merchant door ── */
+.door-arch-iron {
+  border-color: rgba(122,155,181,0.4);
+  box-shadow: 0 0 20px rgba(80,100,130,0.15), inset 0 0 20px rgba(40,50,70,0.1);
+}
+
+.door-merchant:hover .door-arch {
+  transform: scale(1.02);
+  border-color: rgba(122,155,181,0.7);
+  box-shadow: 0 0 40px rgba(80,120,160,0.25), inset 0 0 30px rgba(40,60,80,0.15);
+}
+
+.door-glow-iron {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 60px;
+  background: radial-gradient(ellipse, rgba(140,180,220,0.2) 0%, transparent 70%);
+  pointer-events: none;
+  animation: ironGlow 5s ease-in-out infinite;
+}
+
+@keyframes ironGlow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.9; }
+}
+
+/* ── Iron sparks ── */
+.iron-sparks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.spark {
+  position: absolute;
+  bottom: 20%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #9ab8d8;
+  box-shadow: 0 0 4px rgba(140,180,220,0.9);
+  opacity: 0;
+  animation: sparkFly 1.5s ease-out infinite;
+}
+
+.door-merchant:hover .spark {
+  animation-duration: 0.8s;
+}
+
+@keyframes sparkFly {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(-80px) scale(0.2); opacity: 0; }
+}
+
+/* ── Door icon ── */
+.door-icon-wrap {
+  margin-bottom: 1.5rem;
+}
+
+.door-icon-svg {
+  width: 56px;
+  height: 56px;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.coin-icon {
+  color: #d4a017;
+}
+
+.ledger-icon {
+  color: #7a9bb5;
+}
+
+/* ── Door content ── */
+.door-content {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  width: 100%;
+}
+
+.door-path-label {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.35em;
+  color: rgba(196,168,112,0.55);
+}
+
+.door-title {
+  color: #f0e0c0;
+  font-size: 1.5rem;
+  font-family: serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.door-title-iron {
+  color: #c8d8e8;
+}
+
+.door-tagline {
+  color: rgba(196,168,112,0.8);
+  font-size: 0.8125rem;
+  font-style: italic;
+}
+
+/* ── Door CTA button ── */
+.door-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  margin-top: auto;
+}
+
+.door-cta-seller {
+  background: linear-gradient(180deg, #c4963a 0%, #8b6914 100%);
+  color: #1a0f05;
+  border: 1px solid rgba(212,175,55,0.5);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.door-cta-seller:hover {
+  background: linear-gradient(180deg, #d4a84a 0%, #9b7924 100%);
+  box-shadow: 0 0 16px rgba(232,168,64,0.4), 0 2px 8px rgba(0,0,0,0.4);
+  transform: translateY(-1px);
+}
+
+.door-cta-iron {
+  background: linear-gradient(180deg, #4a6a8a 0%, #2a3a4a 100%);
+  color: #c8d8e8;
+  border: 1px solid rgba(122,155,181,0.5);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.door-cta-iron:hover {
+  background: linear-gradient(180deg, #5a7a9a 0%, #3a4a5a 100%);
+  box-shadow: 0 0 16px rgba(80,120,160,0.35), 0 2px 8px rgba(0,0,0,0.4);
+  transform: translateY(-1px);
+}
+
+.door-cta-iron-secondary {
+  background: transparent;
+  color: rgba(122,155,181,0.8);
+  border: 1px solid rgba(122,155,181,0.3);
+}
+
+.door-cta-iron-secondary:hover {
+  background: rgba(122,155,181,0.1);
+  color: #c8d8e8;
+}
+
+.door-cta-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.door-cta-arrow {
+  font-size: 0.875rem;
+}
+
+/* ── Merchant setup form inside door ── */
+.door-merchant-setup {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.merchant-inset-rounded {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.door-ens-input {
+  text-align: center;
+  font-size: 0.875rem !important;
+}
+
+.door-open-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.2rem;
+  background: linear-gradient(180deg, #4a6a8a 0%, #2a3a4a 100%);
+  border: 1px solid rgba(122,155,181,0.5);
+  border-radius: 6px;
+  color: #c8d8e8;
+  font-size: 0.6875rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  width: 100%;
+}
+
+.door-open-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #5a7a9a 0%, #3a4a5a 100%);
+  box-shadow: 0 0 12px rgba(80,120,160,0.3);
+}
+
+.door-open-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ens-status-badge {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid;
+}
+
+.ens-status-badge.verified {
+  color: #6ee7b7;
+  border-color: rgba(52,211,153,0.4);
+  background: rgba(52,211,153,0.1);
+}
+
+.ens-status-badge.checking {
+  color: #fcd34d;
+  border-color: rgba(251,191,36,0.4);
+  background: rgba(251,191,36,0.08);
+}
+
+.ens-status-badge.manual {
+  color: rgba(196,168,112,0.7);
+  border-color: rgba(196,168,112,0.3);
+  background: rgba(196,168,112,0.05);
+}
+
+/* ── Merchant active state in door ── */
+.door-merchant-active {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.door-active-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.door-active-ens {
+  color: #c8d8e8;
+  font-size: 0.8125rem;
+  font-family: monospace;
+}
+
+.door-active-badge {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(122,155,181,0.4);
+  color: rgba(122,155,181,0.8);
+  background: rgba(122,155,181,0.08);
+}
+
+.door-active-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ── Hover ember burst (seller door) ── */
+.door-hover-embers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.hover-ember {
+  position: absolute;
+  bottom: 10%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #f0c040;
+  box-shadow: 0 0 5px rgba(240,192,64,0.9);
+  opacity: 0;
+  animation: hoverEmberUp 1.2s ease-out infinite;
+}
+
+.door-seller:hover .hover-ember {
+  animation-duration: 0.8s;
+}
+
+@keyframes hoverEmberUp {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateY(-100px) scale(0.1); opacity: 0; }
+}
+
+/* ── Floor shadow between doors ── */
+.floor-shadow {
+  width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floor-shadow::after {
+  content: '';
+  width: 4px;
+  height: 80%;
+  background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.6) 30%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,0.6) 70%, transparent 100%);
+  border-radius: 9999px;
+}
+
+/* ── Seller strip ── */
+.seller-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.strip-label {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.35em;
+  color: rgba(196,168,112,0.55);
+}
+
+.strip-count {
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: rgba(52,211,153,0.7);
+  padding: 0.15rem 0.5rem;
+  border: 1px solid rgba(52,211,153,0.25);
+  border-radius: 9999px;
+}
+
+.strip-loading,
+.strip-error,
+.strip-empty {
+  padding: 1.25rem 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.strip-loading {
+  color: rgba(196,168,112,0.6);
+  font-size: 0.8125rem;
+  font-style: italic;
+}
+
+.strip-error {
+  color: #fecaca;
+  font-size: 0.8125rem;
+  border: 1px solid rgba(248,113,113,0.3);
+  background: rgba(127,29,29,0.2);
+}
+
+.strip-empty-text {
+  color: rgba(240,224,192,0.7);
+  font-size: 0.875rem;
+  margin: 0 0 0.25rem;
+}
+
+.strip-empty-sub {
+  color: rgba(196,168,112,0.5);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+/* ── Shop card row (horizontal scroll) ── */
+.shop-card-row {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212,175,55,0.25) transparent;
+}
+
+.glass-shop-card {
+  flex: 0 0 220px;
+  background: linear-gradient(135deg, rgba(42,26,14,0.7) 0%, rgba(26,15,8,0.8) 100%);
+  border: 1px solid rgba(212,175,55,0.25);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.glass-shop-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(212,175,55,0.45);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 12px rgba(212,175,55,0.1);
+}
+
+.glass-shop-card-inner {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.glass-ens-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #f0e0c0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.glass-ens-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 4px rgba(52,211,153,0.6);
+}
+
+.glass-ens-name {
+  color: rgba(196,168,112,0.6);
+  font-size: 0.6875rem;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.glass-desc {
+  color: rgba(196,168,112,0.75);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.glass-actions {
+  margin-top: 0.5rem;
+}
+
+.glass-enter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  background: linear-gradient(180deg, rgba(196,168,112,0.25) 0%, rgba(148,112,44,0.2) 100%);
+  border: 1px solid rgba(212,175,55,0.35);
+  border-radius: 5px;
+  color: rgba(240,224,192,0.9);
+  font-size: 0.625rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.glass-enter-btn:hover {
+  background: linear-gradient(180deg, rgba(212,175,55,0.35) 0%, rgba(180,140,60,0.3) 100%);
+  box-shadow: 0 0 8px rgba(212,175,55,0.2);
+}
+
+/* ── Merchant strip ── */
+.merchant-strip {
+  display: flex;
+  justify-content: center;
+}
+
+/* ── Tavern sign (hanging) ── */
+.tavern-sign-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tavern-sign-hanger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.hanger-ring {
+  width: 20px;
+  height: 10px;
+  border: 2px solid #8b6914;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  margin-bottom: -1px;
+}
+
+.hanger-chain {
+  width: 2px;
+  height: 24px;
+  background: linear-gradient(to bottom, #a07a20, #6b4f10);
+  box-shadow: 0 0 4px rgba(160,122,32,0.4);
+}
+
+.tavern-sign {
+  position: relative;
+  background: linear-gradient(180deg, #5a3a18 0%, #3d2510 50%, #2a1808 100%);
+  border: 2px solid rgba(180,130,60,0.5);
+  border-radius: 6px;
+  padding: 1.25rem 1.75rem;
+  min-width: 240px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,200,100,0.1);
+  animation: swing 6s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+@keyframes swing {
+  0%, 100% { transform: rotate(-1.5deg); }
+  50% { transform: rotate(1.5deg); }
+}
+
+.tavern-sign-nail {
+  position: absolute;
+  top: -8px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #b89a5c, #6b5020);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.nail-left { left: 20%; }
+.nail-right { right: 20%; }
+
+.tavern-sign-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tavern-sign-ens {
+  color: #f0e0c0;
+  font-size: 1rem;
+  font-family: serif;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+.tavern-sign-divider {
+  width: 80%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(180,130,60,0.6), transparent);
+}
+
+.tavern-sign-stats {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.sign-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.sign-stat-label {
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: rgba(196,168,112,0.5);
+}
+
+.sign-stat-value {
+  font-size: 0.6875rem;
+  color: rgba(240,224,192,0.85);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.sign-stat-wallet {
+  color: #f0c040;
+}
+
+.tavern-sign-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.sign-action-btn {
+  padding: 0.4rem 0.8rem;
+  background: linear-gradient(180deg, #4a6a8a 0%, #2a3a4a 100%);
+  border: 1px solid rgba(122,155,181,0.4);
+  border-radius: 5px;
+  color: #c8d8e8;
+  font-size: 0.5625rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.sign-action-btn:hover {
+  background: linear-gradient(180deg, #5a7a9a 0%, #3a4a5a 100%);
+  box-shadow: 0 0 8px rgba(80,120,160,0.3);
+}
+
+.sign-action-primary {
+  background: linear-gradient(180deg, #c4963a 0%, #8b6914 100%);
+  color: #1a0f05;
+  border-color: rgba(212,175,55,0.5);
+}
+
+.sign-action-primary:hover {
+  background: linear-gradient(180deg, #d4a84a 0%, #9b7924 100%);
+  box-shadow: 0 0 10px rgba(232,168,64,0.35);
+}
+
+/* ── Empty hall state ── */
+.empty-hall {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.empty-hall-icon {
+  font-size: 2rem;
+  color: rgba(196,168,112,0.3);
+}
+
+.empty-hall-title {
+  color: rgba(240,224,192,0.6);
+  font-size: 1rem;
+  font-family: serif;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.empty-hall-sub {
+  color: rgba(196,168,112,0.4);
+  font-size: 0.8125rem;
+  font-style: italic;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+/* ── Notice banners ── */
+.notice {
+  border-radius: 6px;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.8125rem;
+  border: 1px solid;
+}
+
+.notice-success {
+  background: rgba(6,78,59,0.3);
+  border-color: rgba(52,211,153,0.4);
+  color: #6ee7b7;
+}
+
+.notice-error {
+  background: rgba(127,29,29,0.3);
+  border-color: rgba(248,113,113,0.4);
+  color: #fecaca;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE — DOORS & HOME
+   ============================================ */
+
+/* Doors: stack vertically on mobile */
+@media (max-width: 768px) {
+  .doors-section {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+    padding-top: 1rem;
+  }
+
+  /* Hide the center floor divider on mobile */
+  .doors-section > *:nth-child(2) {
+    display: none;
+  }
+
+  .door-arch {
+    min-height: 280px !important;
+    padding: 1.5rem 1.25rem !important;
+  }
+
+  /* Merchant setup inside door — reduce on mobile */
+  .door-merchant-setup {
+    padding: 0 0.5rem;
+  }
+}
+
+/* Main page wrapper — ensure horizontal overflow is hidden */
+@media (max-width: 768px) {
+  .home-page-wrapper {
+    overflow-x: hidden !important;
+  }
+}
+
+/* Shop card row — horizontal scroll on mobile */
+@media (max-width: 640px) {
+  .shop-card-row {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .shop-card-row::-webkit-scrollbar {
+    display: none;
+  }
+  .glass-shop-card {
+    min-width: 220px !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* Merchant strip — tavern sign mobile */
+@media (max-width: 640px) {
+  .merchant-strip {
+    padding: 1rem 0.5rem !important;
+  }
+  .tavern-sign-wrap {
+    transform: scale(0.85);
+    transform-origin: top center;
+  }
+}
+
+/* ── OWNER STUDY — merchant's private study ── */
+.merchant-study {
+  background: var(--mahogany, #1e1208) !important;
+}
+
+/* Parchment cards on the desk */
+.parchment-card {
+  background: linear-gradient(145deg, #f0e0c0 0%, #e0c890 60%, #c8a870 100%);
+  border: 1px solid rgba(139,90,43,0.5);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  padding: 1.25rem 1.5rem;
+  color: var(--ink);
+}
+
+/* Study section header — inked chapter title */
+.study-section-header {
+  font-family: serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #5a3d1a;
+  border-bottom: 1px solid rgba(139,90,43,0.3);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Ledger inputs — parchment text fields */
+.ledger-input {
+  width: 100%;
+  background: rgba(255,248,230,0.85) !important;
+  border: 1px solid rgba(139,90,43,0.4) !important;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #2a1a0e !important;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ledger-input:focus {
+  border-color: rgba(196,152,58,0.7) !important;
+  box-shadow: 0 0 0 2px rgba(196,152,58,0.15);
+}
+.ledger-input::placeholder { color: rgba(90,60,30,0.5); }
+
+/* Ledger select */
+.ledger-select {
+  width: 100%;
+  background: rgba(255,248,230,0.85) !important;
+  border: 1px solid rgba(139,90,43,0.4) !important;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #2a1a0e !important;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+.ledger-select:focus {
+  border-color: rgba(196,152,58,0.7) !important;
+  box-shadow: 0 0 0 2px rgba(196,152,58,0.15);
+}
+
+/* Treasury — coin purse style */
+.treasury-coin-purse {
+  background: linear-gradient(145deg, #1e1208 0%, #2a1a0e 100%);
+  border: 2px solid rgba(196,152,58,0.4);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+.treasury-balance {
+  font-family: serif;
+  font-size: 2rem;
+  color: var(--amber);
+  letter-spacing: 0.05em;
+}
+.treasury-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: rgba(196,168,112,0.7);
+}
+
+/* Portrait frames on the wall */
+.wall-frame {
+  border: 2px solid rgba(196,168,112,0.2);
+  border-radius: 4px;
+  padding: 0.5rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.wall-frame:hover { border-color: rgba(196,168,112,0.5); }
+.wall-frame--selected {
+  border-color: var(--amber) !important;
+  box-shadow: 0 0 12px rgba(232,168,64,0.3);
+}
+
+/* Provider key — sealed document */
+.wax-sealed-doc {
+  background: linear-gradient(145deg, #2a1a0e 0%, #1e1208 100%);
+  border: 1px solid rgba(196,168,112,0.3);
+  border-radius: 6px;
+  padding: 1.25rem;
+}
+
+/* Save button — brass merchant seal */
+.brass-seal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  background: linear-gradient(180deg, #d4a84a 0%, #9b7020 100%);
+  border: 2px solid rgba(196,152,58,0.6);
+  border-radius: 50px;
+  color: #1e1208;
+  font-family: serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  transition: all 0.2s ease;
+}
+.brass-seal-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #e8b85a 0%, #b08028 100%);
+  box-shadow: 0 4px 20px rgba(196,152,58,0.4);
+}
+.brass-seal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Fund/withdraw buttons — smaller brass buttons */
+.brass-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(180deg, #c4963a 0%, #8b6914 100%);
+  border: 1px solid rgba(196,152,58,0.5);
+  border-radius: 6px;
+  color: #1e1208;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  margin-top: 0.75rem;
+  text-align: center;
+}
+.brass-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #d4a84a 0%, #9b7924 100%);
+}
+.brass-btn:disabled { opacity: 0.5; cursor: not-allowed; }

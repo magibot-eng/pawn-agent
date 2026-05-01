@@ -71,7 +71,7 @@ interface MerchantChatProps {
 }
 
 // ---------------------------------------------------------------------------
-// Quote Card
+// Quote Card (inside chat)
 // ---------------------------------------------------------------------------
 
 interface QuoteCardProps {
@@ -98,35 +98,33 @@ function QuoteCard({
   disabled,
 }: QuoteCardProps) {
   return (
-    <div className="rounded-panel border border-[#d4af37]/50 bg-[rgba(212,175,55,0.08)] p-4">
+    <div className="tavern-quote-card">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[11px] uppercase tracking-[0.28em] text-[#d4af37]">Merchant Quote</p>
-        <span className="rounded-full border border-[#d4af37]/40 bg-[rgba(212,175,55,0.15)] px-2 py-0.5 text-[10px] uppercase tracking-widest text-[#d4af37]">
-          {quote.status}
-        </span>
+        <p className="quote-header">Merchant Quote</p>
+        <span className="quote-status">{quote.status}</span>
       </div>
 
       {/* Ask vs Offer */}
       <div className="mb-4 grid grid-cols-2 gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">You Ask</p>
-          <p className="mt-1 text-base text-[#f5e9c9]">
+          <p className="tavern-muted">You Ask</p>
+          <p className="mt-1 text-base" style={{ color: 'var(--parchment)' }}>
             {quote.seller_ask_amount
               ? `${Number(quote.seller_ask_amount).toLocaleString()} ${quote.seller_ask_token}`
               : '—'}
           </p>
           {quote.seller_ask_price && (
-            <p className="text-[11px] text-[#a08050]">@ {quote.seller_ask_price} each</p>
+            <p className="text-[11px]" style={{ color: 'var(--parchment-dark)' }}>@ {quote.seller_ask_price} each</p>
           )}
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant Offers</p>
-          <p className="mt-1 text-base text-[#f5e9c9]">
+          <p className="tavern-muted">Merchant Offers</p>
+          <p className="mt-1 text-base" style={{ color: 'var(--parchment)' }}>
             {formatPayoutDisplay(quote.payout_amount, quote.payout_token)}
           </p>
           {quote.expiry && (
-            <p className="text-[11px] text-[#a08050]">Expires: {quote.expiry}</p>
+            <p className="text-[11px]" style={{ color: 'var(--parchment-dark)' }}>Expires: {quote.expiry}</p>
           )}
         </div>
       </div>
@@ -140,18 +138,19 @@ function QuoteCard({
             onChange={(e) => onCounterInputChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onCounterSubmit()}
             placeholder="Your counter offer (e.g. 0.0001 ETH)"
-            className="merchant-inset flex-1 rounded-panel border border-outline bg-surfaceLowest px-3 py-2 text-sm text-[#f5e9c9] placeholder:text-[#7a6040] focus:outline-none focus:ring-1 focus:ring-[#d4af37]/60"
+            className="parchment-input flex-1"
           />
           <button
             onClick={onCounterSubmit}
             disabled={!counterInput.trim() || disabled}
-            className="rounded-panel border border-primary bg-transparent px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+            className="tavern-sign-link brass"
+            style={{ whiteSpace: 'nowrap' }}
           >
             Send
           </button>
           <button
             onClick={onCounterCancel}
-            className="rounded-panel border border-outlineVariant px-3 py-2 text-xs uppercase tracking-[0.2em] text-[#a08050] hover:bg-surfaceLow"
+            className="tavern-sign-link"
           >
             ✕
           </button>
@@ -164,14 +163,19 @@ function QuoteCard({
           <button
             onClick={onAccept}
             disabled={disabled || quote.status !== 'quoted'}
-            className="flex-1 rounded-panel border border-emerald-500/50 bg-emerald-500/15 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-emerald-300 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex-1 rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
+            style={{
+              borderColor: 'rgba(52,211,153,0.5)',
+              background: 'rgba(52,211,153,0.15)',
+              color: '#6ee7b7',
+            }}
           >
             ✓ Accept
           </button>
           <button
             onClick={onCounter}
             disabled={disabled || quote.status !== 'quoted'}
-            className="flex-1 rounded-panel border border-outlineVariant bg-transparent px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f5e9c9] hover:bg-surfaceLow disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex-1 tavern-sign-link"
           >
             ↗ Counter
           </button>
@@ -411,7 +415,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
 
       <div className="grid flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="flex min-h-0 flex-col">
-          {/* Message List */}
+          {/* Message List — parchment panel */}
           <div
             ref={listRef}
             className="flex-1 space-y-3 overflow-y-auto pr-1"
@@ -422,41 +426,33 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
                 key={msg.id}
                 className={`flex ${msg.sender === 'seller' ? 'justify-end' : 'justify-start'}`}
               >
-                <div
-                  className={`max-w-[82%] rounded-panel px-4 py-3 text-sm ${
-                    msg.sender === 'merchant'
-                      ? 'merchant-inset text-[#f4e7c7]'
-                      : 'border border-outline bg-[linear-gradient(135deg,rgba(212,175,55,0.18),rgba(148,112,44,0.14))] text-[#f5e9c9]'
-                  }`}
-                >
-                  <div className="mb-1 flex items-center justify-between gap-4">
-                    <span className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">
+                <div className={`tavern-message ${msg.sender}`}>
+                  <div className="tavern-message-header">
+                    <span className="tavern-message-sender">
                       {msg.sender === 'merchant' ? `Harbormaster ${shopEnsName}` : 'You'}
                     </span>
-                    <span className="text-[10px] text-[#a08050]">{msg.timestamp}</span>
+                    <span className="tavern-message-time">{msg.timestamp}</span>
                   </div>
                   <p className="leading-relaxed">{msg.text}</p>
                 </div>
               </div>
             ))}
 
-            {/* Typing indicator */}
+            {/* Typing indicator — ink drip style */}
             {typing.active && (
               <div className="flex justify-start">
-                <div className="max-w-[82%] rounded-panel merchant-inset px-4 py-3 text-sm text-[#f4e7c7]">
-                  <div className="mb-1 flex items-center gap-2">
-                    <span className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">
-                      Harbormaster {shopEnsName}
-                    </span>
-                    <span className="flex gap-1">
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#d4af37]" style={{ animationDelay: '0ms' }} />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#d4af37]" style={{ animationDelay: '160ms' }} />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#d4af37]" style={{ animationDelay: '320ms' }} />
+                <div className="tavern-message merchant">
+                  <div className="tavern-message-header">
+                    <span className="tavern-message-sender">Harbormaster {shopEnsName}</span>
+                    <span className="flex gap-1 candle-glow" style={{ animationDuration: '2s' }}>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: '#8b6914', animation: 'merchantGlow 1.2s ease-in-out infinite', animationDelay: '0ms' }} />
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: '#8b6914', animation: 'merchantGlow 1.2s ease-in-out infinite', animationDelay: '160ms' }} />
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: '#8b6914', animation: 'merchantGlow 1.2s ease-in-out infinite', animationDelay: '320ms' }} />
                     </span>
                   </div>
                   <p className="leading-relaxed">
                     {typing.text.slice(0, typing.charIndex)}
-                    <span className="animate-pulse text-[#d4af37]">|</span>
+                    <span style={{ color: '#8b6914', animation: 'merchantGlow 0.8s ease-in-out infinite alternate' }}>|</span>
                   </p>
                 </div>
               </div>
@@ -484,8 +480,8 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
             <div ref={bottomRef} />
           </div>
 
-          {/* Input Bar */}
-          <div className="mt-5 flex items-end gap-3 border-t border-outlineVariant/50 pt-4">
+          {/* Input Bar — quill on parchment */}
+          <div className="mt-5 flex items-end gap-3 border-t pt-4" style={{ borderColor: 'rgba(196,168,112,0.25)' }}>
             <div className="flex-1">
               <textarea
                 ref={inputRef}
@@ -494,101 +490,102 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
                 onKeyDown={handleKeyDown}
                 placeholder="State your offer or ask…"
                 rows={2}
-                className="merchant-inset w-full resize-none rounded-panel border border-outline bg-surfaceLowest px-4 py-3 text-sm text-[#f5e9c9] placeholder:text-[#7a6040] focus:outline-none focus:ring-1 focus:ring-[#d4af37]/60"
+                className="tavern-quill-input"
                 style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(212,175,55,0.3) transparent' }}
               />
             </div>
             <button
               onClick={() => handleSend()}
               disabled={!inputValue.trim() || typing.active}
-              className="flex h-[3.25rem] items-center justify-center rounded-panel border border-primary bg-transparent px-5 text-sm font-bold uppercase tracking-[0.2em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+              className="tavern-send-btn"
             >
               Send
             </button>
           </div>
         </div>
 
-        <aside className="merchant-panel rounded-panel border border-outlineVariant/70 p-5 text-sm text-[#f4e7c7] xl:self-start">
-          <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Negotiation State</p>
+        {/* Negotiation state sidebar — ledger style */}
+        <aside className="negotiation-sidebar text-sm text-onSurface xl:self-start">
+          <p className="tavern-muted">Negotiation State</p>
           {negotiationState ? (
             <dl className="mt-4 space-y-3">
               <div>
-                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Token</dt>
+                <dt className="tavern-muted">Token</dt>
                 <dd className="mt-1 text-base text-onSurface">{negotiationState.token}</dd>
               </div>
               <div>
-                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Amount</dt>
+                <dt className="tavern-muted">Amount</dt>
                 <dd className="mt-1 text-base text-onSurface">{negotiationState.amount}</dd>
               </div>
               <div>
-                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Seller Ask</dt>
+                <dt className="tavern-muted">Seller Ask</dt>
                 <dd className="mt-1 text-base text-onSurface">{negotiationState.seller_ask}</dd>
               </div>
               <div>
-                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Urgency</dt>
+                <dt className="tavern-muted">Urgency</dt>
                 <dd className="mt-1 text-base text-onSurface">{negotiationState.urgency}</dd>
               </div>
               <div>
-                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant Stance</dt>
+                <dt className="tavern-muted">Merchant Stance</dt>
                 <dd className="mt-1 text-base text-onSurface">{negotiationState.merchant_stance}</dd>
               </div>
               <div>
-                <dt className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Next Action</dt>
+                <dt className="tavern-muted">Next Action</dt>
                 <dd className="mt-1 text-base text-onSurface">{negotiationState.next_action}</dd>
               </div>
             </dl>
           ) : (
-            <p className="mt-4 leading-relaxed text-[#f0dfb4]">
+            <p className="mt-4 leading-relaxed tavern-body-text">
               No structured negotiation state yet. Send a seller message and the merchant will start filling this in.
             </p>
           )}
 
           {/* Quote summary in sidebar */}
           {activeQuote && (
-            <div className="mt-6 border-t border-outlineVariant/50 pt-4">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Active Quote</p>
+            <div className="mt-6 border-t pt-4" style={{ borderColor: 'rgba(196,168,112,0.25)' }}>
+              <p className="tavern-muted">Active Quote</p>
               <dl className="mt-3 space-y-2">
                 <div className="flex justify-between">
-                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Payout</dt>
-                  <dd className="text-xs text-[#f5e9c9]">
+                  <dt className="tavern-muted">Payout</dt>
+                  <dd className="text-xs text-onSurface">
                     {formatPayoutDisplay(activeQuote.payout_amount, activeQuote.payout_token)}
                   </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Expiry</dt>
-                  <dd className="text-xs text-[#f5e9c9]">{activeQuote.expiry || '—'}</dd>
+                  <dt className="tavern-muted">Expiry</dt>
+                  <dd className="text-xs text-onSurface">{activeQuote.expiry || '—'}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Status</dt>
-                  <dd className="text-xs text-[#d4af37]">{activeQuote.status}</dd>
+                  <dt className="tavern-muted">Status</dt>
+                  <dd className="text-xs" style={{ color: 'var(--amber)' }}>{activeQuote.status}</dd>
                 </div>
               </dl>
             </div>
           )}
 
           {executionRecord && (
-            <div className="mt-6 border-t border-outlineVariant/50 pt-4">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Settlement</p>
+            <div className="mt-6 border-t pt-4" style={{ borderColor: 'rgba(196,168,112,0.25)' }}>
+              <p className="tavern-muted">Settlement</p>
               <dl className="mt-3 space-y-2">
                 <div className="flex justify-between gap-3">
-                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Chain</dt>
-                  <dd className="text-xs text-[#f5e9c9]">Base Sepolia</dd>
+                  <dt className="tavern-muted">Chain</dt>
+                  <dd className="text-xs text-onSurface">Base Sepolia</dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">State</dt>
-                  <dd className="text-xs text-[#f5e9c9]">{executionRecord.state}</dd>
+                  <dt className="tavern-muted">State</dt>
+                  <dd className="text-xs text-onSurface">{executionRecord.state}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Tx</dt>
-                  <dd className="max-w-[10rem] truncate text-xs text-[#f5e9c9]">{executionRecord.tx_hash ?? 'pending'}</dd>
+                  <dt className="tavern-muted">Tx</dt>
+                  <dd className="max-w-[10rem] truncate text-xs text-onSurface">{executionRecord.tx_hash ?? 'pending'}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Payout sent</dt>
-                  <dd className="text-xs text-[#f5e9c9]">{formatWeiDisplay(executionRecord.payout_sent_wei)}</dd>
+                  <dt className="tavern-muted">Payout sent</dt>
+                  <dd className="text-xs text-onSurface">{formatWeiDisplay(executionRecord.payout_sent_wei)}</dd>
                 </div>
                 {executionRecord.error_message && (
                   <div className="space-y-1">
-                    <dt className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Error</dt>
+                    <dt className="tavern-muted">Error</dt>
                     <dd className="text-xs text-amber-300">{executionRecord.error_message}</dd>
                   </div>
                 )}

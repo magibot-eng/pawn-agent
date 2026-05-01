@@ -415,23 +415,27 @@ export default function OwnerPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-maritime text-onSurface flex items-center justify-center">
-        <p className="text-[#f0dfb4] uppercase tracking-widest text-sm">Loading owner dashboard…</p>
+      <main className="min-h-screen relative flex items-center justify-center" style={{ background: 'var(--wood-dark)' }}>
+        <div className="candle-edge-glow" />
+        <p className="tavern-muted" style={{ position: 'relative', zIndex: 1 }}>Loading owner dashboard…</p>
       </main>
     );
   }
 
   if (!shop) {
     return (
-      <main className="min-h-screen bg-maritime text-onSurface px-6 py-10">
-        <div className="mx-auto max-w-3xl merchant-panel rounded-panel p-6">
-          <p className="text-[11px] uppercase tracking-[0.34em] text-onSurfaceVariant">Pawn Agent Owner View</p>
-          <h1 className="mt-2 text-3xl text-onSurface">Owner dashboard unavailable</h1>
-          <p className="mt-4 text-sm text-[#f0dfb4]">{error ?? 'No store selected yet.'}</p>
-          <div className="mt-6 flex gap-3">
-            <Link href="/" className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
-              Back to setup
-            </Link>
+      <main className="min-h-screen relative px-6 py-10" style={{ background: 'var(--wood-dark)' }}>
+        <div className="candle-edge-glow" />
+        <div className="mx-auto max-w-3xl" style={{ position: 'relative', zIndex: 1 }}>
+          <div className="shop-card rounded-panel p-6">
+            <p className="tavern-muted">Pawn Agent Owner View</p>
+            <h1 className="tavern-heading mt-2 text-3xl">Owner dashboard unavailable</h1>
+            <p className="tavern-body-text mt-4">{error ?? 'No store selected yet.'}</p>
+            <div className="mt-6 flex gap-3">
+              <Link href="/" className="tavern-sign-link">
+                Back to setup
+              </Link>
+            </div>
           </div>
         </div>
       </main>
@@ -439,59 +443,85 @@ export default function OwnerPage() {
   }
 
   return (
-    <main className="min-h-screen bg-maritime text-onSurface">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8">
-        <div className="merchant-panel overflow-hidden rounded-panel p-4 sm:p-6">
-          <div className="flex flex-col gap-4 border-b border-outlineVariant pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <main className="min-h-screen relative merchant-study" style={{ background: '#1e1208' }}>
+      <div className="candle-edge-glow" />
+
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8" style={{ position: 'relative', zIndex: 1 }}>
+        {/* ── Ledger shell ── */}
+        <div className="parchment-card" style={{ padding: '1.5rem' }}>
+          {/* ── Header ── */}
+          <div className="flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-end sm:justify-between" style={{ borderColor: 'rgba(196,168,112,0.2)' }}>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] uppercase tracking-[0.34em] text-onSurfaceVariant">Pawn Agent Owner View</p>
-              <h1 className="mt-2 break-words text-3xl text-onSurface">Configure the storefront</h1>
-              <p className="mt-2 max-w-2xl break-words text-sm leading-6 text-[#f0dfb4]">
+              <p className="tavern-muted">Pawn Agent Owner View</p>
+              <h1 className="tavern-heading mt-2 break-words text-3xl">Configure the storefront</h1>
+              <p className="mt-2 max-w-2xl break-words tavern-body-text leading-6">
                 Owner-administered storefront for <span className="text-onSurface">{shop.ens_name}</span>, with a separate merchant wallet for automated settlement.
               </p>
-              <p className="mt-2 text-xs uppercase tracking-[0.22em] text-[#d8caa3]">{ensVerificationLabel(shop.ens_verification_status)}</p>
-              {shop.ens_verified_owner_address ? <p className="mt-2 break-all text-xs text-[#cbb68c]">Resolved owner {shop.ens_verified_owner_address}</p> : null}
-              <p className="mt-2 break-all text-xs uppercase tracking-[0.24em] text-onSurfaceVariant">Owner {ownerAddress ?? shop.owner_address}</p>
+              <p className="mt-2 text-xs uppercase tracking-[0.22em]" style={{ color: 'rgba(216,202,163,0.8)' }}>{ensVerificationLabel(shop.ens_verification_status)}</p>
+              {shop.ens_verified_owner_address ? <p className="mt-2 break-all text-xs" style={{ color: 'rgba(196,168,112,0.8)' }}>Resolved owner {shop.ens_verified_owner_address}</p> : null}
+              <p className="mt-2 break-all text-xs uppercase tracking-[0.24em] tavern-muted">Owner {ownerAddress ?? shop.owner_address}</p>
             </div>
-            <div className="merchant-inset rounded-panel p-3 sm:min-w-[13rem]">
-              <div className="relative mx-auto h-32 w-28 overflow-hidden rounded-panel bg-[#120e04]">
-                <Image src={selectedPortrait.imageSrc} alt={selectedPortrait.name} fill className="origin-bottom scale-[2] object-cover object-bottom" sizes="112px" />
+
+            {/* Portrait */}
+            <div className="merchant-inset rounded-panel p-3 sm:min-w-[13rem]" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ width: '112px', height: '128px', position: 'relative' }}>
+                <Image
+                  src={selectedPortrait.imageSrc}
+                  alt={selectedPortrait.name}
+                  fill
+                  className="object-cover object-bottom"
+                  sizes="112px"
+                  style={{ transform: 'scale(2)', transformOrigin: 'bottom' }}
+                />
               </div>
               <p className="mt-3 text-center text-sm text-onSurface">{selectedPortrait.name}</p>
-              <p className="mt-1 text-center text-xs text-[#d8caa3]">{selectedPortrait.vibe}</p>
+              <p className="mt-1 text-center text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>{selectedPortrait.vibe}</p>
             </div>
+
+            {/* Nav */}
             <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-              <Link href={storefrontHref} className="rounded-panel border border-outlineVariant px-4 py-2 text-center text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow max-sm:flex-1">
+              <Link href={storefrontHref} className="tavern-sign-link text-center" style={{ flex: '1 1 auto', maxWidth: '12rem' }}>
                 Storefront chat
               </Link>
-              <Link href="/" className="rounded-panel border border-outlineVariant px-4 py-2 text-center text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow max-sm:flex-1">
+              <Link href="/" className="tavern-sign-link text-center" style={{ flex: '1 1 auto', maxWidth: '8rem' }}>
                 Setup
               </Link>
             </div>
           </div>
 
-          {walletError ? <p className="mt-4 rounded-panel border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">{walletError}</p> : null}
-          {notice ? <p className="mt-4 rounded-panel border border-emerald-500/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">{notice}</p> : null}
+          {/* Notices */}
+          {walletError ? (
+            <p className="mt-4 rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(248,113,113,0.4)', background: 'rgba(127,29,29,0.3)', color: '#fecaca' }}>
+              {walletError}
+            </p>
+          ) : null}
+          {notice ? (
+            <p className="mt-4 rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(52,211,153,0.4)', background: 'rgba(6,78,59,0.3)', color: '#6ee7b7' }}>
+              {notice}
+            </p>
+          ) : null}
 
+          {/* ── Main content grid ── */}
           <section className="mt-6 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+            {/* ── Left: Store profile ── */}
             <section className="merchant-inset min-w-0 overflow-hidden rounded-panel p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Store profile</p>
-                  <h2 className="mt-2 break-words text-xl text-onSurface">{ensName ?? shop.ens_name}</h2>
+                  <h2 className="study-section-header">Store Profile</h2>
                 </div>
                 <button
                   onClick={saveShopSettings}
                   disabled={saving}
-                  className="shrink-0 rounded-panel border border-outlineVariant bg-brassButton px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-onPrimary disabled:opacity-60"
+                  className="brass-seal-btn shrink-0"
                 >
                   {saving ? 'Saving…' : 'Save settings'}
                 </button>
               </div>
 
               <div className="mt-5 grid gap-4">
+                {/* Portrait picker */}
                 <div className="grid gap-3">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Store keeper portrait</span>
+                  <span className="tavern-muted">Store keeper portrait</span>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     {MERCHANT_PORTRAITS.map((portrait) => {
                       const selected = form.merchant_portrait === portrait.id;
@@ -500,62 +530,65 @@ export default function OwnerPage() {
                           key={portrait.id}
                           type="button"
                           onClick={() => updateField('merchant_portrait', portrait.id)}
-                          className={`rounded-panel border p-3 text-left transition ${selected ? 'border-primary bg-[#3a2b14]' : 'border-outlineVariant bg-surfaceLowest hover:bg-surfaceLow'}`}
+                          className={`wall-frame${selected ? ' wall-frame--selected' : ''}`}
                         >
-                          <div className="relative mx-auto h-40 w-full overflow-hidden rounded-panel bg-[#120e04]">
-                            <Image src={portrait.imageSrc} alt={portrait.name} fill className="origin-bottom scale-[2] object-cover object-bottom" sizes="(max-width: 768px) 50vw, 25vw" />
+                          <div style={{ position: 'relative', height: '160px', width: '100%', overflow: 'hidden', borderRadius: '4px', background: '#120e04' }}>
+                            <Image
+                              src={portrait.imageSrc}
+                              alt={portrait.name}
+                              fill
+                              className="object-cover object-bottom"
+                              sizes="(max-width: 768px) 50vw, 25vw"
+                              style={{ transform: 'scale(2)', transformOrigin: 'bottom' }}
+                            />
                           </div>
                           <p className="mt-3 break-words text-sm text-onSurface">{portrait.name}</p>
-                          <p className="mt-1 break-words text-xs leading-5 text-[#d8caa3]">{portrait.vibe}</p>
+                          <p className="mt-1 break-words text-xs leading-5" style={{ color: 'rgba(216,202,163,0.75)' }}>{portrait.vibe}</p>
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Merchant name</span>
-                  <input value={form.display_name} onChange={(e) => updateField('display_name', e.target.value)} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
-                </label>
-
-                <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Store description</span>
-                  <textarea value={form.description} onChange={(e) => updateField('description', e.target.value)} rows={3} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
-                </label>
-
-                <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Merchant vibe</span>
-                  <textarea value={form.merchant_persona} onChange={(e) => updateField('merchant_persona', e.target.value)} rows={4} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
-                </label>
-
-                <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">What this shop buys</span>
-                  <textarea value={form.buying_preferences} onChange={(e) => updateField('buying_preferences', e.target.value)} rows={3} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
-                </label>
-
-                <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Pricing posture</span>
-                  <textarea value={form.pricing_style} onChange={(e) => updateField('pricing_style', e.target.value)} rows={3} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
-                </label>
-
-                <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">When to refuse</span>
-                  <textarea value={form.refusal_rules} onChange={(e) => updateField('refusal_rules', e.target.value)} rows={3} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
-                </label>
-
-                <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                  <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Welcome line</span>
-                  <input value={form.welcome_message} onChange={(e) => updateField('welcome_message', e.target.value)} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
-                </label>
+                {/* Text fields */}
+                {[
+                  { key: 'display_name' as const, label: 'Merchant name' },
+                  { key: 'description' as const, label: 'Store description', rows: 3 },
+                  { key: 'merchant_persona' as const, label: 'Merchant vibe', rows: 4 },
+                  { key: 'buying_preferences' as const, label: 'What this shop buys', rows: 3 },
+                  { key: 'pricing_style' as const, label: 'Pricing posture', rows: 3 },
+                  { key: 'refusal_rules' as const, label: 'When to refuse', rows: 3 },
+                  { key: 'welcome_message' as const, label: 'Welcome line' },
+                ].map(({ key, label: fieldLabel, rows }) => (
+                  <label key={key} className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                    <span className="tavern-muted">{fieldLabel}</span>
+                    {rows ? (
+                      <textarea
+                        value={form[key]}
+                        onChange={(e) => updateField(key, e.target.value)}
+                        rows={rows}
+                        className="ledger-input"
+                      />
+                    ) : (
+                      <input
+                        value={form[key]}
+                        onChange={(e) => updateField(key, e.target.value)}
+                        className="ledger-input"
+                      />
+                    )}
+                  </label>
+                ))}
               </div>
             </section>
 
+            {/* ── Right: Treasury + LLM setup ── */}
             <section className="grid gap-6">
-              <section className="merchant-inset treasury-panel rounded-panel p-4 sm:p-5">
-                <div className="flex flex-col gap-3 border-b border-[rgba(212,175,55,0.16)] pb-4 sm:flex-row sm:items-start sm:justify-between">
+              {/* Treasury ledger */}
+              <section className="treasury-coin-purse">
+                <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between" style={{ borderColor: 'rgba(212,175,55,0.16)' }}>
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Treasury</p>
-                    <p className="mt-2 max-w-2xl text-sm text-[#f0dfb4]">
+                    <p className="tavern-muted">Treasury</p>
+                    <p className="mt-2 max-w-2xl tavern-body-text">
                       This section shows the two wallets that matter operationally: the owner wallet that funds the system, and the merchant wallet that holds acquired assets and settles trades.
                     </p>
                   </div>
@@ -563,178 +596,181 @@ export default function OwnerPage() {
                     <RainbowConnectAction
                       connectLabel="Choose owner wallet"
                       connectedLabel="Wallet connected"
-                      className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow"
+                      className="tavern-sign-link"
                     />
                     {connectedWallet ? (
-                      <button
-                        onClick={disconnectOwnerWallet}
-                        className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow"
-                      >
-                        Disconnect
-                      </button>
+                      <button onClick={disconnectOwnerWallet} className="tavern-sign-link">Disconnect</button>
                     ) : null}
                     <button
                       onClick={() => refreshTreasuryData(shop.id)}
                       disabled={walletRefreshing}
-                      className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow disabled:opacity-60"
+                      className="tavern-sign-link"
                     >
                       {walletRefreshing ? 'Refreshing…' : 'Refresh balances'}
                     </button>
                   </div>
                 </div>
 
+                {/* Owner + Merchant wallet cards */}
                 <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                  {/* Owner wallet */}
                   <div className="treasury-card rounded-panel p-4">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Owner wallet</p>
+                    <p className="tavern-muted">Owner wallet</p>
                     <p className="mt-2 text-lg text-onSurface">{ownerAddress ? formatWallet(ownerAddress) : 'Unknown'}</p>
-                    <p className="mt-1 break-all text-xs text-[#d8caa3]">{ownerAddress ?? 'No owner wallet found for this shop.'}</p>
+                    <p className="mt-1 break-all text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>{ownerAddress ?? 'No owner wallet found for this shop.'}</p>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Connected browser</p>
-                        <p className="mt-1 text-sm text-[#f5e9c9]">{connectedWallet ? formatWallet(connectedWallet) : 'Not connected'}</p>
-                        <p className="mt-1 text-xs text-[#cdb98d]">{connectedWallet ? (walletConnectorName ?? 'Wallet connected') : 'Choose a wallet above to fund from this browser.'}</p>
+                        <p className="tavern-muted">Connected browser</p>
+                        <p className="mt-1 text-sm text-onSurface">{connectedWallet ? formatWallet(connectedWallet) : 'Not connected'}</p>
+                        <p className="mt-1 text-xs" style={{ color: 'rgba(205,185,141,0.8)' }}>{connectedWallet ? (walletConnectorName ?? 'Wallet connected') : 'Choose a wallet above to fund from this browser.'}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Base Sepolia ETH</p>
-                        <p className="mt-1 text-sm text-[#f5e9c9]">{formatBalanceLine(ownerWalletBalance, 'ETH')}</p>
+                        <p className="tavern-muted">Base Sepolia ETH</p>
+                        <p className="mt-1 text-sm text-onSurface">{formatBalanceLine(ownerWalletBalance, 'ETH')}</p>
                       </div>
                     </div>
                   </div>
 
+                  {/* Merchant wallet */}
                   <div className="treasury-card rounded-panel p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant wallet</p>
-                        <p className="mt-2 text-lg text-onSurface">{(walletStatus?.wallet_status ?? shop.wallet_status) === 'pending' ? 'Not provisioned yet' : formatWallet(walletStatus?.merchant_address ?? shop.merchant_address)}</p>
-                        <p className="mt-1 break-all text-xs text-[#d8caa3]">{walletStatus?.merchant_address ?? shop.merchant_address}</p>
+                        <p className="tavern-muted">Merchant wallet</p>
+                        <p className="mt-2 text-lg text-onSurface">
+                          {(walletStatus?.wallet_status ?? shop.wallet_status) === 'pending'
+                            ? 'Not provisioned yet'
+                            : formatWallet(walletStatus?.merchant_address ?? shop.merchant_address)}
+                        </p>
+                        <p className="mt-1 break-all text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>{walletStatus?.merchant_address ?? shop.merchant_address}</p>
                       </div>
                       <button
                         onClick={provisionMerchantWallet}
                         disabled={walletProvisioning || shop.wallet_status === 'active'}
-                        className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow disabled:opacity-60"
+                        className="tavern-sign-link"
+                        style={{ whiteSpace: 'nowrap' }}
                       >
-                        {shop.wallet_status === 'active'
-                          ? 'Wallet active'
-                          : walletProvisioning
-                            ? 'Provisioning…'
-                            : 'Provision merchant wallet'}
+                        {shop.wallet_status === 'active' ? 'Wallet active' : walletProvisioning ? 'Provisioning…' : 'Provision wallet'}
                       </button>
                     </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Status</p>
-                        <p className="mt-1 text-sm text-[#f5e9c9]">{walletStatus?.wallet_status ?? shop.wallet_status}</p>
+                        <p className="tavern-muted">Status</p>
+                        <p className="mt-1 text-sm text-onSurface">{walletStatus?.wallet_status ?? shop.wallet_status}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Mode</p>
-                        <p className="mt-1 text-sm text-[#f5e9c9]">{walletStatus?.provisioning_mode ?? 'stub'}</p>
+                        <p className="tavern-muted">Mode</p>
+                        <p className="mt-1 text-sm text-onSurface">{walletStatus?.provisioning_mode ?? 'stub'}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Primary balance</p>
-                        <p className="mt-1 text-sm text-[#f5e9c9]">{formatBalanceLine(walletStatus?.balance, walletStatus?.balance_symbol)}</p>
+                        <p className="tavern-muted">Primary balance</p>
+                        <p className="mt-1 text-sm text-onSurface">{formatBalanceLine(walletStatus?.balance, walletStatus?.balance_symbol)}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">Authenticated</p>
-                        <p className="mt-1 text-sm text-[#f5e9c9]">{walletStatus?.authenticated ? `Yes${walletStatus.authenticated_email ? ` • ${walletStatus.authenticated_email}` : ''}` : 'No'}</p>
+                        <p className="tavern-muted">Authenticated</p>
+                        <p className="mt-1 text-sm text-onSurface">{walletStatus?.authenticated ? `Yes${walletStatus.authenticated_email ? ` • ${walletStatus.authenticated_email}` : ''}` : 'No'}</p>
                       </div>
                     </div>
-                    <div className="mt-4 rounded-panel border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-xs text-amber-100">
+                    <div className="mt-4 rounded-panel border px-4 py-3 text-xs" style={{ borderColor: 'rgba(251,191,36,0.3)', background: 'rgba(120,53,15,0.2)', color: '#fcd34d' }}>
                       Live settlement, holdings, and merchant-wallet withdrawals require a live `awal` wallet on Base Sepolia. Stub wallets are useful for flow testing only.
                     </div>
                   </div>
                 </div>
 
+                {/* Holdings + transfers */}
                 <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                  {/* Holdings */}
                   <div className="treasury-card rounded-panel p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant holdings</p>
-                        <p className="mt-2 text-sm text-[#f0dfb4]">Current balances reported by the live merchant wallet on Base Sepolia.</p>
+                        <p className="tavern-muted">Merchant holdings</p>
+                        <p className="mt-2 text-sm tavern-body-text">Current balances reported by the live merchant wallet on Base Sepolia.</p>
                       </div>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">{walletStatus?.holdings?.length ?? 0} assets</p>
+                      <p className="tavern-muted">{walletStatus?.holdings?.length ?? 0} assets</p>
                     </div>
                     {walletStatus?.holdings && walletStatus.holdings.length > 0 ? (
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         {walletStatus.holdings.map((holding) => (
                           <div key={`${holding.asset}-${holding.chain ?? 'unknown'}`} className="treasury-holding rounded-panel px-3 py-3">
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-onSurfaceVariant">{formatHoldingLabel(holding.asset, holding.chain)}</p>
+                            <p className="tavern-muted">{formatHoldingLabel(holding.asset, holding.chain)}</p>
                             <p className="mt-1 text-base text-onSurface">{holding.balance}</p>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="mt-4 rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#d8caa3]">
+                      <div className="mt-4 rounded-panel border px-4 py-4 text-sm" style={{ borderColor: 'rgba(196,168,112,0.25)', background: 'rgba(18,14,5,0.8)', color: 'rgba(216,202,163,0.75)' }}>
                         No live token holdings are available yet. Authenticate `awal`, fund the merchant wallet, or let the merchant acquire assets through the settlement flow to populate this section.
                       </div>
                     )}
                   </div>
 
+                  {/* Fund / withdraw */}
                   <div className="grid gap-4">
+                    {/* Fund */}
                     <div className="treasury-card rounded-panel p-4">
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Owner → Merchant</p>
-                      <p className="mt-2 text-sm text-[#f0dfb4]">Use the connected browser owner wallet to top up the merchant wallet with Base Sepolia ETH.</p>
-                      <label className="mt-3 grid gap-2 text-sm text-[#f4e7c7]">
-                        <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Amount (ETH)</span>
-                        <input value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} className="rounded-panel border border-outlineVariant bg-maritime px-3 py-3 text-onSurface outline-none" />
+                      <p className="tavern-muted">Owner → Merchant</p>
+                      <p className="mt-2 text-sm tavern-body-text">Use the connected browser owner wallet to top up the merchant wallet with Base Sepolia ETH.</p>
+                      <label className="mt-3 grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                        <span className="tavern-muted">Amount (ETH)</span>
+                        <input value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} className="ledger-input" />
                       </label>
                       <button
                         onClick={fundMerchantWallet}
                         disabled={funding}
-                        className="mt-3 w-full rounded-panel border border-outlineVariant bg-primary px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-black disabled:opacity-60"
+                        className="brass-btn w-full mt-3"
+                        style={{ textAlign: 'center' }}
                       >
                         {funding ? 'Funding…' : 'Fund merchant wallet'}
                       </button>
                       {fundTransfer ? (
-                        <p className="mt-3 text-xs text-emerald-200">Submitted {fundTransfer.amount_eth} ETH. Tx: {fundTransfer.tx_hash}</p>
+                        <p className="mt-3 text-xs" style={{ color: '#6ee7b7' }}>Submitted {fundTransfer.amount_eth} ETH. Tx: {fundTransfer.tx_hash}</p>
                       ) : null}
                     </div>
 
+                    {/* Withdraw */}
                     <div className="treasury-card rounded-panel p-4">
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Merchant → Owner</p>
-                      <p className="mt-2 text-sm text-[#f0dfb4]">Use the live merchant wallet to withdraw Base Sepolia ETH back to the owner wallet.</p>
-                      <label className="mt-3 grid gap-2 text-sm text-[#f4e7c7]">
-                        <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Amount (ETH)</span>
-                        <input value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="rounded-panel border border-outlineVariant bg-maritime px-3 py-3 text-onSurface outline-none" />
+                      <p className="tavern-muted">Merchant → Owner</p>
+                      <p className="mt-2 text-sm tavern-body-text">Use the live merchant wallet to withdraw Base Sepolia ETH back to the owner wallet.</p>
+                      <label className="mt-3 grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                        <span className="tavern-muted">Amount (ETH)</span>
+                        <input value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="ledger-input" />
                       </label>
                       <button
                         onClick={withdrawMerchantFunds}
                         disabled={withdrawing}
-                        className="mt-3 w-full rounded-panel border border-outlineVariant bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary disabled:opacity-60"
+                        className="brass-btn w-full mt-3"
+                        style={{ textAlign: 'center' }}
                       >
                         {withdrawing ? 'Withdrawing…' : 'Withdraw to owner wallet'}
                       </button>
                       {withdrawTransfer ? (
-                        <p className="mt-3 text-xs text-emerald-200">Submitted {withdrawTransfer.amount_eth} ETH back to {formatWallet(withdrawTransfer.recipient_address)}. Tx: {withdrawTransfer.tx_hash}</p>
+                        <p className="mt-3 text-xs" style={{ color: '#6ee7b7' }}>Submitted {withdrawTransfer.amount_eth} ETH back to {formatWallet(withdrawTransfer.recipient_address)}. Tx: {withdrawTransfer.tx_hash}</p>
                       ) : null}
                     </div>
                   </div>
                 </div>
               </section>
 
+              {/* LLM setup */}
               <section className="merchant-inset rounded-panel p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Active LLM setup</p>
-                    <p className="mt-2 text-sm text-[#f0dfb4]">This is the key storefront chat will try first before falling back to scripted responses.</p>
+                    <p className="tavern-muted">Active LLM setup</p>
+                    <p className="mt-2 text-sm tavern-body-text">This is the key storefront chat will try first before falling back to scripted responses.</p>
                   </div>
                   {activeKey ? (
-                    <button
-                      onClick={runActiveKeyTest}
-                      disabled={keyTesting}
-                      className="rounded-panel border border-outlineVariant px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow disabled:opacity-60"
-                    >
+                    <button onClick={runActiveKeyTest} disabled={keyTesting} className="tavern-sign-link shrink-0">
                       {keyTesting ? 'Testing…' : 'Test active key'}
                     </button>
                   ) : null}
                 </div>
-                <div className="mt-3 rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#f4e7c7]">
+                <div className="mt-3 rounded-panel border px-4 py-4 text-sm" style={{ borderColor: 'rgba(196,168,112,0.25)', background: 'rgba(18,14,5,0.8)', color: 'rgba(244,231,199,0.9)' }}>
                   {activeKey ? (
                     <div className="space-y-2">
-                      <p><span className="text-onSurfaceVariant">Status:</span> Active key configured</p>
-                      <p><span className="text-onSurfaceVariant">Provider:</span> {activeKey.provider}</p>
-                      <p><span className="text-onSurfaceVariant">Model:</span> {activeKey.model ?? 'default'}</p>
-                      <p><span className="text-onSurfaceVariant">Label:</span> {activeKey.label ?? 'unnamed key'}</p>
-                      <p><span className="text-onSurfaceVariant">Last used:</span> {activeKey.last_used_at ? new Date(activeKey.last_used_at).toLocaleString() : 'Not used in live chat yet'}</p>
+                      <p><span className="tavern-muted">Status:</span> Active key configured</p>
+                      <p><span className="tavern-muted">Provider:</span> {activeKey.provider}</p>
+                      <p><span className="tavern-muted">Model:</span> {activeKey.model ?? 'default'}</p>
+                      <p><span className="tavern-muted">Label:</span> {activeKey.label ?? 'unnamed key'}</p>
+                      <p><span className="tavern-muted">Last used:</span> {activeKey.last_used_at ? new Date(activeKey.last_used_at).toLocaleString() : 'Not used in live chat yet'}</p>
                     </div>
                   ) : (
                     <p>No active provider key yet. Storefront chat will use fallback merchant copy until you add one.</p>
@@ -743,47 +779,63 @@ export default function OwnerPage() {
 
                 {keyTestResult ? (
                   <div className={`mt-3 rounded-panel border px-4 py-3 text-sm ${keyTestResult.ok ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200' : 'border-amber-500/40 bg-amber-950/30 text-amber-200'}`}>
-                    <p className="text-[10px] uppercase tracking-[0.24em]">Connection test</p>
+                    <p className="tavern-muted">Connection test</p>
                     <p className="mt-2">
                       {keyTestResult.ok
                         ? `Live probe succeeded for ${keyTestResult.provider}${keyTestResult.model ? ` • ${keyTestResult.model}` : ''}.`
                         : `Probe failed for ${keyTestResult.provider}${keyTestResult.model ? ` • ${keyTestResult.model}` : ''}.`}
                     </p>
-                    {keyTestResult.message ? <p className="mt-2 text-xs text-current/90">Provider reply: {keyTestResult.message}</p> : null}
-                    {keyTestResult.error ? <p className="mt-2 text-xs text-current/90">Error: {keyTestResult.error}</p> : null}
+                    {keyTestResult.message ? <p className="mt-2 text-xs" style={{ color: 'inherit', opacity: 0.9 }}>Provider reply: {keyTestResult.message}</p> : null}
+                    {keyTestResult.error ? <p className="mt-2 text-xs" style={{ color: 'inherit', opacity: 0.9 }}>Error: {keyTestResult.error}</p> : null}
                   </div>
                 ) : null}
               </section>
 
+              {/* Add provider key */}
               <section className="merchant-inset rounded-panel p-4 sm:p-5">
-                <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Add provider key</p>
+                <p className="tavern-muted">Add provider key</p>
                 <form onSubmit={saveProviderKey} className="mt-4 grid gap-3">
-                  <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                    <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Provider</span>
-                    <select value={provider} onChange={(e) => updateProvider(e.target.value as CreateProviderKey['provider'])} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none">
+                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                    <span className="tavern-muted">Provider</span>
+                    <select
+                      value={provider}
+                      onChange={(e) => updateProvider(e.target.value as CreateProviderKey['provider'])}
+                      className="ledger-select"
+                    >
                       <option value="openai">OpenAI</option>
                       <option value="anthropic">Anthropic</option>
                       <option value="openrouter">OpenRouter</option>
                     </select>
                   </label>
 
-                  <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                    <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Model</span>
-                    <input value={model} onChange={(e) => setModel(e.target.value)} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
-                    <span className="text-xs text-[#d8caa3]">{PROVIDER_DEFAULTS[provider].help}</span>
+                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                    <span className="tavern-muted">Model</span>
+                    <input value={model} onChange={(e) => setModel(e.target.value)} className="ledger-input" />
+                    <span className="text-xs" style={{ color: 'rgba(216,202,163,0.7)' }}>{PROVIDER_DEFAULTS[provider].help}</span>
                   </label>
 
-                  <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                    <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Label</span>
-                    <input value={label} onChange={(e) => setLabel(e.target.value)} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                    <span className="tavern-muted">Label</span>
+                    <input value={label} onChange={(e) => setLabel(e.target.value)} className="ledger-input" />
                   </label>
 
-                  <label className="grid gap-2 text-sm text-[#f4e7c7]">
-                    <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">API key</span>
-                    <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste provider API key" className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                    <span className="tavern-muted">API key</span>
+                    <input
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="Paste provider API key"
+                      className="ledger-input"
+                    />
                   </label>
 
-                  <button type="submit" disabled={keySaving || !apiKey.trim()} className="rounded-panel border border-outlineVariant bg-primary px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-black disabled:opacity-60">
+                  <button
+                    type="submit"
+                    disabled={keySaving || !apiKey.trim()}
+                    className="tavern-sign-link brass"
+                    style={{ opacity: (keySaving || !apiKey.trim()) ? 0.6 : 1, cursor: (keySaving || !apiKey.trim()) ? 'not-allowed' : 'pointer' }}
+                  >
                     {keySaving ? 'Saving key…' : 'Save provider key'}
                   </button>
                 </form>
