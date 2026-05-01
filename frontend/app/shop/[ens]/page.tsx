@@ -6,8 +6,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { isAddress } from 'viem';
 import MerchantChat from '../../../components/MerchantChat';
+import RainbowConnectAction from '../../../components/RainbowConnectAction';
 import { Negotiations, Shops, type NegotiationSession, type Shop } from '../../../lib/api';
 import { getMerchantPortraitById } from '../../../lib/merchantPortraits';
+import { useUnifiedWallet } from '../../../lib/useUnifiedWallet';
 
 const DEFAULT_INPUT_TOKEN = '0x0000000000000000000000000000000000000000';
 const DEFAULT_INPUT_AMOUNT = '0';
@@ -24,6 +26,7 @@ function sessionStorageKey(ensName: string, sellerAddress: string) {
 export default function ShopChatPage({ params }: { params: Promise<{ ens: string }> }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { walletAddress, walletConnectorName, connectError } = useUnifiedWallet();
   const [ensName, setEnsName] = useState('');
   const [shop, setShop] = useState<Shop | null>(null);
   const [negotiation, setNegotiation] = useState<NegotiationSession | null>(null);
@@ -115,6 +118,10 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
 
   const headline = useMemo(() => shop?.display_name ?? ensName ?? 'Pawn Agent Storefront', [shop, ensName]);
   const selectedPortrait = useMemo(() => getMerchantPortraitById(shop?.merchant_portrait), [shop?.merchant_portrait]);
+  const walletLaunchHref = useMemo(() => {
+    if (!shop || !walletAddress) return null;
+    return `/shop/${encodeURIComponent(shop.ens_name)}?seller=${encodeURIComponent(walletAddress)}`;
+  }, [shop, walletAddress]);
   const startFreshHref = useMemo(() => {
     if (!shop || !sellerAddress) return '/';
     return `/shop/${encodeURIComponent(shop.ens_name)}?seller=${encodeURIComponent(sellerAddress)}&fresh=1`;
@@ -164,7 +171,7 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
             </div>
             <div className="merchant-inset rounded-panel p-3 sm:min-w-[14rem]">
               <div className="relative mx-auto h-40 w-32 overflow-hidden rounded-panel bg-[#120e04]">
-                <Image src={selectedPortrait.imageSrc} alt={selectedPortrait.name} fill className="object-contain" sizes="128px" />
+                <Image src={selectedPortrait.imageSrc} alt={selectedPortrait.name} fill className="origin-bottom scale-[2] object-cover object-bottom" sizes="128px" />
               </div>
               <p className="mt-3 text-center text-sm text-onSurface">{selectedPortrait.name}</p>
               <p className="mt-1 text-center text-xs text-[#d8caa3]">{selectedPortrait.vibe}</p>
@@ -197,11 +204,32 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
               <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Start selling</p>
               <h2 className="mt-2 text-2xl text-onSurface">Open a clean negotiation session</h2>
               <p className="mt-3 text-sm text-[#f0dfb4]">
-                This storefront no longer auto-loads a shared conversation. Start from the marketplace with your connected wallet to create a fresh seller-specific session.
+                This storefront no longer auto-loads a shared conversation. Connect a seller wallet and launch a fresh session for this shop directly, or browse other shops from the marketplace.
               </p>
+              <div className="mt-4 rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#f0dfb4]">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Seller wallet</p>
+                <p className="mt-2 text-onSurface">{walletAddress ? formatWallet(walletAddress) : 'Not connected yet'}</p>
+                <p className="mt-1 text-xs text-[#d8caa3]">
+                  {walletAddress
+                    ? `Connected through ${walletConnectorName ?? 'wallet'}. Starting here will create a fresh session for this seller wallet.`
+                    : 'Choose the wallet you want to sell from, then launch a fresh session here.'}
+                </p>
+                {connectError ? <p className="mt-3 text-xs text-red-200">{connectError}</p> : null}
+              </div>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Link href="/" className="rounded-panel border border-primary bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary">
-                  Connect wallet and start from marketplace
+                {walletLaunchHref ? (
+                  <Link href={walletLaunchHref} className="rounded-panel border border-primary bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary">
+                    Start fresh chat here
+                  </Link>
+                ) : (
+                  <RainbowConnectAction
+                    connectLabel="Choose wallet to start here"
+                    connectedLabel="Wallet connected"
+                    className="rounded-panel border border-primary bg-brassButton px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-onPrimary"
+                  />
+                )}
+                <Link href="/" className="rounded-panel border border-outlineVariant px-4 py-3 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
+                  Browse marketplace
                 </Link>
                 <Link
                   href={`/owner?ens=${encodeURIComponent(shop.ens_name)}&owner=${encodeURIComponent(shop.owner_address)}`}

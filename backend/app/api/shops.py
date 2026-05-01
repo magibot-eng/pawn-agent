@@ -43,6 +43,7 @@ async def create_shop(
         refusal_rules=data.refusal_rules,
         welcome_message=data.welcome_message,
         merchant_portrait=data.merchant_portrait,
+        status=ShopStatus.PUBLISHED,
         payout_token=data.payout_token,
         merchant_address=data.merchant_address or "0x0000000000000000000000000000000000000000",
         wallet_provider=data.wallet_provider,

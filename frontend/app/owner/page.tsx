@@ -437,28 +437,28 @@ export default function OwnerPage() {
   return (
     <main className="min-h-screen bg-maritime text-onSurface">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8">
-        <div className="merchant-panel rounded-panel p-4 sm:p-6">
+        <div className="merchant-panel overflow-hidden rounded-panel p-4 sm:p-6">
           <div className="flex flex-col gap-4 border-b border-outlineVariant pb-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-[11px] uppercase tracking-[0.34em] text-onSurfaceVariant">Pawn Agent Owner View</p>
-              <h1 className="mt-2 text-3xl text-onSurface">Configure the storefront</h1>
-              <p className="mt-2 max-w-2xl text-sm text-[#f0dfb4]">
+              <h1 className="mt-2 break-words text-3xl text-onSurface">Configure the storefront</h1>
+              <p className="mt-2 max-w-2xl break-words text-sm leading-6 text-[#f0dfb4]">
                 Owner-administered storefront for <span className="text-onSurface">{shop.ens_name}</span>, with a separate merchant wallet for automated settlement.
               </p>
-              <p className="mt-2 text-xs uppercase tracking-[0.24em] text-onSurfaceVariant">Owner {ownerAddress ?? shop.owner_address}</p>
+              <p className="mt-2 break-all text-xs uppercase tracking-[0.24em] text-onSurfaceVariant">Owner {ownerAddress ?? shop.owner_address}</p>
             </div>
             <div className="merchant-inset rounded-panel p-3 sm:min-w-[13rem]">
               <div className="relative mx-auto h-32 w-28 overflow-hidden rounded-panel bg-[#120e04]">
-                <Image src={selectedPortrait.imageSrc} alt={selectedPortrait.name} fill className="object-contain" sizes="112px" />
+                <Image src={selectedPortrait.imageSrc} alt={selectedPortrait.name} fill className="origin-bottom scale-[2] object-cover object-bottom" sizes="112px" />
               </div>
               <p className="mt-3 text-center text-sm text-onSurface">{selectedPortrait.name}</p>
               <p className="mt-1 text-center text-xs text-[#d8caa3]">{selectedPortrait.vibe}</p>
             </div>
-            <div className="flex gap-2">
-              <Link href={storefrontHref} className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+              <Link href={storefrontHref} className="rounded-panel border border-outlineVariant px-4 py-2 text-center text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow max-sm:flex-1">
                 Storefront chat
               </Link>
-              <Link href="/" className="rounded-panel border border-outlineVariant px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow">
+              <Link href="/" className="rounded-panel border border-outlineVariant px-4 py-2 text-center text-xs uppercase tracking-[0.2em] text-[#f4e7c7] hover:bg-surfaceLow max-sm:flex-1">
                 Setup
               </Link>
             </div>
@@ -468,16 +468,16 @@ export default function OwnerPage() {
           {notice ? <p className="mt-4 rounded-panel border border-emerald-500/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">{notice}</p> : null}
 
           <section className="mt-6 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-            <section className="merchant-inset rounded-panel p-4 sm:p-5">
+            <section className="merchant-inset min-w-0 overflow-hidden rounded-panel p-4 sm:p-5">
               <div className="flex items-center justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Store profile</p>
-                  <h2 className="mt-2 text-xl text-onSurface">{ensName ?? shop.ens_name}</h2>
+                  <h2 className="mt-2 break-words text-xl text-onSurface">{ensName ?? shop.ens_name}</h2>
                 </div>
                 <button
                   onClick={saveShopSettings}
                   disabled={saving}
-                  className="rounded-panel border border-outlineVariant bg-brassButton px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-onPrimary disabled:opacity-60"
+                  className="shrink-0 rounded-panel border border-outlineVariant bg-brassButton px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-onPrimary disabled:opacity-60"
                 >
                   {saving ? 'Saving…' : 'Save settings'}
                 </button>
@@ -497,10 +497,10 @@ export default function OwnerPage() {
                           className={`rounded-panel border p-3 text-left transition ${selected ? 'border-primary bg-[#3a2b14]' : 'border-outlineVariant bg-surfaceLowest hover:bg-surfaceLow'}`}
                         >
                           <div className="relative mx-auto h-40 w-full overflow-hidden rounded-panel bg-[#120e04]">
-                            <Image src={portrait.imageSrc} alt={portrait.name} fill className="object-contain" sizes="(max-width: 768px) 50vw, 25vw" />
+                            <Image src={portrait.imageSrc} alt={portrait.name} fill className="origin-bottom scale-[2] object-cover object-bottom" sizes="(max-width: 768px) 50vw, 25vw" />
                           </div>
-                          <p className="mt-3 text-sm text-onSurface">{portrait.name}</p>
-                          <p className="mt-1 text-xs text-[#d8caa3]">{portrait.vibe}</p>
+                          <p className="mt-3 break-words text-sm text-onSurface">{portrait.name}</p>
+                          <p className="mt-1 break-words text-xs leading-5 text-[#d8caa3]">{portrait.vibe}</p>
                         </button>
                       );
                     })}
@@ -509,37 +509,37 @@ export default function OwnerPage() {
 
                 <label className="grid gap-2 text-sm text-[#f4e7c7]">
                   <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Merchant name</span>
-                  <input value={form.display_name} onChange={(e) => updateField('display_name', e.target.value)} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                  <input value={form.display_name} onChange={(e) => updateField('display_name', e.target.value)} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
                 </label>
 
                 <label className="grid gap-2 text-sm text-[#f4e7c7]">
                   <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Store description</span>
-                  <textarea value={form.description} onChange={(e) => updateField('description', e.target.value)} rows={3} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                  <textarea value={form.description} onChange={(e) => updateField('description', e.target.value)} rows={3} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
                 </label>
 
                 <label className="grid gap-2 text-sm text-[#f4e7c7]">
                   <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Merchant vibe</span>
-                  <textarea value={form.merchant_persona} onChange={(e) => updateField('merchant_persona', e.target.value)} rows={4} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                  <textarea value={form.merchant_persona} onChange={(e) => updateField('merchant_persona', e.target.value)} rows={4} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
                 </label>
 
                 <label className="grid gap-2 text-sm text-[#f4e7c7]">
                   <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">What this shop buys</span>
-                  <textarea value={form.buying_preferences} onChange={(e) => updateField('buying_preferences', e.target.value)} rows={3} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                  <textarea value={form.buying_preferences} onChange={(e) => updateField('buying_preferences', e.target.value)} rows={3} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
                 </label>
 
                 <label className="grid gap-2 text-sm text-[#f4e7c7]">
                   <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Pricing posture</span>
-                  <textarea value={form.pricing_style} onChange={(e) => updateField('pricing_style', e.target.value)} rows={3} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                  <textarea value={form.pricing_style} onChange={(e) => updateField('pricing_style', e.target.value)} rows={3} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
                 </label>
 
                 <label className="grid gap-2 text-sm text-[#f4e7c7]">
                   <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">When to refuse</span>
-                  <textarea value={form.refusal_rules} onChange={(e) => updateField('refusal_rules', e.target.value)} rows={3} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                  <textarea value={form.refusal_rules} onChange={(e) => updateField('refusal_rules', e.target.value)} rows={3} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
                 </label>
 
                 <label className="grid gap-2 text-sm text-[#f4e7c7]">
                   <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Welcome line</span>
-                  <input value={form.welcome_message} onChange={(e) => updateField('welcome_message', e.target.value)} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                  <input value={form.welcome_message} onChange={(e) => updateField('welcome_message', e.target.value)} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
                 </label>
               </div>
             </section>
@@ -754,7 +754,7 @@ export default function OwnerPage() {
                 <form onSubmit={saveProviderKey} className="mt-4 grid gap-3">
                   <label className="grid gap-2 text-sm text-[#f4e7c7]">
                     <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Provider</span>
-                    <select value={provider} onChange={(e) => updateProvider(e.target.value as CreateProviderKey['provider'])} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none">
+                    <select value={provider} onChange={(e) => updateProvider(e.target.value as CreateProviderKey['provider'])} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none">
                       <option value="openai">OpenAI</option>
                       <option value="anthropic">Anthropic</option>
                       <option value="openrouter">OpenRouter</option>
@@ -763,18 +763,18 @@ export default function OwnerPage() {
 
                   <label className="grid gap-2 text-sm text-[#f4e7c7]">
                     <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Model</span>
-                    <input value={model} onChange={(e) => setModel(e.target.value)} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                    <input value={model} onChange={(e) => setModel(e.target.value)} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
                     <span className="text-xs text-[#d8caa3]">{PROVIDER_DEFAULTS[provider].help}</span>
                   </label>
 
                   <label className="grid gap-2 text-sm text-[#f4e7c7]">
                     <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">Label</span>
-                    <input value={label} onChange={(e) => setLabel(e.target.value)} className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                    <input value={label} onChange={(e) => setLabel(e.target.value)} className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
                   </label>
 
                   <label className="grid gap-2 text-sm text-[#f4e7c7]">
                     <span className="text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">API key</span>
-                    <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste provider API key" className="rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
+                    <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste provider API key" className="w-full rounded-panel border border-outlineVariant bg-surfaceLowest px-3 py-3 text-onSurface outline-none" />
                   </label>
 
                   <button type="submit" disabled={keySaving || !apiKey.trim()} className="rounded-panel border border-outlineVariant bg-primary px-4 py-3 text-xs font-bold uppercase tracking-[0.22em] text-black disabled:opacity-60">

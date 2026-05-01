@@ -19,8 +19,7 @@ function formatWallet(address: string) {
 
 function isStorefrontActive(shop: Shop) {
   const shopStatus = (shop.status ?? '').toLowerCase();
-  const walletStatus = (shop.wallet_status ?? '').toLowerCase();
-  return walletStatus === 'active' && shopStatus === 'published';
+  return shopStatus === 'published';
 }
 
 export default function HomePage() {
@@ -51,7 +50,7 @@ export default function HomePage() {
       setMarketShops(allShops.filter(isStorefrontActive));
     } catch (err) {
       console.error(err);
-      setShopsError(err instanceof Error ? err.message : 'Could not load active pawn shops.');
+      setShopsError(err instanceof Error ? err.message : 'Could not load published pawn shops.');
     } finally {
       setShopsLoading(false);
     }
@@ -143,7 +142,7 @@ export default function HomePage() {
       setStatus(
         existing[0]
           ? 'Loaded existing store.'
-          : 'Store created. The owner wallet is linked as admin only — provision the separate merchant wallet from the owner dashboard next.'
+          : 'Store created and listed. The owner wallet is linked as admin only — provision the separate merchant wallet from the owner dashboard when you are ready for settlement.'
       );
       await loadMarketplaceShops();
     } catch (err) {
@@ -217,7 +216,7 @@ export default function HomePage() {
           <section className="merchant-panel rounded-panel p-5 sm:p-6">
             <div className="flex flex-col gap-4 border-b border-outlineVariant/60 pb-5 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Active pawn shops</p>
+                <p className="text-[11px] uppercase tracking-[0.28em] text-onSurfaceVariant">Published pawn shops</p>
                 <h2 className="mt-2 text-2xl text-onSurface">Find a buyer</h2>
                 <p className="mt-2 max-w-2xl text-sm text-[#f0dfb4]">
                   Every launch below starts a new negotiation session. No reused storefront state, no inherited prior conversation.
@@ -236,7 +235,7 @@ export default function HomePage() {
             </div>
 
               <div className="mt-5 space-y-4">
-                {shopsLoading ? <p className="text-sm text-[#f0dfb4]">Loading active pawn shops…</p> : null}
+                {shopsLoading ? <p className="text-sm text-[#f0dfb4]">Loading published pawn shops…</p> : null}
                 {shopsError ? (
                   <div className="rounded-panel border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
                     {shopsError}
@@ -246,8 +245,8 @@ export default function HomePage() {
                 {!shopsLoading && !shopsError && sellerFilteredShops.length === 0 ? (
                   <div className="rounded-panel border border-outlineVariant bg-surfaceLowest px-4 py-4 text-sm text-[#f0dfb4]">
                     {marketShops.length === 0
-                      ? 'No active pawn shops are live yet. Provision a merchant wallet on an owner dashboard to make a shop appear here.'
-                      : 'No active pawn shops match that search.'}
+                      ? 'No published pawn shops are live yet. Create a storefront to make one appear here.'
+                      : 'No published pawn shops match that search.'}
                   </div>
                 ) : null}
 
@@ -263,7 +262,10 @@ export default function HomePage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-lg text-onSurface">{candidate.display_name}</p>
                             <span className="rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-emerald-300">
-                              Live merchant wallet
+                              Published storefront
+                            </span>
+                            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-amber-200">
+                              Wallet {candidate.wallet_status}
                             </span>
                           </div>
                           <p className="mt-1 text-[11px] uppercase tracking-[0.24em] text-onSurfaceVariant">{candidate.ens_name}</p>
@@ -272,7 +274,6 @@ export default function HomePage() {
                           </p>
                           <div className="mt-4 flex flex-wrap gap-4 text-xs uppercase tracking-[0.18em] text-[#cbb68c]">
                             <span>Status {candidate.status}</span>
-                            <span>Wallet {candidate.wallet_status}</span>
                             <span>Merchant {formatWallet(candidate.merchant_address)}</span>
                           </div>
                         </div>
