@@ -17,6 +17,10 @@ function formatWallet(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
+function ensVerificationLabel(status: string | null | undefined) {
+  return (status ?? 'manual').toLowerCase() === 'verified' ? 'Verified ENS route' : 'Manual ENS route';
+}
+
 function isStorefrontActive(shop: Shop) {
   const shopStatus = (shop.status ?? '').toLowerCase();
   return shopStatus === 'published';
@@ -30,6 +34,7 @@ export default function HomePage() {
     disconnectWallet,
     connectError,
     walletConnectorName,
+    resolveEnsOwnerAddress,
   } = useUnifiedWallet();
 
   const [ensInput, setEnsInput] = useState('');
@@ -41,6 +46,9 @@ export default function HomePage() {
   const [marketShops, setMarketShops] = useState<Shop[]>([]);
   const [shopsLoading, setShopsLoading] = useState(true);
   const [shopsError, setShopsError] = useState<string | null>(null);
+  const [ensVerificationStatus, setEnsVerificationStatus] = useState<'idle' | 'checking' | 'verified' | 'manual'>('idle');
+  const [ensVerificationMessage, setEnsVerificationMessage] = useState<string | null>(null);
+  const [ensVerifiedOwnerAddress, setEnsVerifiedOwnerAddress] = useState<string | null>(null);
 
   async function loadMarketplaceShops() {
     try {
@@ -82,6 +90,65 @@ export default function HomePage() {
     setError(null);
   }, [walletAddress, primaryEns, ensLookupError, walletConnectorName]);
 
+  async function verifyEnsRoute(normalizedEns: string, ownerAddress: string) {
+    const resolvedOwner = await resolveEnsOwnerAddress(normalizedEns);
+    if (resolvedOwner && resolvedOwner.toLowerCase() === ownerAddress.toLowerCase()) {
+      return {
+        status: 'verified' as const,
+        verifiedOwnerAddress: resolvedOwner,
+        message: `Verified. ${normalizedEns} resolves to the connected wallet.`,
+      };
+    }
+
+    if (resolvedOwner) {
+      return {
+        status: 'manual' as const,
+        verifiedOwnerAddress: null,
+        message: `${normalizedEns} resolves to ${formatWallet(resolvedOwner)}, not the connected wallet. The route can still be used manually, but it is not verified for this owner.`,
+      };
+    }
+
+    return {
+      status: 'manual' as const,
+      verifiedOwnerAddress: null,
+      message: `${normalizedEns} does not currently resolve to an owner address on mainnet. The route can still be used manually for testing, but it is not verified.`,
+    };
+  }
+
+  useEffect(() => {
+    let active = true;
+
+    async function refreshEnsVerification() {
+      const normalizedEns = ensInput.trim().toLowerCase();
+      if (!walletAddress || !looksLikeEns(normalizedEns)) {
+        setEnsVerificationStatus('idle');
+        setEnsVerificationMessage(null);
+        setEnsVerifiedOwnerAddress(null);
+        return;
+      }
+
+      try {
+        setEnsVerificationStatus('checking');
+        const result = await verifyEnsRoute(normalizedEns, walletAddress);
+        if (!active) return;
+        setEnsVerificationStatus(result.status);
+        setEnsVerificationMessage(result.message);
+        setEnsVerifiedOwnerAddress(result.verifiedOwnerAddress);
+      } catch (err) {
+        console.error(err);
+        if (!active) return;
+        setEnsVerificationStatus('manual');
+        setEnsVerificationMessage('Could not verify this ENS route right now. You can still use it manually.');
+        setEnsVerifiedOwnerAddress(null);
+      }
+    }
+
+    refreshEnsVerification();
+    return () => {
+      active = false;
+    };
+  }, [ensInput, walletAddress, resolveEnsOwnerAddress]);
+
   async function handleDisconnectWallet() {
     try {
       await disconnectWallet();
@@ -118,6 +185,7 @@ export default function HomePage() {
       setStatus(null);
 
       const existing = await Shops.list({ owner_address: walletAddress, ens_name: normalizedEns });
+      const ensVerification = await verifyEnsRoute(normalizedEns, walletAddress);
       const activeShop =
         existing[0] ??
         (await Shops.create({
@@ -135,6 +203,8 @@ export default function HomePage() {
           wallet_provider: 'cdp_agentic_wallet',
           wallet_status: 'pending',
           auto_settlement_enabled: false,
+          ens_verification_status: ensVerification.status,
+          ens_verified_owner_address: ensVerification.verifiedOwnerAddress ?? undefined,
         }));
 
       setShop(activeShop);
@@ -142,7 +212,7 @@ export default function HomePage() {
       setStatus(
         existing[0]
           ? 'Loaded existing store.'
-          : 'Store created and listed. The owner wallet is linked as admin only — provision the separate merchant wallet from the owner dashboard when you are ready for settlement.'
+          : `Store created and listed. ${ensVerification.status === 'verified' ? 'ENS route verified against the connected wallet.' : 'ENS route saved as a manual route.'} The owner wallet is linked as admin only — provision the separate merchant wallet from the owner dashboard when you are ready for settlement.`
       );
       await loadMarketplaceShops();
     } catch (err) {
@@ -274,6 +344,7 @@ export default function HomePage() {
                           </p>
                           <div className="mt-4 flex flex-wrap gap-4 text-xs uppercase tracking-[0.18em] text-[#cbb68c]">
                             <span>Status {candidate.status}</span>
+                            <span>{ensVerificationLabel(candidate.ens_verification_status)}</span>
                             <span>Merchant {formatWallet(candidate.merchant_address)}</span>
                           </div>
                         </div>
@@ -337,7 +408,7 @@ export default function HomePage() {
                   <p className="text-[10px] uppercase tracking-[0.24em] text-onSurfaceVariant">Detected ENS on this wallet</p>
                   <p className="mt-2 text-base text-onSurface">{primaryEns ?? 'No ENS detected on this wallet'}</p>
                   <p className="mt-2 text-xs text-[#d8caa3]">
-                    Detection is informational only. You can use an existing ENS later, but this screen does not register one yet.
+                    This wallet lookup is live. If your chosen route resolves back to this wallet, Pawn Agent will mark it as a verified ENS route.
                   </p>
                 </div>
 
@@ -353,6 +424,21 @@ export default function HomePage() {
                     This creates your storefront identity inside Pawn Agent. It does not create or register the ENS name onchain.
                   </span>
                 </label>
+
+                {looksLikeEns(ensInput) ? (
+                  <div className={`rounded-panel border px-4 py-4 text-sm ${ensVerificationStatus === 'verified' ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200' : ensVerificationStatus === 'checking' ? 'border-amber-500/40 bg-amber-950/20 text-amber-100' : 'border-outlineVariant bg-surfaceLowest text-[#f0dfb4]'}`}>
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-onSurfaceVariant">Route verification</p>
+                    <p className="mt-2 text-onSurface">
+                      {ensVerificationStatus === 'checking'
+                        ? 'Checking ENS ownership…'
+                        : ensVerificationStatus === 'idle'
+                          ? 'Connect wallet to verify this route'
+                          : ensVerificationLabel(ensVerificationStatus)}
+                    </p>
+                    {ensVerificationMessage ? <p className="mt-2 text-xs text-current/90">{ensVerificationMessage}</p> : null}
+                    {ensVerifiedOwnerAddress ? <p className="mt-2 text-xs text-current/90">Resolved owner: {ensVerifiedOwnerAddress}</p> : null}
+                  </div>
+                ) : null}
 
                 <button
                   onClick={createOrLoadStore}
@@ -376,6 +462,8 @@ export default function HomePage() {
               <div>
                 <p className="text-2xl text-onSurface">{shop.ens_name}</p>
                 <p className="mt-2 text-sm text-[#f0dfb4]">Owner {formatWallet(shop.owner_address)}</p>
+                <p className="mt-1 text-sm text-[#f0dfb4]">{ensVerificationLabel(shop.ens_verification_status)}</p>
+                {shop.ens_verified_owner_address ? <p className="mt-1 break-all text-xs text-[#d8caa3]">Resolved owner {shop.ens_verified_owner_address}</p> : null}
                 <p className="mt-1 text-sm text-[#f0dfb4]">
                   Merchant wallet {shop.wallet_status === 'pending' ? 'not provisioned yet' : formatWallet(shop.merchant_address)}
                 </p>

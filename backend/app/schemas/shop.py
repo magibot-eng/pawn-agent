@@ -86,6 +86,18 @@ class ShopCreate(BaseModel):
         ),
     ]
     auto_settlement_enabled: bool = False
+    ens_verification_status: Annotated[
+        str,
+        Field(
+            max_length=16,
+            default="manual",
+            description="How this ENS route was validated at create time: verified or manual.",
+        ),
+    ]
+    ens_verified_owner_address: Annotated[
+        str | None,
+        Field(max_length=42, default=None, description="Resolved owner address when ENS verification succeeded."),
+    ] = None
 
 
 class ShopUpdate(BaseModel):
@@ -109,6 +121,8 @@ class ShopUpdate(BaseModel):
     wallet_provider_account_id: Annotated[str | None, Field(max_length=128)] = None
     wallet_status: Annotated[str | None, Field(max_length=16)] = None
     auto_settlement_enabled: bool | None = None
+    ens_verification_status: Annotated[str | None, Field(max_length=16)] = None
+    ens_verified_owner_address: Annotated[str | None, Field(max_length=42)] = None
 
 
 class ShopResponse(BaseModel):
@@ -133,6 +147,8 @@ class ShopResponse(BaseModel):
     wallet_provider_account_id: str | None
     wallet_status: str
     auto_settlement_enabled: bool
+    ens_verification_status: str
+    ens_verified_owner_address: str | None
     created_at: datetime
     updated_at: datetime
     ens_identities: list[ShopEnsIdentityResponse] = []

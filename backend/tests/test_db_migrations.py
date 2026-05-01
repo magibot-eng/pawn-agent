@@ -77,3 +77,51 @@ async def test_init_db_adds_missing_negotiation_quote_columns(tmp_path, monkeypa
     assert "merchant_quote_amount" in columns
     assert "merchant_quote_expiry" in columns
     assert "quote_status" in columns
+
+
+@pytest.mark.asyncio
+async def test_init_db_adds_missing_shop_ens_verification_columns(tmp_path, monkeypatch):
+    db_path = tmp_path / "legacy-shops.db"
+    conn = sqlite3.connect(db_path)
+    conn.executescript(
+        """
+        CREATE TABLE shops (
+            id VARCHAR(64) NOT NULL PRIMARY KEY,
+            owner_address VARCHAR(42) NOT NULL,
+            ens_name VARCHAR(256) NOT NULL,
+            display_name VARCHAR(256) NOT NULL,
+            description TEXT,
+            status VARCHAR(16) NOT NULL DEFAULT 'draft',
+            contract_address VARCHAR(42),
+            payout_token VARCHAR(42) NOT NULL DEFAULT '0x0000000000000000000000000000000000000000',
+            merchant_address VARCHAR(42) NOT NULL DEFAULT '0x0000000000000000000000000000000000000000',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+        );
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{db_path}")
+    monkeypatch.setenv("DEBUG", "true")
+    monkeypatch.setenv("FRONTEND_URL", "http://localhost:3000")
+
+    config_module.get_settings.cache_clear()
+    db_module._engine = None
+    db_module._session_factory = None
+
+    await init_db()
+
+    if db_module._engine is not None:
+        await db_module._engine.dispose()
+    db_module._engine = None
+    db_module._session_factory = None
+    config_module.get_settings.cache_clear()
+
+    conn = sqlite3.connect(db_path)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(shops)").fetchall()}
+    conn.close()
+
+    assert "ens_verification_status" in columns
+    assert "ens_verified_owner_address" in columns

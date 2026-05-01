@@ -50,6 +50,8 @@ async def create_shop(
         wallet_provider_account_id=data.wallet_provider_account_id,
         wallet_status=data.wallet_status or ShopWalletStatus.PENDING,
         auto_settlement_enabled=data.auto_settlement_enabled,
+        ens_verification_status=data.ens_verification_status or "manual",
+        ens_verified_owner_address=data.ens_verified_owner_address,
     )
     db.add(shop)
     await db.flush()

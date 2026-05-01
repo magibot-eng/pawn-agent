@@ -73,6 +73,8 @@ SHOP_COLUMN_MIGRATIONS = {
     "wallet_provider_account_id": "VARCHAR(128)",
     "wallet_status": "VARCHAR(16) NOT NULL DEFAULT 'pending'",
     "auto_settlement_enabled": "BOOLEAN NOT NULL DEFAULT 0",
+    "ens_verification_status": "VARCHAR(16) NOT NULL DEFAULT 'manual'",
+    "ens_verified_owner_address": "VARCHAR(42)",
 }
 
 NEGOTIATION_COLUMN_MIGRATIONS = {

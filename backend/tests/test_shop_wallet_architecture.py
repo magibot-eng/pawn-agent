@@ -61,6 +61,8 @@ async def test_create_shop_defaults_to_pending_agent_wallet(client):
     assert data["owner_address"] == "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0"
     assert data["merchant_address"] == "0x0000000000000000000000000000000000000000"
     assert data["status"] == "published"
+    assert data["ens_verification_status"] == "manual"
+    assert data["ens_verified_owner_address"] is None
     assert data["wallet_provider"] == "cdp_agentic_wallet"
     assert data["wallet_status"] == "pending"
     assert data["wallet_provider_account_id"] is None

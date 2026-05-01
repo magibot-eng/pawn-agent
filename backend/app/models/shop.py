@@ -79,6 +79,10 @@ class Shop(Base):
     )
     # Whether the merchant wallet may auto-settle accepted quotes.
     auto_settlement_enabled: Mapped[bool] = mapped_column(default=False, nullable=False)
+    # Whether the ENS route was verified against the connected wallet at creation/update time.
+    ens_verification_status: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
+    # Resolved owner address when ENS verification succeeded.
+    ens_verified_owner_address: Mapped[str | None] = mapped_column(String(42), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

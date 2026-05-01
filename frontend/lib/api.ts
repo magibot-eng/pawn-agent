@@ -45,6 +45,8 @@ export interface Shop {
   wallet_provider_account_id: string | null;
   wallet_status: string;
   auto_settlement_enabled: boolean;
+  ens_verification_status: string;
+  ens_verified_owner_address: string | null;
   created_at: string;
   updated_at: string;
   ens_identities: ShopEnsIdentity[];
@@ -77,6 +79,8 @@ export interface CreateShop {
   wallet_provider_account_id?: string;
   wallet_status?: string;
   auto_settlement_enabled?: boolean;
+  ens_verification_status?: string;
+  ens_verified_owner_address?: string;
 }
 
 export interface ShopWalletHolding {
