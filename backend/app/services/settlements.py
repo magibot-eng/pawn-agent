@@ -338,9 +338,9 @@ async def accept_quote_and_execute(
         if simulate_only or auto_settlement_blocked:
             tx_hash, execution_state, payout_sent_wei = _simulate_eth_settlement(seller, payout_amount, negotiation.id)
             if auto_settlement_blocked:
-                execution_state = "pending_owner_review"
+                execution_state = "pending_review"
                 execution.error_message = "Settlement blocked: auto_settlement disabled. Owner must approve from dashboard."
-                offer.state = "pending_owner_review"
+                offer.state = "pending_review"
             deal_id = nonce  # Use nonce as stand-in deal_id for simulation
             offer.chain_deal_id = _deal_id(f"{negotiation.id}:{seller}:{payout_amount}:simulated")
         else:
