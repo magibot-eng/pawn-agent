@@ -17,18 +17,46 @@ _engine = None
 _session_factory = None
 
 
+def _parse_database_url(url: str) -> tuple[str, dict]:
+    """Strip libpq sslmode param from URL, return (clean_url, ssl_connect_arg)."""
+    from urllib.parse import urlparse, parse_qs, urlencode
+    import ssl
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("postgresql", "postgresql+asyncpg"):
+        return url, {}
+
+    params = parse_qs(parsed.query)
+    ssl_arg = {}
+    if "sslmode" in params:
+        mode = params["sslmode"][0]
+        del params["sslmode"]
+        # asyncpg requires an ssl.SSLContext for fine-grained control
+        if mode in ("no-verify", "require"):
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            ssl_arg["ssl"] = ctx
+        # Rebuild URL without sslmode
+        new_query = urlencode(params, doseq=True)
+        clean_url = parsed._replace(query=new_query).geturl()
+        return clean_url, ssl_arg
+    return url, {}
+
+
 def get_engine():
     """Lazily create the async engine (one per process)."""
     global _engine
     if _engine is None:
         settings = get_settings()
-        engine_kwargs = {
-            "echo": settings.debug,
-        }
-        if settings.database_url.startswith("sqlite"):
+        url, ssl_connect_arg = _parse_database_url(settings.database_url)
+        engine_kwargs: dict = {"echo": settings.debug}
+        if url.startswith("sqlite"):
             engine_kwargs["connect_args"] = {"check_same_thread": False}
+        elif ssl_connect_arg:
+            engine_kwargs["connect_args"] = ssl_connect_arg
         _engine = create_async_engine(
-            settings.database_url,
+            url,
             **engine_kwargs,
         )
     return _engine
