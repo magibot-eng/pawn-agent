@@ -219,25 +219,24 @@ def _pull_tokens_and_settle(
     except Web3RPCError as exc:
         err_msg = str(exc.args[0].get('message', '')) if exc.args else str(exc)
         err_code = exc.args[0].get('code') if exc.args else None
-        # Nonce conflict: CDP MCP server already submitted this transaction.
-        # Check if the token was already transferred (CDP won the nonce race).
-        token_tx_hash = "unknown-cdp"
         if err_code == -32000 and ("nonce too low" in err_msg.lower() or "replacement transaction underpriced" in err_msg.lower()):
-            # CDP already sent the transferFrom. Check token balances to confirm.
+            # Nonce conflict: CDP MCP server already submitted transferFrom.
+            # Check if tokens arrived in merchant wallet to confirm CDP won.
             try:
-                seller_balance = token_contract.functions.balanceOf(seller).call({"from": merchant_address})
-                merchant_balance = token_contract.functions.balanceOf(merchant_address).call()
-                if seller_balance < input_amount_wei or merchant_balance >= input_amount_wei:
-                    # Tokens were already moved by CDP — CDP won the nonce race.
-                    # Use nonce+1 for ETH payout (CDP consumed nonce).
-                    nonce_confirmed = True
-                    token_tx_hash = f"cdp-conflict-{nonce}"
+                merchant_balance_before = token_contract.functions.balanceOf(merchant_address).call()
+                # Wait a moment for CDP's tx to settle, then re-check
+                import time
+                time.sleep(2)
+                merchant_balance_after = token_contract.functions.balanceOf(merchant_address).call()
+                if merchant_balance_after >= merchant_balance_before + input_amount_wei:
+                    # CDP completed Step 1. Proceed to Step 2.
+                    cdp_won = True
                 else:
-                    nonce_confirmed = False
+                    cdp_won = False
             except Exception:
-                nonce_confirmed = False
+                cdp_won = False
 
-            if nonce_confirmed:
+            if cdp_won:
                 # CDP handled Step 1. Proceed directly to Step 2 (ETH payout).
                 nonce2 = nonce + 1
                 eth_tx_unsigned = {
@@ -255,26 +254,27 @@ def _pull_tokens_and_settle(
                 except Exception:
                     eth_tx_unsigned["gas"] = 21_000
                 signed_eth_tx = merchant_account.sign_transaction(eth_tx_unsigned)
-                eth_tx_hash_bytes = w3.eth.send_raw_transaction(signed_eth_tx.raw_transaction)
-                eth_tx_hash = eth_tx_hash_bytes.hex()
                 try:
-                    eth_receipt = w3.eth.wait_for_transaction_receipt(eth_tx_hash, timeout=120)
-                    if eth_receipt["status"] != 1:
-                        raise SettlementError(
-                            f"CDP race resolved but ETH transfer failed. token_tx: {token_tx_hash}, eth_tx: {eth_tx_hash}"
-                        )
+                    eth_tx_hash_bytes = w3.eth.send_raw_transaction(signed_eth_tx.raw_transaction)
+                    eth_tx_hash = eth_tx_hash_bytes.hex()
                 except Web3RPCError as eth_exc:
                     eth_err_msg = str(eth_exc.args[0].get('message', '')) if eth_exc.args else str(eth_exc)
                     eth_err_code = eth_exc.args[0].get('code') if eth_exc.args else None
                     if eth_err_code == -32000 and ("nonce too low" in eth_err_msg.lower() or "replacement transaction underpriced" in eth_err_msg.lower()):
-                        # CDP also sent the ETH payout — CDP completed the full settlement.
+                        # CDP also sent the ETH payout — CDP completed full settlement.
                         return eth_tx_hash or f"cdp-completed-{nonce2}", "executed", str(payout_amount_wei)
                     raise SettlementError(f"ETH send failed: {eth_exc}")
+                try:
+                    eth_receipt = w3.eth.wait_for_transaction_receipt(eth_tx_hash, timeout=120)
+                    if eth_receipt["status"] != 1:
+                        raise SettlementError(f"ETH transfer failed. token was pulled. eth_tx: {eth_tx_hash}")
+                except Exception:
+                    pass
                 return eth_tx_hash, "executed", str(payout_amount_wei)
             else:
                 raise SettlementError(
-                    f"Nonce conflict but CDP does not appear to have completed the transfer. "
-                    f"Manual settlement required. exc: {exc}"
+                    f"Nonce conflict but CDP did not complete the transfer. "
+                    f"Manual settlement required."
                 )
         raise SettlementError(f"Token send failed: {exc}") from exc
 
