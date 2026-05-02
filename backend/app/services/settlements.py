@@ -83,6 +83,8 @@ def _submit_eth_settlement(shop: Shop, recipient: str, payout_amount: str) -> tu
         tx_hash, state = client.send_eth(privkey, recipient, int(payout_sent_wei))
     except WalletProvisioningError as exc:
         raise SettlementError(f"Base Sepolia settlement failed: {exc}") from exc
+    except Exception as exc:
+        raise SettlementError(f"Base Sepolia settlement failed: {type(exc).__name__}: {exc}") from exc
 
     return tx_hash, state, payout_sent_wei
 
