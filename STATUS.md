@@ -1,70 +1,82 @@
 # STATUS: Pawn Agent
 
 ## Snapshot
-- **Current phase:** post-hackathon active development
+- **Current phase:** post-hackathon active development — LIVE SETTLEMENTS ACHIEVED
 - **Overall health:** green
-- **Last updated:** 2026-05-02
-- **Updated by:** Mira documentation audit
+- **Last updated:** 2026-05-02 15:30 PDT
+- **Updated by:** Arie
 
 ## Active Focus
-Pawn Agent is an ENS-native AI token buyout storefront MVP on Base Sepolia. Hackathon submission (ETHGlobal Open Agents + 0G Builder, deadline 2026-04-27) is complete. Post-hackathon QA round completed 2026-05-02 with 7 bugs fixed. Core loop is functional end-to-end in stub mode.
+End-to-end on-chain settlement working on Base Sepolia. Ready for minor fixes and hardening before any further testing or production consideration.
+
+## What's Working (as of 2026-05-02 15:30 PDT)
+- All API routes returning correct status codes ✓
+- ENS-tied shop creation and ownership verification ✓
+- Seller ↔ merchant negotiation (LLM or scripted fallback) ✓
+- Quote presentation, counter, and accept flow ✓
+- **LIVE on-chain settlement end-to-end ✓** (first tx confirmed: https://sepolia.basescan.org/tx/0xc9a2f5ddd220fc70e569b8343e8200a092283e47bbb59f39e0b7c1ef17f01419)
+- Wallet provisioning (stub + Alchemy live) ✓
+- RDS PostgreSQL database wired ✓
+- Full end-to-end: shop → wallet provision → negotiation → chat → quote → accept → on-chain ETH payout ✓
+
+## Architecture
+- **Settlement:** Direct wallet two-step (CDP/Alchemy-managed merchant wallet)
+  1. `transferFrom` pulls ERC-20 tokens from seller → merchant wallet
+  2. ETH send from merchant wallet → seller
+- **CDP MCP race:** CDP MCP server and backend share same merchant wallet private key; both may submit `transferFrom` concurrently → backend handles nonce conflicts by checking on-chain state
+- **Frontend:** Next.js 15 + RainbowKit + wagmi on Vercel
+- **Backend:** FastAPI on Railway
+- **DB:** Railway RDS PostgreSQL
+
+## Bugs Fixed (2026-05-02)
+| # | Bug | Fix |
+|---|-----|-----|
+| 1 | PAWN token address lowercase → web3 checksum error | `Web3.to_checksum_address()` on all token address uses |
+| 2 | `input_token` missing from `_build_quote_response()` | Added `input_token` + `input_amount` to quote response |
+| 3 | `viem InvalidDecimalNumberError` on approve | Guard check in `handleApprovePAWN` before `parseEther` |
+| 4 | `web3RPCError` caught as `ValueError` (web3.py 7.x) | Changed to `Web3RPCError` |
+| 5 | `_ERC20_ABI` missing `balanceOf` | Added `balanceOf` + `approve` to ABI |
+| 6 | Broken balance check for CDP race detection | Rewrote to delta-check merchant wallet before/after |
+| 7 | Backend pre-flight `allowance` check blocking settlement | Removed — blockchain handles approval verification |
+| 8 | Settlement quote reappearing after completion | Frontend guards + backend returns `None` for accepted quotes |
+| 9 | Accept button not disabled during approval tx confirm | Added `isApproveConfirmed` gate |
+| 10 | Pending nonce `get_transaction_count` → nonce conflicts | Use `get_transaction_count(pending)` + 25% gas bump on ETH step |
+
+## DB Fixes Applied (2026-05-02)
+- `chat_log` column missing → added via migrate_pg.py
+- Stub wallet blocked → `CDP_WALLET_FALLBACK_TO_STUB=true` path
+- Settlement reject on stub wallets → updated to allow `ZERO_ADDRESS` for stub
+- `negotiation_state` TEXT vs JSONB type error → fixed in model + migration
+- ENS owned endpoint 500 on 404 → graceful 404 handling
+- Schema drift in migrate_pg.py → complete rewrite
 
 ## Current Blockers
-- Server startup env var fix needed: `.env` changes don't survive git pull without manual intervention; uvicorn daemon needs `DATABASE_URL` and wallet flags set on startup
-- Live settlements blocked by `CDP_WALLET_LIVE_ENABLED=false` (stub mode only for now)
+- None — core loop is working end-to-end on Base Sepolia
 
-## What's Working (as of 2026-05-02 QA)
-- All API routes returning correct status codes
-- ENS-tied shop creation and ownership verification
-- Merchant configuration and provider key management
-- Seller ↔ merchant negotiation (live LLM or scripted fallback)
-- Quote presentation, counter, and accept flow
-- Settlement flow end-to-end in simulated mode
-- Wallet provisioning in stub mode
-- On-chain ETH settlement simulation (stub wallets)
-- Frontend build compiles successfully
-- RDS PostgreSQL database wired (needs env fix on server)
-- Full end-to-end settlement flow confirmed: shop → wallet provision → negotiation → chat → accept → deal + simulated execution
-
-## Bugs Fixed (2026-05-02 QA Round)
-1. `chat_log` column missing from `negotiation_sessions` table → added via migrate_pg.py
-2. Stub wallet provisioning was blocked → `CDP_WALLET_FALLBACK_TO_STUB=true` + stub wallet creation path added
-3. Settlement accept rejected stub wallets → updated settlement check to allow `ZERO_ADDRESS` for stub mode
-4. `send_eth` hardcoded wrong chain ID (8453 instead of 84532 for Base Sepolia) → fixed
-5. `negotiation_state` type error (TEXT vs JSONB) → fixed in model + migration
-6. ENS owned endpoint 500 on 404 → graceful 404 handling for web3.bio
-7. Schema drift in migrate_pg.py → complete rewrite with correct columns, indexes, and ADD COLUMN patches
-
-## Progress
-- [x] Shop creation (ENS-tied identity)
-- [x] Merchant configuration and provider key management
-- [x] Seller ↔ merchant negotiation with LLM or scripted fallback
-- [x] Quote presentation and accept flow
-- [x] Settlement flow (simulated) end-to-end
-- [x] Stub wallet provisioning
-- [x] RDS PostgreSQL wiring + schema migration
-- [x] Post-hackathon QA round (7 bugs fixed, 2026-05-02)
-- [ ] Server startup env var fix (systemd/service script or python-dotenv)
-- [ ] Schema model sync (`seller_ens`, `expires_at` in NegotiationSession model)
-- [ ] Optional: remove debug endpoint from main.py
-- [ ] Live settlements (flip `CDP_WALLET_LIVE_ENABLED=true` + fund Alchemy wallet)
+## Open Items / Minor Fixes Needed
+- Remove debug endpoint from main.py before any production consideration
+- Schema model sync (`seller_ens`, `expires_at` in NegotiationSession)
+- Server startup env var durability (`.env` changes don't survive git pull)
+- Consider: more informative settlement error messages for edge cases
+- Consider: settlement confirmation UI (tx hash displayed to seller after settle)
 
 ## Next Steps
-1. **Server env fix** — Configure uvicorn daemon with `DATABASE_URL`, `CDP_WALLET_FALLBACK_TO_STUB=true` via systemd service, startup script, or `uvicorn --env-file .env`
-2. **Schema model sync** — Add `seller_ens` and `expires_at` to `NegotiationSession` SQLAlchemy model
-3. **Live settlements** — Enable `CDP_WALLET_LIVE_ENABLED=true`, set `ALCHEMY_API_KEY` + `ALCHEMY_WALLET_MASTER_SEED` on server
-4. **Debug endpoint removal** — Clean up `/debug/settings` before production
+1. **Minor fixes** — per Wago's list (TBD)
+2. **Debug endpoint removal** — clean up `/debug/settings`
+3. **Schema model sync** — add `seller_ens` and `expires_at` to model
+4. **Server env durability** — systemd service or startup script for env vars
 
 ## Key Files
-- `backend/app/services/wallets.py` — wallet provisioning, chain ID, web3 v7 compat
-- `backend/app/services/settlements.py` — settlement flow
-- `backend/app/services/negotiations.py` — negotiation logic
-- `backend/app/services/ens.py` — ENS resolution
+- `backend/app/services/wallets.py` — wallet provisioning
+- `backend/app/services/settlements.py` — settlement orchestration
+- `backend/app/services/negotiations.py` — negotiation + quote building
+- `backend/app/api/negotiations.py` — accept/counter/chat endpoints
+- `frontend/components/MerchantChat.tsx` — seller UI + quote card
 - `backend/migrate_pg.py` — RDS schema migrations
-- `docs/DESIGN.md` — product design
-- `docs/QA_REPORT.md` — full 2026-05-02 QA details
 
-## Notes
-- Hackathon deadline (2026-04-27) has passed — project is now in post-submission refinement
-- MVP core loop is functional; product is not yet production-complete
-- NFT collateral, cross-chain, and generalized multi-agent are out of scope for MVP
+## Infrastructure
+- **Backend:** Railway — `https://pawn-agent-backend-production.up.railway.app`
+- **Frontend:** Vercel — `https://pawn.solovibing.com`
+- **DB:** Railway RDS — `pawn-agent-db.cv8kasmsyxi5.us-east-1.rds.amazonaws.com`
+- **PAWN Token:** `0x621B62fBFe0ABEf52eD2aAfd0787Fb1DAEEed1e5` (Base Sepolia)
+- **Settlement contract:** Direct wallet — no contract in hot path
