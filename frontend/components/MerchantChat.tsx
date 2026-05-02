@@ -174,7 +174,7 @@ function QuoteCard({
           </button>
           <button
             onClick={onCounter}
-            disabled={disabled || !!executionRecord || quote.status !== 'quoted'}
+            disabled={disabled || quote.status !== 'quoted'}
             className="flex-1 tavern-sign-link"
           >
             ↗ Counter
