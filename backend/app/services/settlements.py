@@ -127,7 +127,7 @@ async def accept_quote_and_execute(
     if (
         not settings.cdp_wallet_live_enabled
         or not shop.wallet_provider_account_id
-        or not shop.wallet_provider_account_id.startswith("alchemy_live_")
+        or not shop.wallet_provider_account_id.startswith(("alchemy_live_", "cdpwa_live_"))
     ):
         simulate_only = True
 
