@@ -790,7 +790,6 @@ export default function OwnerPage() {
                       </div>
                       <p className="tavern-muted">{walletStatus?.holdings?.length ?? 0} assets</p>
                     </div>
-                    {console.log('[DEBUG walletStatus holdings]', walletStatus?.holdings), null}
                     {walletStatus?.holdings && walletStatus.holdings.length > 0 ? (
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         {walletStatus.holdings.map((holding) => (
