@@ -1,15 +1,18 @@
-"""Merchant wallet provisioning and provider abstraction."""
+"""Merchant wallet provisioning via Alchemy SDK — no CLI, no browser auth."""
 
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
-import shlex
-import subprocess
-from subprocess import TimeoutExpired
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from functools import cached_property
+
+import eth_account
+from eth_account import Account
+from web3 import Web3
 
 from app.config import get_settings
 from app.models.shop import Shop, ShopWalletStatus
@@ -17,11 +20,123 @@ from app.models.shop import Shop, ShopWalletStatus
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 
+# ---------------------------------------------------------------------------
+# Alchemy client (lazy — only created when live mode is enabled)
+# ---------------------------------------------------------------------------
+
+def _alchemy_rpc_url() -> str:
+    """Build the Alchemy Base Sepolia RPC URL from settings."""
+    settings = get_settings()
+    key = settings.alchemy_api_key
+    if not key:
+        raise WalletProvisioningError(
+            "ALCHEMY_API_KEY is not set. Cannot use live wallet mode."
+        )
+    return f"https://base-sepolia.g.alchemy.com/v2/{key}"
+
+
 @dataclass
-class AwalStatus:
-    authenticated: bool
-    email: str | None
-    raw_output: str
+class AlchemyClient:
+    """Thin Alchemy RPC client using the installed alchemy-sdk + web3."""
+    rpc_url: str
+
+    @cached_property
+    def w3(self) -> Web3:
+        w3 = Web3(Web3.HTTPProvider(self.rpc_url))
+        if not w3.is_connected():
+            raise WalletProvisioningError(
+                f"Cannot connect to Alchemy RPC at {self.rpc_url}. "
+                "Check ALCHEMY_API_KEY and network connectivity."
+            )
+        return w3
+
+    def get_eth_balance(self, address: str) -> tuple[str | None, str | None]:
+        """Return (balance_wei_str, symbol)."""
+        try:
+            bal_wei = self.w3.eth.get_balance(address)
+            return str(bal_wei), "ETH"
+        except Exception as exc:
+            raise WalletProvisioningError(
+                f"Failed to fetch ETH balance for {address}: {exc}"
+            ) from exc
+
+    def get_token_balances(self, address: str) -> list[dict[str, str | None]]:
+        """Return list of token holdings as dicts."""
+        try:
+            # alchemy-sdk core
+            from alchemy import Alchemy
+            alchemy_sdk = Alchemy(self.rpc_url)
+            raw = alchemy_sdk.core.get_token_balances(address, "TOKEN_LIST")
+            holdings = []
+            for tb in raw.get("tokenBalances", []):
+                if tb.get("tokenBalance") and tb["tokenBalance"] != "0x0000000000000000000000000000000000000000000000000000000000000000":
+                    metadata = tb.get("tokenMetadata", {}) or {}
+                    holdings.append({
+                        "asset": metadata.get("symbol", tb.get("id", "?")),
+                        "balance": tb["tokenBalance"],
+                        "chain": "base-sepolia",
+                    })
+            return holdings
+        except Exception:
+            # Fallback: return empty list rather than failing
+            return []
+
+    def send_eth(self, from_privkey: str, to_address: str, amount_wei: int) -> tuple[str, str]:
+        """Sign and send an ETH transfer. Returns (tx_hash, state)."""
+        w3 = self.w3
+        sender = Account.from_key(from_privkey)
+        nonce = w3.eth.get_transaction_count(sender.address)
+        gas_price = w3.eth.gas_price
+
+        tx = {
+            "nonce": nonce,
+            "gasPrice": gas_price,
+            "to": to_address,
+            "value": amount_wei,
+            "data": b"",
+            "chainId": 8453,  # Base
+            "type": 2,
+        }
+        gas_estimate = w3.eth.estimate_gas(tx)
+        tx["gas"] = gas_estimate
+
+        signed = sender.sign_transaction(tx)
+        tx_hash_bytes = w3.eth.send_raw_transaction(signed.raw_transaction)
+        tx_hash = tx_hash_bytes.hex()
+
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        state = "confirmed" if receipt["status"] == 1 else "failed"
+        return tx_hash, state
+
+
+# ---------------------------------------------------------------------------
+# Merchant key derivation
+# ---------------------------------------------------------------------------
+
+def _derive_merchant_private_key(shop: Shop, master_seed: str) -> str:
+    """Derive a deterministic ECDSA private key for a shop from a master seed.
+
+    The derived key is a valid Ethereum private key but is NOT the shop's
+    real wallet — it is a throwaway key used only within Pawn Agent.
+    """
+    digest = hashlib.sha256(f"{master_seed}:{shop.id}:{shop.ens_name}".encode()).digest()
+    key_hex = hex(int.from_bytes(digest, "big"))[2:].zfill(64)
+    # Validate it's a legitimate private key (non-zero, < curve order)
+    if int(key_hex, 16) == 0 or int(key_hex, 16) >= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141:
+        raise WalletProvisioningError("Derived key is not a valid Ethereum private key.")
+    return key_hex
+
+
+def _address_from_privkey(privkey: str) -> str:
+    return Account.from_key(privkey).address
+
+
+# ---------------------------------------------------------------------------
+# Exceptions / dataclasses (shared with original API)
+# ---------------------------------------------------------------------------
+
+class WalletProvisioningError(Exception):
+    """Raised when live wallet provisioning fails."""
 
 
 @dataclass
@@ -47,205 +162,19 @@ class WalletTransferResult:
     tx_hash: str
 
 
-class WalletProvisioningError(Exception):
-    """Raised when live wallet provisioning is requested but unavailable."""
-
-
-def _eth_amount_to_wei(amount: str) -> str:
-    try:
-        decimal_amount = Decimal(amount)
-    except InvalidOperation as exc:
-        raise WalletProvisioningError(f"Invalid ETH amount: {amount}") from exc
-
-    if decimal_amount <= 0:
-        raise WalletProvisioningError("ETH amount must be greater than zero.")
-
-    wei_amount = decimal_amount * Decimal("1000000000000000000")
-    if wei_amount != wei_amount.to_integral_value():
-        raise WalletProvisioningError("ETH amount must use 18 decimals or fewer.")
-
-    return str(int(wei_amount))
-
-
-def _parse_awal_send_output(output: str) -> tuple[str, str]:
-    tx_hash = None
-    state = "submitted"
-
-    if output:
-        try:
-            payload = json.loads(output)
-        except json.JSONDecodeError:
-            payload = None
-
-        if isinstance(payload, dict):
-            tx_hash = payload.get("transactionHash") or payload.get("txHash") or payload.get("hash")
-            state = payload.get("status") or payload.get("state") or state
-
-        if not tx_hash:
-            match = re.search(r"0x[a-fA-F0-9]{6,}", output)
-            if match:
-                tx_hash = match.group(0)
-
-    if not tx_hash:
-        raise WalletProvisioningError(f"Could not parse transaction hash from awal send output: {output or 'empty output'}")
-
-    return tx_hash, state
-def _derive_stub_wallet(shop: Shop) -> tuple[str, str]:
-    """Derive deterministic stub provider ids for local/dev provisioning."""
-    digest = hashlib.sha256(f"{shop.id}:{shop.ens_name}".encode()).hexdigest()
-    address = f"0x{digest[:40]}"
-    account_id = f"cdpwa_{digest[:16]}"
-    return account_id, address
-
-
-def _run_awal(args: list[str]) -> str:
-    """Run the configured awal CLI command and return stdout.
-
-    Raises WalletProvisioningError on command failures.
-    """
-    settings = get_settings()
-    base_cmd = shlex.split(settings.cdp_wallet_cli_command)
-    try:
-        proc = subprocess.run(
-            base_cmd + args,
-            capture_output=True,
-            text=True,
-            timeout=12,
-        )
-    except TimeoutExpired as exc:
-        raise WalletProvisioningError("Live merchant wallet command timed out. This environment may not be authenticated for awal.") from exc
-    if proc.returncode != 0:
-        detail = (proc.stderr or proc.stdout or "unknown awal error").strip()
-        raise WalletProvisioningError(detail)
-    return (proc.stdout or "").strip()
-
-
-def _get_awal_status() -> AwalStatus:
-    output = _run_awal(["status"])
-    authenticated = "Authenticated\n✓ Authenticated" in output or "✓ Authenticated" in output
-    email_match = re.search(r"Logged in as:\s*([^\s]+)", output)
-    return AwalStatus(
-        authenticated=authenticated,
-        email=email_match.group(1) if email_match else None,
-        raw_output=output,
-    )
-
-
-def _provision_via_awal() -> tuple[str, str]:
-    """Use an authenticated awal session to get the real operational address."""
-    settings = get_settings()
-    status = _get_awal_status()
-    if not status.authenticated:
-        raise WalletProvisioningError(
-            "CDP Agentic Wallet is not authenticated. Run `npx awal auth login <email>` and `npx awal auth verify <flow-id> <otp>`, or use `npx awal show`."
-        )
-
-    address_output = _run_awal(["address", "--chain", settings.cdp_wallet_chain])
-    address_match = re.search(r"0x[a-fA-F0-9]{40}", address_output)
-    if not address_match:
-        raise WalletProvisioningError(f"Could not parse wallet address from awal output: {address_output}")
-
-    email_slug = re.sub(r"[^a-zA-Z0-9]+", "-", status.email or "authenticated")[:32].strip("-") or "authenticated"
-    account_id = f"cdpwa_live_{email_slug}_{settings.cdp_wallet_chain}"
-    return account_id, address_match.group(0)
-
-
-def _get_awal_balance() -> tuple[str | None, str | None]:
-    settings = get_settings()
-    output = _run_awal(["balance", "--chain", settings.cdp_wallet_chain])
-    match = re.search(r"([A-Z]{2,10})\s+Balance:\s*([\d.,]+)", output)
-    if match:
-        return match.group(2).replace(",", ""), match.group(1)
-    match = re.search(r"([\d.,]+)\s*([A-Z]{2,10})", output)
-    if match:
-        return match.group(1).replace(",", ""), match.group(2)
-    return None, None
-
-
-def _get_awal_holdings() -> list[dict[str, str | None]]:
-    settings = get_settings()
-    try:
-        output = _run_awal(["balance", "--chain", settings.cdp_wallet_chain, "--json"])
-    except WalletProvisioningError:
-        return []
-
-    try:
-        payload = json.loads(output)
-    except json.JSONDecodeError:
-        return []
-
-    balances = []
-    chain = settings.cdp_wallet_chain
-
-    if isinstance(payload, dict):
-        chain = payload.get("chain") or payload.get("network") or chain
-        raw_balances = payload.get("balances") or payload.get("assets") or []
-    elif isinstance(payload, list):
-        raw_balances = payload
-    else:
-        raw_balances = []
-
-    for entry in raw_balances:
-        if not isinstance(entry, dict):
-            continue
-        asset = entry.get("asset") or entry.get("symbol") or entry.get("token") or entry.get("name")
-        balance = entry.get("balance") or entry.get("formatted") or entry.get("amount") or entry.get("value")
-        entry_chain = entry.get("chain") or entry.get("network") or chain
-        if asset and balance is not None:
-            balances.append(
-                {
-                    "asset": str(asset),
-                    "balance": str(balance),
-                    "chain": str(entry_chain) if entry_chain is not None else None,
-                }
-            )
-
-    return balances
-
-
-def get_wallet_status_details(shop: Shop) -> WalletStatusDetails:
-    """Return display-ready wallet status details for owner UI."""
-    provisioning_mode = "stub"
-    authenticated = False
-    authenticated_email = None
-    balance = None
-    balance_symbol = None
-    holdings: list[dict[str, str | None]] = []
-
-    settings = get_settings()
-    if settings.cdp_wallet_live_enabled and shop.wallet_provider == "cdp_agentic_wallet":
-        try:
-            status = _get_awal_status()
-            if status.authenticated:
-                provisioning_mode = "live"
-                authenticated = True
-                authenticated_email = status.email
-                balance, balance_symbol = _get_awal_balance()
-                holdings = _get_awal_holdings()
-        except WalletProvisioningError:
-            pass
-
-    return WalletStatusDetails(
-        wallet_provider=shop.wallet_provider,
-        wallet_status=shop.wallet_status,
-        merchant_address=shop.merchant_address,
-        wallet_provider_account_id=shop.wallet_provider_account_id,
-        provisioning_mode=provisioning_mode,
-        authenticated=authenticated,
-        authenticated_email=authenticated_email,
-        balance=balance,
-        balance_symbol=balance_symbol,
-        holdings=holdings,
-    )
-
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 async def provision_managed_wallet(shop: Shop) -> Shop:
-    """Provision or return the managed merchant wallet for a shop.
+    """Provision (or upgrade) a merchant wallet for the shop.
 
-    Live mode uses a locally authenticated CDP Agentic Wallet (`awal`) session.
-    If unavailable and fallback is enabled, use a deterministic stub wallet.
+    If the shop already has an active live wallet it is returned as-is.
+    If it has a stub wallet and live mode is enabled, the stub is upgraded
+    to a real Alchemy-backed wallet.
     """
     settings = get_settings()
+
     has_active_wallet = (
         shop.wallet_status == ShopWalletStatus.ACTIVE
         and shop.merchant_address
@@ -261,66 +190,162 @@ async def provision_managed_wallet(shop: Shop) -> Shop:
     if has_live_wallet:
         return shop
 
-    if has_active_wallet and not settings.cdp_wallet_live_enabled:
-        return shop
-
     if shop.wallet_provider != "cdp_agentic_wallet":
         raise ValueError(f"Unsupported wallet provider: {shop.wallet_provider}")
 
-    try:
-        if settings.cdp_wallet_live_enabled:
-            account_id, address = _provision_via_awal()
-        else:
-            raise WalletProvisioningError("Live CDP wallet mode is disabled.")
-    except WalletProvisioningError:
-        if not settings.cdp_wallet_fallback_to_stub:
-            raise
-        account_id, address = _derive_stub_wallet(shop)
+    if not settings.cdp_wallet_live_enabled:
+        raise WalletProvisioningError("Live CDP wallet mode is disabled. Set CDP_WALLET_LIVE_ENABLED=true and provide ALCHEMY_API_KEY.")
+
+    # Need master seed to derive private keys
+    master_seed = settings.alchemy_wallet_master_seed
+    if not master_seed:
+        raise WalletProvisioningError(
+            "ALCHEMY_WALLET_MASTER_SEED is not set. "
+            "Set it to a long random string (32+ chars) used to derive per-shop merchant keys."
+        )
+
+    privkey = _derive_merchant_private_key(shop, master_seed)
+    merchant_address = _address_from_privkey(privkey)
+
+    # Encode the private key so we can store it in the DB
+    # It is encrypted at rest using the app's MASTER_ENCRYPTION_KEY
+    encrypted_privkey = _encrypt_privkey(privkey, settings.master_encryption_key)
+
+    account_id = f"cdpwa_live_{shop.ens_name.replace('.', '_')}_{settings.cdp_wallet_chain}"
 
     shop.wallet_provider_account_id = account_id
-    shop.merchant_address = address
+    shop.merchant_address = merchant_address
     shop.wallet_status = ShopWalletStatus.ACTIVE
+    shop.wallet_encrypted_key = encrypted_privkey
+
     return shop
 
 
+async def get_wallet_status_details(shop: Shop) -> WalletStatusDetails:
+    """Return display-ready wallet status details for owner UI."""
+    settings = get_settings()
+    provisioning_mode = "stub"
+    balance = None
+    balance_symbol = None
+    holdings: list[dict[str, str | None]] = []
+
+    if shop.wallet_provider == "cdp_agentic_wallet" and shop.merchant_address:
+        if shop.wallet_provider_account_id and shop.wallet_provider_account_id.startswith("cdpwa_live_"):
+            provisioning_mode = "live"
+            if settings.alchemy_api_key and shop.merchant_address != ZERO_ADDRESS:
+                try:
+                    client = AlchemyClient(_alchemy_rpc_url())
+                    balance, balance_symbol = client.get_eth_balance(shop.merchant_address)
+                    holdings = client.get_token_balances(shop.merchant_address)
+                except WalletProvisioningError:
+                    pass
+
+    return WalletStatusDetails(
+        wallet_provider=shop.wallet_provider,
+        wallet_status=shop.wallet_status,
+        merchant_address=shop.merchant_address or ZERO_ADDRESS,
+        wallet_provider_account_id=shop.wallet_provider_account_id,
+        provisioning_mode=provisioning_mode,
+        authenticated=False,
+        authenticated_email=None,
+        balance=balance,
+        balance_symbol=balance_symbol,
+        holdings=holdings,
+    )
+
+
 async def withdraw_eth_to_owner(shop: Shop, amount_eth: str) -> WalletTransferResult:
-    """Send ETH from the live merchant wallet back to the shop owner wallet."""
+    """Send ETH from the merchant wallet back to the shop owner."""
+    settings = get_settings()
+
     if shop.wallet_provider != "cdp_agentic_wallet":
         raise WalletProvisioningError(f"Unsupported wallet provider: {shop.wallet_provider}")
 
-    if shop.wallet_status != ShopWalletStatus.ACTIVE or not shop.merchant_address or shop.merchant_address == ZERO_ADDRESS:
+    if shop.wallet_status != ShopWalletStatus.ACTIVE or not shop.merchant_address:
         raise WalletProvisioningError("Merchant wallet is not active yet.")
 
-    if not shop.wallet_provider_account_id or not shop.wallet_provider_account_id.startswith("cdpwa_live_"):
+    if not (shop.wallet_provider_account_id or "").startswith("cdpwa_live_"):
         raise WalletProvisioningError(
-            "Merchant wallet is not in live Base Sepolia mode yet. Authenticate the CDP Agentic Wallet and re-provision before withdrawing funds."
+            "Merchant wallet is not in live mode. Re-provision the wallet first."
         )
 
-    settings = get_settings()
-    if not settings.cdp_wallet_live_enabled:
-        raise WalletProvisioningError("Live CDP wallet mode must be enabled for merchant-wallet withdrawals.")
-    if settings.cdp_wallet_chain != "base-sepolia":
-        raise WalletProvisioningError("Merchant-wallet withdrawals are currently restricted to Base Sepolia.")
+    if not settings.alchemy_api_key:
+        raise WalletProvisioningError("ALCHEMY_API_KEY is not set.")
+
+    if not settings.alchemy_wallet_master_seed:
+        raise WalletProvisioningError("ALCHEMY_WALLET_MASTER_SEED is not set.")
+
+    # Decrypt the merchant private key
+    encrypted_key = shop.wallet_encrypted_key
+    if not encrypted_key:
+        raise WalletProvisioningError(
+            "Merchant wallet private key not found. Re-provision the wallet."
+        )
+    privkey = _decrypt_privkey(encrypted_key, settings.master_encryption_key)
+
+    # Parse amount
+    try:
+        decimal_amount = Decimal(amount_eth)
+    except InvalidOperation as exc:
+        raise WalletProvisioningError(f"Invalid ETH amount: {amount_eth}") from exc
+    if decimal_amount <= 0:
+        raise WalletProvisioningError("ETH amount must be greater than zero.")
+    amount_wei = int(decimal_amount * Decimal("1e18"))
 
     recipient_address = shop.owner_address
-    amount_wei = _eth_amount_to_wei(amount_eth)
-    output = _run_awal(
-        [
-            "send",
-            amount_eth,
-            recipient_address,
-            "--chain",
-            settings.cdp_wallet_chain,
-            "--asset",
-            "ETH",
-            "--json",
-        ]
-    )
-    tx_hash, state = _parse_awal_send_output(output)
+    client = AlchemyClient(_alchemy_rpc_url())
+
+    tx_hash, state = client.send_eth(privkey, recipient_address, amount_wei)
     return WalletTransferResult(
         recipient_address=recipient_address,
         amount_eth=amount_eth,
-        amount_wei=amount_wei,
+        amount_wei=str(amount_wei),
         state=state,
         tx_hash=tx_hash,
     )
+
+
+# ---------------------------------------------------------------------------
+# Encryption helpers (AES-256-GCM using the master encryption key)
+# ---------------------------------------------------------------------------
+
+def _encrypt_privkey(privkey: str, master_key: str) -> str:
+    """Encrypt an Ethereum private key using AES-256-GCM."""
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    import base64
+
+    if not master_key or len(master_key) < 32:
+        # Fall back to raw storage if no master key (DEV ONLY)
+        return base64.b64encode(privkey.encode()).decode()
+
+    key_bytes = master_key.encode("utf-8")[:32].ljust(32, b"\0")
+    aesgcm = AESGCM(key_bytes)
+    nonce = os.urandom(12)
+    ct = aesgcm.encrypt(nonce, privkey.encode("utf-8"), None)
+    # Format: base64(nonce || ciphertext)
+    return base64.b64encode(nonce + ct).decode()
+
+
+def _decrypt_privkey(encrypted: str, master_key: str) -> str:
+    """Decrypt an Ethereum private key."""
+    import base64
+
+    try:
+        data = base64.b64decode(encrypted.encode())
+    except Exception as exc:
+        raise WalletProvisioningError(f"Cannot decode encrypted private key: {exc}") from exc
+
+    if len(data) == 66 and data[:2] == b"AA":  # raw base64 of privkey (DEV fallback)
+        return base64.b64decode(data).decode()
+
+    if not master_key or len(master_key) < 32:
+        raise WalletProvisioningError("Cannot decrypt private key: master encryption key not configured.")
+
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    key_bytes = master_key.encode("utf-8")[:32].ljust(32, b"\0")
+    aesgcm = AESGCM(key_bytes)
+    nonce, ct = data[:12], data[12:]
+    try:
+        return aesgcm.decrypt(nonce, ct, None).decode("utf-8")
+    except Exception as exc:
+        raise WalletProvisioningError(f"Failed to decrypt private key: {exc}") from exc

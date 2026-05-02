@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     cdp_wallet_chain: str = "base-sepolia"
     cdp_wallet_cli_command: str = "npx awal"
 
+    # Alchemy (replaces npx awal for live wallet mode)
+    # Get a free key at https://www.alchemy.com/
+    alchemy_api_key: str = ""
+    # Random seed string (32+ chars) used to derive per-shop merchant private keys.
+    # Generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
+    alchemy_wallet_master_seed: str = ""
+
     # ENS verification
     ens_rpc_url: str = "https://cloudflare-eth.com"
     ens_registry_address: str = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"

@@ -1,4 +1,4 @@
-import { getAddress } from 'viem';
+import { getAddress } from 'viem'
 
 export type SupportedSellerToken = {
   address: `0x${string}`;
@@ -6,28 +6,16 @@ export type SupportedSellerToken = {
   label: string;
 };
 
-function normalizeConfiguredAddress(value: string | undefined): `0x${string}` | null {
-  const trimmed = value?.trim();
-  if (!trimmed) return null;
-  try {
-    return getAddress(trimmed) as `0x${string}`;
-  } catch (error) {
-    console.warn('Ignoring invalid NEXT_PUBLIC_PAWN_TOKEN_ADDRESS:', error);
-    return null;
-  }
-}
+// Curated Base Sepolia testnet tokens — checked via balanceOf even before Alchemy responds.
+export const CURATED_BASE_SEPOLIA_TOKENS: SupportedSellerToken[] = [
+  {
+    address: '0x621b62fbfe0abef52ed2aafd0787fb1daeeed1e5' as `0x${string}`,
+    symbolHint: 'PAWN',
+    label: 'Pawn Token',
+  },
+]
 
-const pawnTokenAddress = normalizeConfiguredAddress(process.env.NEXT_PUBLIC_PAWN_TOKEN_ADDRESS);
+// Alchemy API key for token auto-detection (frontend-safe, free tier works)
+export const ALCHEMY_API_KEY = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY ?? ''
 
-export const SUPPORTED_SELLER_TOKENS: SupportedSellerToken[] = pawnTokenAddress
-  ? [
-      {
-        address: pawnTokenAddress,
-        symbolHint: 'PAWN',
-        label: 'Pawn test token',
-      },
-    ]
-  : [];
-
-export const DEFAULT_SUPPORTED_SELLER_TOKEN = SUPPORTED_SELLER_TOKENS[0] ?? null;
-export const pawnTokenConfigured = Boolean(pawnTokenAddress);
+export const pawnTokenConfigured = CURATED_BASE_SEPOLIA_TOKENS.length > 0

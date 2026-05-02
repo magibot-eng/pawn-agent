@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
-import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -16,7 +14,13 @@ from app.config import get_settings
 from app.models.deal import DealOffer, Execution
 from app.models.negotiation import NegotiationSession
 from app.models.shop import Shop, ShopWalletStatus
-from app.services.wallets import ZERO_ADDRESS, WalletProvisioningError, _run_awal
+from app.services.wallets import (
+    ZERO_ADDRESS,
+    WalletProvisioningError,
+    AlchemyClient,
+    _decrypt_privkey,
+    _alchemy_rpc_url,
+)
 
 
 class SettlementError(Exception):
@@ -57,57 +61,31 @@ def _eth_amount_to_wei(amount: str) -> str:
     return str(int(wei_amount))
 
 
-def _parse_awal_send_output(output: str) -> tuple[str, str]:
-    tx_hash = None
-    state = "submitted"
-
-    if output:
-        try:
-            payload = json.loads(output)
-        except json.JSONDecodeError:
-            payload = None
-
-        if isinstance(payload, dict):
-            tx_hash = payload.get("transactionHash") or payload.get("txHash") or payload.get("hash")
-            state = payload.get("status") or payload.get("state") or state
-
-        if not tx_hash:
-            match = re.search(r"0x[a-fA-F0-9]{6,}", output)
-            if match:
-                tx_hash = match.group(0)
-
-    if not tx_hash:
-        raise SettlementError(f"Could not parse transaction hash from awal send output: {output or 'empty output'}")
-
-    return tx_hash, state
-
-
-def _submit_eth_settlement(recipient: str, payout_amount: str) -> tuple[str, str, str]:
+def _submit_eth_settlement(shop: Shop, recipient: str, payout_amount: str) -> tuple[str, str, str]:
+    """Send ETH from the merchant wallet to the seller via Alchemy SDK."""
     settings = get_settings()
     if not settings.cdp_wallet_live_enabled:
         raise SettlementError("Live CDP wallet mode must be enabled for real Base Sepolia settlement.")
     if settings.cdp_wallet_chain != "base-sepolia":
         raise SettlementError("Real settlement is currently restricted to Base Sepolia.")
+    if not settings.alchemy_api_key:
+        raise SettlementError("ALCHEMY_API_KEY is not set.")
+    if not settings.alchemy_wallet_master_seed:
+        raise SettlementError("ALCHEMY_WALLET_MASTER_SEED is not set.")
 
     payout_sent_wei = _eth_amount_to_wei(payout_amount)
 
+    encrypted_key = shop.wallet_encrypted_key
+    if not encrypted_key:
+        raise SettlementError("Merchant wallet private key not found. Re-provision the wallet.")
+    privkey = _decrypt_privkey(encrypted_key, settings.master_encryption_key)
+
     try:
-        output = _run_awal(
-            [
-                "send",
-                payout_amount,
-                recipient,
-                "--chain",
-                settings.cdp_wallet_chain,
-                "--asset",
-                "ETH",
-                "--json",
-            ]
-        )
+        client = AlchemyClient(_alchemy_rpc_url())
+        tx_hash, state = client.send_eth(privkey, recipient, int(payout_sent_wei))
     except WalletProvisioningError as exc:
         raise SettlementError(f"Base Sepolia settlement failed: {exc}") from exc
 
-    tx_hash, state = _parse_awal_send_output(output)
     return tx_hash, state, payout_sent_wei
 
 
@@ -190,7 +168,7 @@ async def accept_quote_and_execute(
         if simulate_only:
             tx_hash, execution_state, payout_sent_wei = _simulate_eth_settlement(seller, payout_amount, negotiation.id)
         else:
-            tx_hash, execution_state, payout_sent_wei = _submit_eth_settlement(seller, payout_amount)
+            tx_hash, execution_state, payout_sent_wei = _submit_eth_settlement(shop, seller, payout_amount)
     except SettlementError as exc:
         offer.state = "failed"
         execution.state = "failed"

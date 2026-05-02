@@ -204,7 +204,7 @@ async def provision_shop_wallet(
 
     try:
         await provision_managed_wallet(shop)
-    except ValueError as exc:
+    except (ValueError, WalletProvisioningError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     await db.flush()
@@ -226,7 +226,7 @@ async def get_shop_wallet_status(
     if shop is None:
         raise HTTPException(status_code=404, detail="Shop not found")
 
-    details = get_wallet_status_details(shop)
+    details = await get_wallet_status_details(shop)
     return ShopWalletStatusResponse(**details.__dict__)
 
 

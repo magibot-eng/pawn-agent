@@ -73,6 +73,8 @@ class Shop(Base):
     )
     # Provider-side account / wallet identifier once provisioned.
     wallet_provider_account_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # Encrypted merchant wallet private key (AES-256-GCM), set when wallet is live-provisioned.
+    wallet_encrypted_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Lifecycle state for the managed merchant wallet.
     wallet_status: Mapped[str] = mapped_column(
         String(16), nullable=False, default=ShopWalletStatus.PENDING

@@ -4,17 +4,17 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { isAddress } from 'viem';
+import { getAddress, isAddress } from 'viem';
 import MerchantChat from '../../../components/MerchantChat';
 import RainbowConnectAction from '../../../components/RainbowConnectAction';
 import { Negotiations, type NegotiationSession, Shops, type Shop } from '../../../lib/api';
-import { DEFAULT_SUPPORTED_SELLER_TOKEN, pawnTokenConfigured } from '../../../lib/baseSepoliaTokens';
+import { pawnTokenConfigured } from '../../../lib/baseSepoliaTokens';
 import { getMerchantPortraitById } from '../../../lib/merchantPortraits';
 import { useDetectedSellerTokens } from '../../../lib/useDetectedSellerTokens';
 import { useUnifiedWallet } from '../../../lib/useUnifiedWallet';
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
-const DEFAULT_INPUT_TOKEN = DEFAULT_SUPPORTED_SELLER_TOKEN?.address ?? ZERO_ADDRESS;
+const DEFAULT_INPUT_TOKEN = ZERO_ADDRESS;
 const DEFAULT_INPUT_AMOUNT = '1000';
 const SESSION_STORAGE_PREFIX = 'pawn-agent:shop-session:';
 
@@ -40,10 +40,12 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sellerAddress, setSellerAddress] = useState<string | null>(null);
-  const [selectedTokenAddress, setSelectedTokenAddress] = useState<`0x${string}` | null>(DEFAULT_SUPPORTED_SELLER_TOKEN?.address ?? null);
+  const [selectedTokenAddress, setSelectedTokenAddress] = useState<`0x${string}` | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState(DEFAULT_INPUT_AMOUNT);
   const [sessionStarting, setSessionStarting] = useState(false);
-  const { tokens: detectedTokens, loading: tokensLoading, error: tokenDetectionError, hasConfiguredTokens } = useDetectedSellerTokens(walletAddress);
+  const [customTokenInput, setCustomTokenInput] = useState('');
+  const [customTokenAddresses, setCustomTokenAddresses] = useState<`0x${string}`[]>([]);
+  const { tokens: detectedTokens, loading: tokensLoading, error: tokenDetectionError, hasConfiguredTokens } = useDetectedSellerTokens(walletAddress, customTokenAddresses);
 
   useEffect(() => {
     let active = true;
@@ -196,6 +198,22 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
     }
   }
 
+
+  function addCustomToken() {
+    const raw = customTokenInput.trim()
+    if (!raw) return
+    if (!isAddress(raw)) { setError('Invalid contract address.'); return }
+    const addr = getAddress(raw) as `0x${string}`
+    if (customTokenAddresses.includes(addr)) { setCustomTokenInput(''); return }
+    setCustomTokenAddresses(prev => [...prev, addr])
+    setCustomTokenInput('')
+    setError(null)
+  }
+
+  function removeCustomToken(addr: `0x${string}`) {
+    setCustomTokenAddresses(prev => prev.filter(a => a !== addr))
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen relative" style={{ background: 'var(--wood-dark)' }}>
@@ -218,6 +236,43 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
             <p className="tavern-body-text mt-4">
               {error ?? `We could not find a live storefront for ${ensName || 'that ENS name'}.`}
             </p>
+                <div className="rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(196,168,112,0.2)', background: 'rgba(18,14,5,0.6)' }}>
+                  <p className="tavern-muted mb-2">Add custom token by contract address</p>
+                  <div className="flex gap-2">
+                    <input
+                      value={customTokenInput}
+                      onChange={(e) => setCustomTokenInput(e.target.value)}
+                      placeholder="0x... contract address"
+                      className="ledger-input flex-1"
+                      onKeyDown={(e) => { if (e.key === 'Enter') addCustomToken() }}
+                    />
+                    <button
+                      onClick={addCustomToken}
+                      disabled={!customTokenInput.trim() || tokensLoading}
+                      className="tavern-sign-link brass text-xs"
+                    >
+                      + Add
+                    </button>
+                  </div>
+                  {customTokenAddresses.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {customTokenAddresses.map((addr) => {
+                        const token = detectedTokens.find((t) => t.address === addr)
+                        return (
+                          <span
+                            key={addr}
+                            className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs"
+                            style={{ borderColor: 'rgba(196,168,112,0.4)', color: 'rgba(240,224,179,0.9)' }}
+                          >
+                            {token ? token.symbol + ' (' + token.balance + ')' : addr.slice(0, 10) + '...'}
+                            <button onClick={() => removeCustomToken(addr)} className="ml-1 opacity-60 hover:opacity-100">x</button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/" className="tavern-sign-link">
                 Back to marketplace
