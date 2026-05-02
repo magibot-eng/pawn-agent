@@ -69,8 +69,12 @@ class Execution(Base):
     tx_hash: Mapped[str | None] = mapped_column(String(66), nullable=True, index=True)
     # The ETH actually sent in the payout
     payout_sent_wei: Mapped[str | None] = mapped_column(String(78), nullable=True)
-    # Tokens actually received
+    # Tokens actually received (input side of the atomic swap)
     tokens_received: Mapped[str | None] = mapped_column(String(78), nullable=True)
+    # The input token address (PAWN or other ERC-20)
+    input_token: Mapped[str | None] = mapped_column(String(42), nullable=True)
+    # The input token amount in wei
+    input_amount: Mapped[str | None] = mapped_column(String(78), nullable=True)
     state: Mapped[str] = mapped_column(
         String(16), nullable=False, default="pending"
     )
