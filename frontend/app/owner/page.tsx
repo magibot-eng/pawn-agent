@@ -544,7 +544,7 @@ export default function OwnerPage() {
       ) : (
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8" style={{ position: 'relative', zIndex: 1 }}>
           {/* ── Ledger shell ── */}
-          <div className="parchment-card" style={{ padding: '1.5rem' }}>
+          <div className="treasury-card rounded-panel p-6">
           {/* ── Header ── */}
           <div className="flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-end sm:justify-between" style={{ borderColor: 'rgba(196,168,112,0.2)' }}>
             <div className="min-w-0 flex-1">

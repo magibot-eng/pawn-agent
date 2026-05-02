@@ -1815,8 +1815,8 @@ main, [data-page-content], .page-content {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: #5a3d1a;
-  border-bottom: 1px solid rgba(139,90,43,0.3);
+  color: var(--parchment);
+  border-bottom: 1px solid rgba(212,175,55,0.25);
   padding-bottom: 0.5rem;
   margin-bottom: 1rem;
 }
