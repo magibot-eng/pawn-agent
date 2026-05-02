@@ -74,8 +74,6 @@ async def update_negotiation(
 
     # Handle accept_quote action — route to the existing settlement logic
     if data.action == "accept_quote":
-        # TEMP DEBUG: return action in error_message to inspect what FastAPI parsed
-        raise HTTPException(status_code=418, detail=f"DEBUG: action={data.action!r} payout_token={data.payout_token!r} payout_amount={data.payout_amount!r} expiry={data.expiry!r}")
         # Reject if other fields are also being set (avoid ambiguity)
         other_fields = [
             data.chat_log_entry,
@@ -95,7 +93,6 @@ async def update_negotiation(
                 status_code=400,
                 detail="action=accept_quote requires payout_token, payout_amount, and expiry.",
             )
-        import sys; print(f"DEBUG: entering accept_quote path", flush=True)
         try:
             _, _, negotiation = await accept_quote_and_execute(
                 negotiation_id=negotiation_id,
