@@ -47,16 +47,6 @@ def create_app() -> FastAPI:
     async def health():
         return {"status": "ok", "app": settings.app_name}
 
-    @app.get("/debug/settings")
-    async def debug_settings():
-        s = get_settings()
-        return {
-            "cdp_wallet_live_enabled": s.cdp_wallet_live_enabled,
-            "cdp_wallet_fallback_to_stub": s.cdp_wallet_fallback_to_stub,
-            "alchemy_wallet_master_seed_set": bool(s.alchemy_wallet_master_seed),
-            "database_url_is_pg": "postgresql" in s.database_url,
-        }
-
     return app
 
 
