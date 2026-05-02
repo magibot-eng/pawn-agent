@@ -89,6 +89,8 @@ class AlchemyClient:
 
     def get_token_balances(self, address: str) -> list[dict[str, str | None]]:
         """Return list of token holdings, including known tokens by direct ERC-20 contract call."""
+        import logging
+        logger = logging.getLogger(__name__)
         holdings: list[dict[str, str | None]] = []
         checksum_address = Web3.to_checksum_address(address)
 
@@ -105,8 +107,8 @@ class AlchemyClient:
                         "balance": tb["tokenBalance"],
                         "chain": "base-sepolia",
                     })
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("[get_token_balances] Alchemy TOKEN_LIST failed: %s", exc)
 
         # Second: always check known test tokens by direct web3 contract call
         w3 = Web3(Web3.HTTPProvider(self.rpc_url))
@@ -121,9 +123,8 @@ class AlchemyClient:
                         "balance": hex(raw_balance),
                         "chain": "base-sepolia",
                     })
-            except Exception:
-                # Token contract may not exist or RPC error — skip
-                pass
+            except Exception as exc:
+                logger.warning("[get_token_balances] ERC-20 balanceOf failed for %s: %s", token["symbol"], exc)
 
         return holdings
 
