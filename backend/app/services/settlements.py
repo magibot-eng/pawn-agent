@@ -11,6 +11,7 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from web3 import Web3
+from web3.exceptions import Web3RPCError
 from eth_account import Account
 
 from app.config import get_settings
@@ -215,11 +216,13 @@ def _pull_tokens_and_settle(
     signed_token_tx = merchant_account.sign_transaction(token_tx)
     try:
         token_tx_hash_bytes = w3.eth.send_raw_transaction(signed_token_tx.raw_transaction)
-    except ValueError as exc:
+    except Web3RPCError as exc:
+        err_msg = str(exc.args[0].get('message', '')) if exc.args else str(exc)
+        err_code = exc.args[0].get('code') if exc.args else None
         # Nonce conflict: CDP MCP server already submitted this transaction.
         # Check if the token was already transferred (CDP won the nonce race).
         token_tx_hash = "unknown-cdp"
-        if "nonce too low" in str(exc).lower() or "replacement transaction underpriced" in str(exc).lower():
+        if err_code == -32000 and ("nonce too low" in err_msg.lower() or "replacement transaction underpriced" in err_msg.lower()):
             # CDP already sent the transferFrom. Check token balances to confirm.
             try:
                 seller_balance = token_contract.functions.balanceOf(seller).call({"from": merchant_address})
@@ -260,8 +263,10 @@ def _pull_tokens_and_settle(
                         raise SettlementError(
                             f"CDP race resolved but ETH transfer failed. token_tx: {token_tx_hash}, eth_tx: {eth_tx_hash}"
                         )
-                except ValueError as eth_exc:
-                    if "nonce too low" in str(eth_exc).lower() or "replacement transaction underpriced" in str(eth_exc).lower():
+                except Web3RPCError as eth_exc:
+                    eth_err_msg = str(eth_exc.args[0].get('message', '')) if eth_exc.args else str(eth_exc)
+                    eth_err_code = eth_exc.args[0].get('code') if eth_exc.args else None
+                    if eth_err_code == -32000 and ("nonce too low" in eth_err_msg.lower() or "replacement transaction underpriced" in eth_err_msg.lower()):
                         # CDP also sent the ETH payout — CDP completed the full settlement.
                         return eth_tx_hash or f"cdp-completed-{nonce2}", "executed", str(payout_amount_wei)
                     raise SettlementError(f"ETH send failed: {eth_exc}")
