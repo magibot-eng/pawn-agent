@@ -682,9 +682,8 @@ body {
   cursor: not-allowed;
 }
 
-/* ============================================
-   TAVERN — PARCHMENT PANEL (Chat container)
-   ============================================ */
+.treasury-card > * { max-width: 100%; }
+.treasury-holding > * { max-width: 100%; }
 
 .tavern-chat-panel {
   background: linear-gradient(145deg, #f5e8c4 0%, #e8d4a8 50%, #d4bc82 100%);
