@@ -117,6 +117,14 @@ class AlchemyClient:
                 token_address = Web3.to_checksum_address(token["address"])
                 contract = w3.eth.contract(address=token_address, abi=self.ERC20_ABI)
                 raw_balance: int = contract.functions.balanceOf(checksum_address).call()
+                logger.info(
+                    "[get_token_balances] %s balance for %s: raw=%s, bool=%s, gt0=%s",
+                    token["symbol"],
+                    checksum_address,
+                    raw_balance,
+                    bool(raw_balance),
+                    raw_balance > 0,
+                )
                 if raw_balance and raw_balance > 0:
                     holdings.append({
                         "asset": token["symbol"],
@@ -126,6 +134,7 @@ class AlchemyClient:
             except Exception as exc:
                 logger.warning("[get_token_balances] ERC-20 balanceOf failed for %s: %s", token["symbol"], exc)
 
+        logger.info("[get_token_balances] returning holdings: %s", holdings)
         return holdings
 
     def send_eth(self, from_privkey: str, to_address: str, amount_wei: int) -> tuple[str, str]:
