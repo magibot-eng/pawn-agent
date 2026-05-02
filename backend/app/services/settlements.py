@@ -169,9 +169,19 @@ async def accept_quote_and_execute(
     db.add(execution)
     await db.flush()
 
+    # Owner approval gate: if auto_settlement is disabled, stub the settlement
+    auto_settlement_blocked = (
+        shop.auto_settlement_enabled is False
+        and not simulate_only  # don't double-stub if already in sim mode
+    )
+
     try:
-        if simulate_only:
+        if simulate_only or auto_settlement_blocked:
             tx_hash, execution_state, payout_sent_wei = _simulate_eth_settlement(seller, payout_amount, negotiation.id)
+            if auto_settlement_blocked:
+                execution_state = "pending_owner_review"
+                execution.error_message = "Settlement blocked: auto_settlement disabled. Owner must approve from dashboard."
+                offer.state = "pending_owner_review"
         else:
             tx_hash, execution_state, payout_sent_wei = _submit_eth_settlement(shop, seller, payout_amount)
     except SettlementError as exc:

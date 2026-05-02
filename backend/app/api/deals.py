@@ -9,12 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.models.deal import DealOffer, Execution
+from app.models.shop import Shop
 from app.schemas.deal import (
     DealOfferCreate,
     DealOfferUpdate,
     DealOfferResponse,
     ExecutionResponse,
 )
+
+from app.services.settlements import _submit_eth_settlement, SettlementError
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
@@ -134,3 +137,48 @@ async def list_executions_by_offer(
         select(Execution).where(Execution.deal_offer_id == offer_id)
     )
     return result.scalars().all()
+
+
+@router.post("/offers/{offer_id}/settle", response_model=ExecutionResponse)
+async def settle_pending_deal(
+    offer_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Trigger real ETH settlement for a deal stuck in pending_owner_review state."""
+    result = await db.execute(select(DealOffer).where(DealOffer.id == offer_id))
+    offer = result.scalar_one_or_none()
+    if not offer:
+        raise HTTPException(status_code=404, detail="Deal offer not found")
+    if offer.state != "pending_owner_review":
+        raise HTTPException(status_code=400, detail=f"Deal is {offer.state}, not pending_owner_review.")
+
+    # Look up the shop
+    result2 = await db.execute(select(Shop).where(Shop.id == offer.shop_id))
+    shop = result2.scalar_one_or_none()
+    if not shop:
+        raise HTTPException(status_code=404, detail="Shop not found")
+
+    # Find the execution record
+    result3 = await db.execute(select(Execution).where(Execution.deal_offer_id == offer_id))
+    execution = result3.scalar_one_or_none()
+    if not execution:
+        raise HTTPException(status_code=404, detail="No execution record found.")
+
+    try:
+        tx_hash, execution_state, payout_sent_wei = _submit_eth_settlement(
+            shop, offer.seller, offer.payout_amount
+        )
+        execution.tx_hash = tx_hash
+        execution.payout_sent_wei = payout_sent_wei
+        execution.state = execution_state
+        execution.error_message = None
+        offer.state = execution_state
+        await db.flush()
+        await db.refresh(execution)
+        await db.refresh(offer)
+        return execution
+    except SettlementError as exc:
+        execution.state = "failed"
+        execution.error_message = str(exc)
+        await db.flush()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

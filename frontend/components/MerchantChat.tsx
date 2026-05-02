@@ -174,7 +174,7 @@ function QuoteCard({
           </button>
           <button
             onClick={onCounter}
-            disabled={disabled || quote.status !== 'quoted'}
+            disabled={disabled || !!executionRecord || quote.status !== 'quoted'}
             className="flex-1 tavern-sign-link"
           >
             ↗ Counter
@@ -362,7 +362,10 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
         expiry: activeQuote.expiry || '5m',
       });
       setExecutionRecord(resp.execution);
-      setActiveQuote((current) => (current ? { ...current, status: 'accepted' } : current));
+      // Clear the stale quote card — it's been settled
+      setActiveQuote(null);
+      setCounterMode(false);
+      setCounterInput('');
       setNegotiationState(resp.negotiation.negotiation_state ?? null);
       setTyping({
         active: true,
@@ -462,7 +465,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
             )}
 
             {/* Quote card — shown below the last merchant message when active */}
-            {activeQuote && !typing.active && (
+            {activeQuote && !executionRecord && !typing.active && (
               <div className="flex justify-start">
                 <div className="max-w-[82%]">
                   <QuoteCard
@@ -477,6 +480,17 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
                     disabled={typing.active}
                   />
                 </div>
+              </div>
+            )}
+
+            {/* Completion banner — shown after settlement */}
+            {executionRecord && !activeQuote && (
+              <div className="rounded-panel border px-4 py-3 my-3 text-center"
+                style={{ borderColor: 'rgba(52,211,153,0.5)', background: 'rgba(52,211,153,0.1)' }}>
+                <p className="text-emerald-300 font-bold uppercase tracking-widest text-sm">✓ Terms Sealed</p>
+                <p className="text-xs mt-1" style={{ color: 'rgba(216,202,163,0.75)' }}>
+                  Settlement submitted. Payout: {formatWeiDisplay(executionRecord.payout_sent_wei)}
+                </p>
               </div>
             )}
 
@@ -544,7 +558,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
           )}
 
           {/* Quote summary in sidebar */}
-          {activeQuote && (
+          {activeQuote && !executionRecord && (
             <div className="mt-6 border-t pt-4" style={{ borderColor: 'rgba(196,168,112,0.25)' }}>
               <p className="tavern-muted">Active Quote</p>
               <dl className="mt-3 space-y-2">
