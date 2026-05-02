@@ -1,0 +1,11 @@
+[build]
+  builder = "RAILPACK"
+  watchPatterns = ["backend/**"]
+
+[deploy]
+  rootDirectory = "backend"
+  numReplicas = 1
+
+[healthcheck]
+  path = "/health"
+  timeout = 30
