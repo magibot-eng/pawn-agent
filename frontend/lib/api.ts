@@ -243,9 +243,10 @@ export interface ChatResponse {
 
 export interface AcceptQuoteResponse {
   success: boolean;
-  deal_offer: DealOffer;
-  execution: ExecutionRecord;
-  negotiation: NegotiationSession;
+  error?: string;
+  deal_offer?: DealOffer;
+  execution?: ExecutionRecord;
+  negotiation?: NegotiationSession;
 }
 
 export const Negotiations = {

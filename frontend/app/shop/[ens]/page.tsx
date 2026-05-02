@@ -488,7 +488,7 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
         ) : (
           /* ── Active negotiation: show MerchantChat ── */
           <section className="shop-card rounded-panel p-4 sm:p-5">
-            <MerchantChat negotiationId={negotiation.id} shopEnsName={shop.ens_name} />
+            <MerchantChat negotiationId={negotiation.id} shopEnsName={shop.ens_name} merchantAddress={shop.merchant_address} />
           </section>
         )}
       </div>

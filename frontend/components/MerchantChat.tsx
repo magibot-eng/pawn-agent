@@ -99,6 +99,7 @@ const FALLBACK_MESSAGES: Message[] = [
 interface MerchantChatProps {
   negotiationId: string;
   shopEnsName: string;
+  merchantAddress: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,15 +118,9 @@ interface QuoteCardProps {
   disabled: boolean;
   sellerAddress?: string | null;
   sellerStage?: 'idle' | 'approving' | 'accepting' | 'done';
-  isApproving?: boolean;
-  isAccepting?: boolean;
   isApproveConfirmed?: boolean;
-  isAcceptConfirmed?: boolean;
   approveTxHash?: string;
-  acceptTxHash?: string;
-  chainError?: string | null;
-  onApprovePAWN?: () => void;
-  onAcceptDeal?: () => void;
+  onApprove?: () => void;
 }
 
 function QuoteCard({
@@ -140,15 +135,9 @@ function QuoteCard({
   disabled,
   sellerAddress,
   sellerStage,
-  isApproving,
-  isAccepting,
   isApproveConfirmed,
-  isAcceptConfirmed,
   approveTxHash,
-  acceptTxHash,
-  chainError,
-  onApprovePAWN,
-  onAcceptDeal,
+  onApprove,
 }: QuoteCardProps) {
   return (
     <div className="tavern-quote-card">
@@ -219,14 +208,32 @@ function QuoteCard({
             </div>
           ) : (
             <>
+              {!isApproveConfirmed && !approveTxHash ? (
+                <button
+                  onClick={onApprove}
+                  disabled={disabled || quote.status !== 'quoted'}
+                  className="flex-1 rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
+                  style={{
+                    borderColor: 'rgba(251,191,36,0.5)',
+                    background: 'rgba(251,191,36,0.15)',
+                    color: '#fcd34d',
+                  }}
+                >
+                  ⚡ Approve Token
+                </button>
+              ) : (
+                <div className="flex-1 text-center py-2 text-xs" style={{ color: 'rgba(52,211,153,0.7)' }}>
+                  ✓ Allowance set
+                </div>
+              )}
               <button
                 onClick={onAccept}
-                disabled={disabled || quote.status !== 'quoted'}
+                disabled={disabled || quote.status !== 'quoted' || (!isApproveConfirmed && !approveTxHash)}
                 className="flex-1 rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
                 style={{
-                  borderColor: 'rgba(52,211,153,0.5)',
+                  borderColor: isApproveConfirmed || approveTxHash ? 'rgba(52,211,153,0.5)' : 'rgba(255,255,255,0.1)',
                   background: 'rgba(52,211,153,0.15)',
-                  color: '#6ee7b7',
+                  color: isApproveConfirmed || approveTxHash ? '#6ee7b7' : 'rgba(255,255,255,0.3)',
                 }}
               >
                 ✓ Accept
@@ -243,52 +250,8 @@ function QuoteCard({
         </div>
       )}
 
-      {/* On-chain PAWN approval step */}
-      {!counterMode && sellerStage === 'approving' && (
-        <div className="mt-3 space-y-2">
-          <p className="text-xs" style={{ color: 'rgba(216,202,163,0.8)' }}>
-            Step 1 — Approve PAWN tokens to the settlement contract
-          </p>
-          <button
-            onClick={onApprovePAWN}
-            disabled={isApproving || isApproveConfirmed}
-            className="w-full rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
-            style={{
-              borderColor: 'rgba(251,191,36,0.5)',
-              background: 'rgba(251,191,36,0.15)',
-              color: '#fcd34d',
-            }}
-          >
-            {isApproving ? 'Waiting for wallet…' : isApproveConfirmed ? `Approved ✓ (${(approveTxHash ?? '').slice(0, 10)}…)` : '⚡ Approve PAWN'}
-          </button>
-          {chainError && <p className="text-xs text-red-300">{chainError}</p>}
-        </div>
-      )}
-
-      {/* On-chain accept deal step */}
-      {!counterMode && sellerStage === 'accepting' && (
-        <div className="mt-3 space-y-2">
-          <p className="text-xs" style={{ color: 'rgba(216,202,163,0.8)' }}>
-            Step 2 — Accept deal on-chain
-          </p>
-          <button
-            onClick={onAcceptDeal}
-            disabled={isAccepting || isAcceptConfirmed}
-            className="w-full rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
-            style={{
-              borderColor: 'rgba(52,211,153,0.5)',
-              background: 'rgba(52,211,153,0.15)',
-              color: '#6ee7b7',
-            }}
-          >
-            {isAccepting ? 'Waiting for wallet…' : isAcceptConfirmed ? `Accepted ✓ (${(acceptTxHash ?? '').slice(0, 10)}…)` : '⚓ Accept Deal'}
-          </button>
-          {chainError && <p className="text-xs text-red-300">{chainError}</p>}
-        </div>
-      )}
-
       {/* On-chain done — pending confirmation */}
-      {!counterMode && sellerStage === 'done' && (
+      {!counterMode && isApproveConfirmed && (
         <div className="mt-3 text-center text-xs" style={{ color: 'rgba(216,202,163,0.7)' }}>
           <p>Deal accepted on-chain ✓</p>
           <p className="mt-1" style={{ color: 'rgba(216,202,163,0.5)' }}>Waiting for block confirmation…</p>
@@ -302,7 +265,7 @@ function QuoteCard({
 // MerchantChat
 // ---------------------------------------------------------------------------
 
-export default function MerchantChat({ negotiationId, shopEnsName }: MerchantChatProps) {
+export default function MerchantChat({ negotiationId, shopEnsName, merchantAddress }: MerchantChatProps) {
   const [messages, setMessages] = useState<Message[]>(FALLBACK_MESSAGES);
   const [inputValue, setInputValue] = useState('');
   const [typing, setTyping] = useState<TypingState>({ active: false, text: '', charIndex: 0 });
@@ -508,11 +471,20 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
 
     try {
       setTyping({ active: true, text: '⚓ Sealing the bargain and preparing settlement…', charIndex: 0 });
-      const resp: AcceptQuoteResponse = await Negotiations.acceptQuote(negotiationId, {
+      const rawResp = await Negotiations.acceptQuote(negotiationId, {
         payout_token: activeQuote.payout_token,
         payout_amount: activeQuote.payout_amount,
         expiry: activeQuote.expiry || '5m',
       });
+      if (!rawResp.success) {
+        setTyping({ active: true, text: `⚓ I cannot settle this yet. ${rawResp.error ?? 'Unknown error'}`, charIndex: 0 });
+        return;
+      }
+      const resp = rawResp as AcceptQuoteResponse;
+      if (!resp.execution || !resp.deal_offer || !resp.negotiation) {
+        setTyping({ active: true, text: `⚓ I cannot settle this yet. ${rawResp.error ?? 'Invalid response from server.'}`, charIndex: 0 });
+        return;
+      }
       setExecutionRecord(resp.execution);
       setDealOffer(resp.deal_offer);
       setActiveQuote(null);
@@ -547,9 +519,9 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
       address: PAWN_TOKEN_ADDRESS,
       abi: IERC20_ABI,
       functionName: 'approve',
-      args: [BUYOUT_CONTRACT_ADDRESS, inputAmountWei],
+      args: [merchantAddress as `0x${string}`, inputAmountWei],
     });
-  }, [activeQuote, dealOffer, sellerAddress, approvePAWN]);
+  }, [activeQuote, sellerAddress, merchantAddress, approvePAWN]);
 
   const handleAcceptDeal = useCallback(() => {
     if (!dealOffer || !sellerAddress) return;
@@ -657,6 +629,10 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
                     onCounterSubmit={handleCounterSubmit}
                     onCounterCancel={handleCounterCancel}
                     disabled={typing.active}
+                    sellerAddress={sellerAddress}
+                    isApproveConfirmed={isApproveConfirmed}
+                    approveTxHash={approveTxHash}
+                    onApprove={handleApprovePAWN}
                   />
                 </div>
               </div>
@@ -683,77 +659,22 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
 
             {/* On-chain seller acceptance panel — shown after merchant submits offer */}
             {executionRecord && dealOffer && sellerAddress && (
-              <div className="rounded-panel border px-4 py-3 my-3 space-y-3"
+              <div className="rounded-panel border px-4 py-3 my-3 space-y-2"
                 style={{ borderColor: 'rgba(52,211,153,0.4)', background: 'rgba(18,14,5,0.6)' }}>
-                <p className="text-emerald-300 font-bold uppercase tracking-widest text-sm">⚓ On-Chain Settlement</p>
+                <p className="text-emerald-300 font-bold uppercase tracking-widest text-sm">⚓ Settlement In Progress</p>
+                <p className="text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>
+                  Before accepting, the seller must approve the merchant wallet for the input token in their own wallet (standard ERC-20 approve). No action needed in this panel — the merchant settlement runs automatically.
+                </p>
                 <dl className="space-y-1">
                   <div className="flex justify-between gap-3">
-                    <dt className="text-xs tavern-muted">Submit offer tx</dt>
+                    <dt className="text-xs tavern-muted">Settlement tx</dt>
                     <dd className="max-w-[12rem] truncate text-xs text-onSurface">{executionRecord.tx_hash ?? 'pending'}</dd>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <dt className="text-xs tavern-muted">Deal ID</dt>
-                    <dd className="max-w-[12rem] truncate text-xs text-onSurface">{dealOffer.chain_deal_id}</dd>
+                    <dt className="text-xs tavern-muted">Deal state</dt>
+                    <dd className="max-w-[12rem] truncate text-xs text-onSurface">{executionRecord.state}</dd>
                   </div>
                 </dl>
-                {sellerStage === 'idle' && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setSellerStage('approving')}
-                      className="flex-1 rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
-                      style={{ borderColor: 'rgba(251,191,36,0.5)', background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
-                    >
-                      ⚡ Approve PAWN
-                    </button>
-                  </div>
-                )}
-                {sellerStage === 'approving' && (
-                  <div className="space-y-2">
-                    <p className="text-xs tavern-muted">Step 1 — Approve PAWN tokens to settlement contract</p>
-                    <button
-                      onClick={handleApprovePAWN}
-                      disabled={isApproving || isApproveConfirmed}
-                      className="w-full rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
-                      style={{ borderColor: 'rgba(251,191,36,0.5)', background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
-                    >
-                      {isApproving ? 'Waiting for wallet…' : isApproveConfirmed ? `Approved ✓ (${(approveTxHash ?? '').slice(0, 10)}…)` : '⚡ Approve PAWN'}
-                    </button>
-                    {chainError && <p className="text-xs text-red-300">{chainError}</p>}
-                    {isApproveConfirmed && (
-                      <button
-                        onClick={() => setSellerStage('accepting')}
-                        className="w-full rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
-                        style={{ borderColor: 'rgba(52,211,153,0.5)', background: 'rgba(52,211,153,0.15)', color: '#6ee7b7' }}
-                      >
-                        Continue to Accept Deal →
-                      </button>
-                    )}
-                  </div>
-                )}
-                {sellerStage === 'accepting' && (
-                  <div className="space-y-2">
-                    <p className="text-xs tavern-muted">Step 2 — Accept deal on-chain</p>
-                    <button
-                      onClick={handleAcceptDeal}
-                      disabled={isAccepting || isAcceptConfirmed}
-                      className="w-full rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
-                      style={{ borderColor: 'rgba(52,211,153,0.5)', background: 'rgba(52,211,153,0.15)', color: '#6ee7b7' }}
-                    >
-                      {isAccepting ? 'Waiting for wallet…' : isAcceptConfirmed ? `Accepted ✓ (${(acceptTxHash ?? '').slice(0, 10)}…)` : '⚓ Accept Deal'}
-                    </button>
-                    {chainError && <p className="text-xs text-red-300">{chainError}</p>}
-                  </div>
-                )}
-                {sellerStage === 'done' && (
-                  <div className="space-y-2 text-center text-xs" style={{ color: 'rgba(216,202,163,0.7)' }}>
-                    <p>Deal accepted on-chain ✓</p>
-                    {executionRecord.input_tx_hash && (
-                      <p style={{ color: 'rgba(216,202,163,0.6)' }}>
-                        Accept tx: {executionRecord.input_tx_hash.slice(0, 12)}…
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
             )}
 

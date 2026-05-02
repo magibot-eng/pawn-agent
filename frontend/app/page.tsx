@@ -317,39 +317,6 @@ export default function HomePage() {
 
         {/* ── TWO DOORS ── */}
         <section className="doors-section" aria-label="Choose your path">
-          {/* Seller Door */}
-          <div className={`door-panel door-seller ${mounted ? 'door-visible' : ''}`} style={{ animationDelay: '0.1s' }}>
-            <div className="door-arch">
-              <div className="door-glow-torch" />
-              <div className="door-icon-wrap">
-                <div className="door-icon-svg coin-icon">
-                  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="24" cy="24" r="20" fill="#d4a017" stroke="#f0c040" strokeWidth="2"/>
-                    <circle cx="24" cy="24" r="15" fill="none" stroke="#b88a10" strokeWidth="1.5"/>
-                    <text x="24" y="30" textAnchor="middle" fill="#8b6914" fontSize="18" fontWeight="bold" fontFamily="serif">$</text>
-                  </svg>
-                </div>
-              </div>
-              <div className="door-content">
-                <div className="door-path-label">Seller Path</div>
-                <h2 className="door-title">Enter as Seller</h2>
-                <p className="door-tagline">Walk in. Get offers. Cash out.</p>
-                <Link href={sellerHref ?? '#'} className={`door-cta-btn door-cta-seller ${!sellerHref ? 'door-cta-disabled' : ''}`}>
-                  Enter Marketplace
-                  <span className="door-cta-arrow">→</span>
-                </Link>
-              </div>
-              <div className="door-hover-embers" aria-hidden="true">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="hover-ember" style={hoverEmberStyle(i)} />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Floor shadow between doors */}
-          <div className="floor-shadow" aria-hidden="true" />
-
           {/* Merchant Door */}
           <div className={`door-panel door-merchant ${mounted ? 'door-visible' : ''}`} style={{ animationDelay: '0.35s' }}>
             <div className="door-arch door-arch-iron">
