@@ -275,17 +275,14 @@ async def withdraw_shop_wallet_to_owner(
 # ---------------------------------------------------------------------------
 
 
-BUYOUT_CONTRACT_ADDRESS = "0x754e37A77c177B92873e3057e5884dc6D0c0C4CE"
-BASE_SEPOLIA_CHAIN_ID = 84532
-
-
 class FundContractRequest(BaseModel):
-    amount_eth: str = Field(default="0.01", description="ETH amount to fund the contract with")
+    amount_eth: str | None = Field(default=None, description="Manual override ETH amount. If omitted, auto-calculates delta.")
 
 
 class FundContractResponse(BaseModel):
-    tx_hash: str
+    tx_hash: str | None = None  # null if no funding needed
     contract_balance_eth: str
+    funded_delta_eth: str  # actual amount funded (0 if no tx was sent)
     warning: str | None = None
 
 
@@ -317,20 +314,53 @@ async def fund_contract(
 
     privkey = _decrypt_privkey(shop.wallet_encrypted_key, settings.master_encryption_key)
 
-    # Parse amount
-    try:
-        decimal_amount = Decimal(data.amount_eth)
-    except Exception:
-        raise HTTPException(status_code=400, detail=f"Invalid ETH amount: {data.amount_eth}")
-    if decimal_amount <= 0:
-        raise HTTPException(status_code=400, detail="ETH amount must be greater than zero.")
-    amount_wei = int(decimal_amount * Decimal("1e18"))
-
     contract_address = settings.buyout_contract_address or BUYOUT_CONTRACT_ADDRESS
+    client = AlchemyClient(_alchemy_rpc_url())
+
+    # --- Auto-calculate delta vs manual override ---
+    if data.amount_eth is not None:
+        # Manual override: use the explicitly provided amount
+        try:
+            decimal_amount = Decimal(data.amount_eth)
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Invalid ETH amount: {data.amount_eth}")
+        if decimal_amount <= 0:
+            raise HTTPException(status_code=400, detail="ETH amount must be greater than zero.")
+        funded_delta_wei = int(decimal_amount * Decimal("1e18"))
+    else:
+        # Auto mode: delta = sum(pending payout_amounts) - contract balance
+        pending_result = await db.execute(
+            select(DealOffer).where(
+                DealOffer.shop_id == shop_id,
+                DealOffer.state == "pending",
+            )
+        )
+        pending_deals = pending_result.scalars().all()
+        total_pending_wei = 0
+        for d in pending_deals:
+            if d.payout_amount:
+                try:
+                    total_pending_wei += int(Decimal(d.payout_amount) * Decimal("1e18"))
+                except Exception:
+                    pass  # skip malformed amounts
+
+        contract_balance_wei, _ = client.get_eth_balance(contract_address)
+        delta_wei = total_pending_wei - int(contract_balance_wei)
+        if delta_wei <= 0:
+            # Contract already has enough — no funding needed
+            contract_balance_eth = (
+                str(Decimal(contract_balance_wei) / Decimal("1e18")) if contract_balance_wei else "0"
+            )
+            return FundContractResponse(
+                tx_hash=None,
+                contract_balance_eth=contract_balance_eth,
+                funded_delta_eth="0",
+                warning=None,
+            )
+        funded_delta_wei = delta_wei
 
     # Send ETH to contract via AlchemyClient
-    client = AlchemyClient(_alchemy_rpc_url())
-    tx_hash, _ = client.send_eth(privkey, contract_address, amount_wei)
+    tx_hash, _ = client.send_eth(privkey, contract_address, funded_delta_wei)
 
     # Check contract balance after funding
     contract_balance_wei, _ = client.get_eth_balance(contract_address)
@@ -338,29 +368,33 @@ async def fund_contract(
         str(Decimal(contract_balance_wei) / Decimal("1e18")) if contract_balance_wei else "0"
     )
 
-    # Check if contract can cover all pending deals
+    # Re-check if contract can now cover all pending deals
     warning = None
-    if contract_balance_wei:
-        pending_result = await db.execute(
-            select(DealOffer).where(
-                DealOffer.shop_id == shop_id,
-                DealOffer.state.in_(["pending", "pending_owner_review"]),
-            )
+    pending_result = await db.execute(
+        select(DealOffer).where(
+            DealOffer.shop_id == shop_id,
+            DealOffer.state == "pending",
         )
-        pending_deals = pending_result.scalars().all()
-        total_pending_wei = sum(
-            int(str(d.payout_amount)) for d in pending_deals if d.payout_amount
+    )
+    pending_deals = pending_result.scalars().all()
+    total_pending_wei = 0
+    for d in pending_deals:
+        if d.payout_amount:
+            try:
+                total_pending_wei += int(Decimal(d.payout_amount) * Decimal("1e18"))
+            except Exception:
+                pass
+    if contract_balance_wei and int(contract_balance_wei) < total_pending_wei:
+        warning = (
+            f"Contract balance ({contract_balance_eth} ETH) is still less than total pending "
+            f"payouts ({Decimal(str(total_pending_wei)) / Decimal('1e18')} ETH). "
+            "Top up the contract before executing pending deals."
         )
-        if int(contract_balance_wei) < total_pending_wei:
-            warning = (
-                f"Contract balance ({contract_balance_eth} ETH) is less than total pending "
-                f"payouts ({Decimal(str(total_pending_wei)) / Decimal('1e18')} ETH). "
-                "Top up the contract before executing pending deals."
-            )
 
     return FundContractResponse(
         tx_hash=tx_hash,
         contract_balance_eth=contract_balance_eth,
+        funded_delta_eth=str(Decimal(funded_delta_wei) / Decimal("1e18")),
         warning=warning,
     )
 
