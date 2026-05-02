@@ -60,14 +60,43 @@ class AlchemyClient:
                 f"Failed to fetch ETH balance for {address}: {exc}"
             ) from exc
 
+    # Known test tokens on Base Sepolia — checked by direct contract call
+    # (Alchemy TOKEN_LIST does not include custom test tokens like PAWN)
+    KNOWN_BASE_SEPOLIA_TOKENS = [
+        {
+            "address": "0x621B62fBFe0ABEf52eD2aAfd0787Fb1DAEEed1e5",
+            "symbol": "PAWN",
+            "decimals": 18,
+        },
+    ]
+
+    ERC20_ABI = [
+        {
+            "inputs": [{"name": "account", "type": "address"}],
+            "name": "balanceOf",
+            "outputs": [{"name": "", "type": "uint256"}],
+            "stateMutability": "view",
+            "type": "function",
+        },
+        {
+            "inputs": [],
+            "name": "symbol",
+            "outputs": [{"name": "", "type": "string"}],
+            "stateMutability": "view",
+            "type": "function",
+        },
+    ]
+
     def get_token_balances(self, address: str) -> list[dict[str, str | None]]:
-        """Return list of token holdings as dicts."""
+        """Return list of token holdings, including known tokens by direct ERC-20 contract call."""
+        holdings: list[dict[str, str | None]] = []
+        checksum_address = Web3.to_checksum_address(address)
+
+        # First: check Alchemy's token list for popular tokens
         try:
-            # alchemy-sdk core
             from alchemy import Alchemy
             alchemy_sdk = Alchemy(self.rpc_url)
             raw = alchemy_sdk.core.get_token_balances(address, "TOKEN_LIST")
-            holdings = []
             for tb in raw.get("tokenBalances", []):
                 if tb.get("tokenBalance") and tb["tokenBalance"] != "0x0000000000000000000000000000000000000000000000000000000000000000":
                     metadata = tb.get("tokenMetadata", {}) or {}
@@ -76,10 +105,27 @@ class AlchemyClient:
                         "balance": tb["tokenBalance"],
                         "chain": "base-sepolia",
                     })
-            return holdings
         except Exception:
-            # Fallback: return empty list rather than failing
-            return []
+            pass
+
+        # Second: always check known test tokens by direct web3 contract call
+        w3 = Web3(Web3.HTTPProvider(self.rpc_url))
+        for token in self.KNOWN_BASE_SEPOLIA_TOKENS:
+            try:
+                token_address = Web3.to_checksum_address(token["address"])
+                contract = w3.eth.contract(address=token_address, abi=self.ERC20_ABI)
+                raw_balance: int = contract.functions.balanceOf(checksum_address).call()
+                if raw_balance and raw_balance > 0:
+                    holdings.append({
+                        "asset": token["symbol"],
+                        "balance": hex(raw_balance),
+                        "chain": "base-sepolia",
+                    })
+            except Exception:
+                # Token contract may not exist or RPC error — skip
+                pass
+
+        return holdings
 
     def send_eth(self, from_privkey: str, to_address: str, amount_wei: int) -> tuple[str, str]:
         """Sign and send an ETH transfer. Returns (tx_hash, state).
