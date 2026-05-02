@@ -100,6 +100,7 @@ export default function OwnerPage() {
   const [keyTestResult, setKeyTestResult] = useState<ProviderKeyTestResult | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [walletMismatch, setWalletMismatch] = useState(false);
   const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
   const [ensName, setEnsName] = useState<string | null>(null);
   const [ownerWalletBalance, setOwnerWalletBalance] = useState<string | null>(null);
@@ -142,6 +143,13 @@ export default function OwnerPage() {
 
         if (!owner || !ens) {
           setError('No owner store is selected yet. Go back to setup and create or load a storefront first.');
+          setLoading(false);
+          return;
+        }
+
+        // Prevent cross-wallet access: if a browser wallet is already connected, it must match the shop owner.
+        if (connectedWallet && getAddress(owner) !== getAddress(connectedWallet)) {
+          setError(`Wrong wallet. Connect ${formatWallet(owner)} to access this dashboard.`);
           setLoading(false);
           return;
         }
@@ -230,6 +238,21 @@ export default function OwnerPage() {
 
     loadWalletBalances();
   }, [ownerAddress, walletStatus?.merchant_address, shop?.merchant_address]);
+
+  // Guard: if the connected wallet ever stops matching the shop owner, lock the UI.
+  useEffect(() => {
+    if (!shop || !connectedWallet) return;
+    const shopOwner = shop.owner_address;
+    const connected = connectedWallet;
+    if (getAddress(shopOwner) !== getAddress(connected)) {
+      setWalletMismatch(true);
+      setError(`Wrong wallet. Connect ${formatWallet(shopOwner)} to access this dashboard.`);
+      // Clear the shop so nothing can be submitted
+      setShop(null);
+    } else {
+      setWalletMismatch(false);
+    }
+  }, [shop, connectedWallet]);
 
   const activeKey = useMemo(() => providerKeys.find((key) => key.is_active) ?? null, [providerKeys]);
   const selectedPortrait = useMemo(() => getMerchantPortraitById(form.merchant_portrait || shop?.merchant_portrait), [form.merchant_portrait, shop?.merchant_portrait]);
@@ -493,9 +516,19 @@ export default function OwnerPage() {
     <main className="min-h-screen relative merchant-study" style={{ background: '#1e1208' }}>
       <div className="candle-edge-glow" />
 
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8" style={{ position: 'relative', zIndex: 1 }}>
-        {/* ── Ledger shell ── */}
-        <div className="parchment-card" style={{ padding: '1.5rem' }}>
+      {walletMismatch ? (
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8" style={{ position: 'relative', zIndex: 1 }}>
+          <div className="rounded-panel border p-6 text-center" style={{ borderColor: 'rgba(248,113,113,0.5)', background: 'rgba(127,29,29,0.2)' }}>
+            <p className="text-red-300 font-bold uppercase tracking-widest">Access Denied</p>
+            <p className="text-sm mt-2" style={{ color: 'rgba(216,202,163,0.75)' }}>
+              This dashboard belongs to a different wallet. Switch to the correct wallet to continue.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8" style={{ position: 'relative', zIndex: 1 }}>
+          {/* ── Ledger shell ── */}
+          <div className="parchment-card" style={{ padding: '1.5rem' }}>
           {/* ── Header ── */}
           <div className="flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-end sm:justify-between" style={{ borderColor: 'rgba(196,168,112,0.2)' }}>
             <div className="min-w-0 flex-1">
@@ -911,6 +944,7 @@ export default function OwnerPage() {
           </section>
         </div>
       </div>
+      )}
     </main>
   );
 }
