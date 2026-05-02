@@ -22,7 +22,7 @@ contract DeployBuyoutSettlement is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        BuyoutSettlement settlement = new BuyoutSettlement{value: 0.1 ether}();
+        BuyoutSettlement settlement = new BuyoutSettlement();
 
         vm.stopBroadcast();
 
