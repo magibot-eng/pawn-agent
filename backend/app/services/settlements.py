@@ -163,7 +163,7 @@ def submit_offer_to_contract(
 
     # Load contract ABI
     contract_address = settings.buyout_contract_address
-    abi_path = "/Users/magi/Desktop/Mira/projects/pawn-agent/contracts/out/BuyoutSettlement.sol/BuyoutSettlement.json"
+    abi_path = "abis/BuyoutSettlement.json"
     try:
         with open(abi_path) as f:
             contract_data = json.load(f)
@@ -414,7 +414,7 @@ async def poll_offer_accepted(shop_id: str, db: AsyncSession) -> list[Execution]
 
     # Load contract ABI
     contract_address = settings.buyout_contract_address
-    abi_path = "/Users/magi/Desktop/Mira/projects/pawn-agent/contracts/out/BuyoutSettlement.sol/BuyoutSettlement.json"
+    abi_path = "abis/BuyoutSettlement.json"
     try:
         with open(abi_path) as f:
             contract_data = json.load(f)
