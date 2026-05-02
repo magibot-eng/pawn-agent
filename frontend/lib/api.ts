@@ -175,6 +175,8 @@ export interface NegotiationQuote {
   seller_ask_token: string;
   seller_ask_amount: string;
   seller_ask_price: string;
+  input_token?: string;
+  input_amount?: string;
 }
 
 export interface DealOffer {
@@ -199,6 +201,7 @@ export interface ExecutionRecord {
   payout_sent_wei: string | null;
   tokens_received: string | null;
   state: string;
+  input_tx_hash: string | null;
   error_message: string | null;
   created_at: string;
 }

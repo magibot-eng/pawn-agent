@@ -17,7 +17,7 @@ from app.schemas.deal import (
     ExecutionResponse,
 )
 
-from app.services.settlements import _submit_eth_settlement, SettlementError
+from app.services.settlements import _submit_eth_settlement, poll_offer_accepted, SettlementError
 
 router = APIRouter(prefix="/deals", tags=["deals"])
 
@@ -181,4 +181,22 @@ async def settle_pending_deal(
         execution.state = "failed"
         execution.error_message = str(exc)
         await db.flush()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/executions/pending", response_model=list[ExecutionResponse])
+async def get_pending_executions(
+    shop_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Poll for OfferAccepted events from BuyoutSettlement and return updated Execution records.
+
+    Calls poll_offer_accepted() to check for recent on-chain OfferAccepted events
+    for this shop. Any Executions whose deals were accepted on-chain are updated
+    to state=\"executed\" with the input_tx_hash set.
+    """
+    try:
+        updated = await poll_offer_accepted(shop_id, db)
+        return updated
+    except SettlementError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

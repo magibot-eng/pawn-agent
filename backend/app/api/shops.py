@@ -2,6 +2,8 @@
 
 import uuid
 from typing import Annotated
+from decimal import Decimal, InvalidOperation
+from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -9,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_db
+from app.models.deal import DealOffer
 from app.models.shop import Shop, ShopStatus, ShopEnsIdentity, ShopWalletStatus
 from app.schemas.shop import (
     ShopCreate,
@@ -21,7 +24,19 @@ from app.schemas.shop import (
     ShopWalletTransferResponse,
 )
 from app.services.ens import verify_ens_route
-from app.services.wallets import provision_managed_wallet, get_wallet_status_details, withdraw_eth_to_owner, WalletProvisioningError
+from app.services.wallets import (
+    provision_managed_wallet,
+    get_wallet_status_details,
+    withdraw_eth_to_owner,
+    WalletProvisioningError,
+    AlchemyClient,
+    _alchemy_rpc_url,
+    _decrypt_privkey,
+)
+from app.config import get_settings
+
+BUYOUT_CONTRACT_ADDRESS = "0x754e37A77c177B92873e3057e5884dc6D0c0C4CE"
+BASE_SEPOLIA_CHAIN_ID = 84532
 
 router = APIRouter(prefix="/shops", tags=["shops"])
 
@@ -254,6 +269,99 @@ async def withdraw_shop_wallet_to_owner(
         amount_wei=transfer.amount_wei,
         state=transfer.state,
         tx_hash=transfer.tx_hash,
+    )
+
+
+# ---------------------------------------------------------------------------
+
+
+BUYOUT_CONTRACT_ADDRESS = "0x754e37A77c177B92873e3057e5884dc6D0c0C4CE"
+BASE_SEPOLIA_CHAIN_ID = 84532
+
+
+class FundContractRequest(BaseModel):
+    amount_eth: str = Field(default="0.01", description="ETH amount to fund the contract with")
+
+
+class FundContractResponse(BaseModel):
+    tx_hash: str
+    contract_balance_eth: str
+    warning: str | None = None
+
+
+@router.post("/{shop_id}/fund-contract", response_model=FundContractResponse)
+async def fund_contract(
+    shop_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    data: FundContractRequest = FundContractRequest(),
+):
+    """Send ETH from the merchant wallet to the BuyoutSettlement contract.
+
+    The merchant wallet must be live-provisioned (alchemy_live_ mode).
+    After funding, checks if the contract balance covers all pending deal payouts
+    and returns a warning if not.
+    """
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if shop is None:
+        raise HTTPException(status_code=404, detail="Shop not found")
+
+    settings = get_settings()
+
+    if not settings.cdp_wallet_live_enabled:
+        raise HTTPException(status_code=400, detail="Live wallet mode is not enabled. Set CDP_WALLET_LIVE_ENABLED=true.")
+    if not shop.wallet_provider_account_id or not shop.wallet_provider_account_id.startswith("alchemy_live_"):
+        raise HTTPException(status_code=400, detail="Shop wallet is not live-provisioned. Provision a live wallet first.")
+    if not shop.wallet_encrypted_key:
+        raise HTTPException(status_code=400, detail="Merchant wallet private key not found. Re-provision the wallet.")
+
+    privkey = _decrypt_privkey(shop.wallet_encrypted_key, settings.master_encryption_key)
+
+    # Parse amount
+    try:
+        decimal_amount = Decimal(data.amount_eth)
+    except Exception:
+        raise HTTPException(status_code=400, detail=f"Invalid ETH amount: {data.amount_eth}")
+    if decimal_amount <= 0:
+        raise HTTPException(status_code=400, detail="ETH amount must be greater than zero.")
+    amount_wei = int(decimal_amount * Decimal("1e18"))
+
+    contract_address = settings.buyout_contract_address or BUYOUT_CONTRACT_ADDRESS
+
+    # Send ETH to contract via AlchemyClient
+    client = AlchemyClient(_alchemy_rpc_url())
+    tx_hash, _ = client.send_eth(privkey, contract_address, amount_wei)
+
+    # Check contract balance after funding
+    contract_balance_wei, _ = client.get_eth_balance(contract_address)
+    contract_balance_eth = (
+        str(Decimal(contract_balance_wei) / Decimal("1e18")) if contract_balance_wei else "0"
+    )
+
+    # Check if contract can cover all pending deals
+    warning = None
+    if contract_balance_wei:
+        pending_result = await db.execute(
+            select(DealOffer).where(
+                DealOffer.shop_id == shop_id,
+                DealOffer.state.in_(["pending", "pending_owner_review"]),
+            )
+        )
+        pending_deals = pending_result.scalars().all()
+        total_pending_wei = sum(
+            int(str(d.payout_amount)) for d in pending_deals if d.payout_amount
+        )
+        if int(contract_balance_wei) < total_pending_wei:
+            warning = (
+                f"Contract balance ({contract_balance_eth} ETH) is less than total pending "
+                f"payouts ({Decimal(str(total_pending_wei)) / Decimal('1e18')} ETH). "
+                "Top up the contract before executing pending deals."
+            )
+
+    return FundContractResponse(
+        tx_hash=tx_hash,
+        contract_balance_eth=contract_balance_eth,
+        warning=warning,
     )
 
 

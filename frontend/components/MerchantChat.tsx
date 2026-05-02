@@ -1,7 +1,38 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseEther } from 'viem';
 import { Negotiations, type AcceptQuoteResponse, type ChatResponse, type ExecutionRecord, type NegotiationState, type NegotiationQuote } from '../lib/api';
+import RainbowConnectAction from './RainbowConnectAction';
+
+// ── ABI fragments ──────────────────────────────────────────────────────────
+
+const IERC20_ABI = [
+  {
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [{ type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const;
+
+const BUYOUT_SETTLEMENT_ABI = [
+  {
+    inputs: [{ name: 'dealId', type: 'uint256' }],
+    name: 'acceptOffer',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const;
+
+const PAWN_TOKEN_ADDRESS = '0x621B62fBFe0ABEf52eD2aAfd0787Fb1DAEEed1e5' as const;
+const BUYOUT_CONTRACT_ADDRESS = '0x754e37A77c177B92873e3057e5884dc6D0c0C4CE' as const;
 
 type Message = {
   id: string;
@@ -84,6 +115,17 @@ interface QuoteCardProps {
   onCounterSubmit: () => void;
   onCounterCancel: () => void;
   disabled: boolean;
+  sellerAddress?: string | null;
+  sellerStage?: 'idle' | 'approving' | 'accepting' | 'done';
+  isApproving?: boolean;
+  isAccepting?: boolean;
+  isApproveConfirmed?: boolean;
+  isAcceptConfirmed?: boolean;
+  approveTxHash?: string;
+  acceptTxHash?: string;
+  chainError?: string | null;
+  onApprovePAWN?: () => void;
+  onAcceptDeal?: () => void;
 }
 
 function QuoteCard({
@@ -96,6 +138,17 @@ function QuoteCard({
   onCounterSubmit,
   onCounterCancel,
   disabled,
+  sellerAddress,
+  sellerStage,
+  isApproving,
+  isAccepting,
+  isApproveConfirmed,
+  isAcceptConfirmed,
+  approveTxHash,
+  acceptTxHash,
+  chainError,
+  onApprovePAWN,
+  onAcceptDeal,
 }: QuoteCardProps) {
   return (
     <div className="tavern-quote-card">
@@ -157,28 +210,88 @@ function QuoteCard({
         </div>
       )}
 
-      {/* Actions */}
-      {!counterMode && (
+      {/* Actions — stub / simulated mode: accept via backend */}
+      {!counterMode && sellerStage === 'idle' && (
         <div className="flex gap-2">
+          {!sellerAddress ? (
+            <div className="flex-1 text-center py-2 text-xs" style={{ color: 'rgba(216,202,163,0.6)' }}>
+              Connect your wallet above to accept on-chain
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={onAccept}
+                disabled={disabled || quote.status !== 'quoted'}
+                className="flex-1 rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
+                style={{
+                  borderColor: 'rgba(52,211,153,0.5)',
+                  background: 'rgba(52,211,153,0.15)',
+                  color: '#6ee7b7',
+                }}
+              >
+                ✓ Accept
+              </button>
+              <button
+                onClick={onCounter}
+                disabled={disabled || quote.status !== 'quoted'}
+                className="flex-1 tavern-sign-link"
+              >
+                ↗ Counter
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* On-chain PAWN approval step */}
+      {!counterMode && sellerStage === 'approving' && (
+        <div className="mt-3 space-y-2">
+          <p className="text-xs" style={{ color: 'rgba(216,202,163,0.8)' }}>
+            Step 1 — Approve PAWN tokens to the settlement contract
+          </p>
           <button
-            onClick={onAccept}
-            disabled={disabled || quote.status !== 'quoted'}
-            className="flex-1 rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
+            onClick={onApprovePAWN}
+            disabled={isApproving || isApproveConfirmed}
+            className="w-full rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
+            style={{
+              borderColor: 'rgba(251,191,36,0.5)',
+              background: 'rgba(251,191,36,0.15)',
+              color: '#fcd34d',
+            }}
+          >
+            {isApproving ? 'Waiting for wallet…' : isApproveConfirmed ? `Approved ✓ (${(approveTxHash ?? '').slice(0, 10)}…)` : '⚡ Approve PAWN'}
+          </button>
+          {chainError && <p className="text-xs text-red-300">{chainError}</p>}
+        </div>
+      )}
+
+      {/* On-chain accept deal step */}
+      {!counterMode && sellerStage === 'accepting' && (
+        <div className="mt-3 space-y-2">
+          <p className="text-xs" style={{ color: 'rgba(216,202,163,0.8)' }}>
+            Step 2 — Accept deal on-chain
+          </p>
+          <button
+            onClick={onAcceptDeal}
+            disabled={isAccepting || isAcceptConfirmed}
+            className="w-full rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
             style={{
               borderColor: 'rgba(52,211,153,0.5)',
               background: 'rgba(52,211,153,0.15)',
               color: '#6ee7b7',
             }}
           >
-            ✓ Accept
+            {isAccepting ? 'Waiting for wallet…' : isAcceptConfirmed ? `Accepted ✓ (${(acceptTxHash ?? '').slice(0, 10)}…)` : '⚓ Accept Deal'}
           </button>
-          <button
-            onClick={onCounter}
-            disabled={disabled || quote.status !== 'quoted'}
-            className="flex-1 tavern-sign-link"
-          >
-            ↗ Counter
-          </button>
+          {chainError && <p className="text-xs text-red-300">{chainError}</p>}
+        </div>
+      )}
+
+      {/* On-chain done — pending confirmation */}
+      {!counterMode && sellerStage === 'done' && (
+        <div className="mt-3 text-center text-xs" style={{ color: 'rgba(216,202,163,0.7)' }}>
+          <p>Deal accepted on-chain ✓</p>
+          <p className="mt-1" style={{ color: 'rgba(216,202,163,0.5)' }}>Waiting for block confirmation…</p>
         </div>
       )}
     </div>
@@ -198,11 +311,50 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
   const [negotiationState, setNegotiationState] = useState<NegotiationState | null>(null);
   const [activeQuote, setActiveQuote] = useState<NegotiationQuote | null>(null);
   const [executionRecord, setExecutionRecord] = useState<ExecutionRecord | null>(null);
+  const [dealOffer, setDealOffer] = useState<import('../lib/api').DealOffer | null>(null);
+  // On-chain flow: seller has not yet approved PAWN
+  const [sellerStage, setSellerStage] = useState<'idle' | 'approving' | 'accepting' | 'done'>('idle');
+  const [chainError, setChainError] = useState<string | null>(null);
   const [counterMode, setCounterMode] = useState(false);
   const [counterInput, setCounterInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const { address: sellerAddress } = useAccount();
+
+  const {
+    writeContract: approvePAWN,
+    data: approveTxHash,
+    isPending: isApproving,
+    error: approveError,
+    reset: resetApprove,
+  } = useWriteContract();
+
+  const {
+    writeContract: acceptDeal,
+    data: acceptTxHash,
+    isPending: isAccepting,
+    error: acceptError,
+    reset: resetAccept,
+  } = useWriteContract();
+
+  const { isLoading: isApproveConfirmed } = useWaitForTransactionReceipt({ hash: approveTxHash });
+  const { isLoading: isAcceptConfirmed } = useWaitForTransactionReceipt({ hash: acceptTxHash });
+
+  // Sync chain errors into the UI
+  useEffect(() => {
+    if (approveError) setChainError(approveError.message);
+    else if (acceptError) setChainError(acceptError.message);
+    else setChainError(null);
+  }, [approveError, acceptError]);
+
+  // When acceptOffer confirms, move sellerStage to done
+  useEffect(() => {
+    if (isAcceptConfirmed) {
+      setSellerStage('done');
+    }
+  }, [isAcceptConfirmed]);
 
   // Load chat history from backend on mount
   useEffect(() => {
@@ -362,7 +514,7 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
         expiry: activeQuote.expiry || '5m',
       });
       setExecutionRecord(resp.execution);
-      // Clear the stale quote card — it's been settled
+      setDealOffer(resp.deal_offer);
       setActiveQuote(null);
       setCounterMode(false);
       setCounterInput('');
@@ -384,6 +536,33 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
       });
     }
   }, [activeQuote, connected, negotiationId]);
+
+  // Trigger the seller's on-chain PAWN approval + acceptDeal flow
+  const handleApprovePAWN = useCallback(() => {
+    if (!activeQuote || !dealOffer || !sellerAddress) return;
+    setChainError(null);
+    setSellerStage('approving');
+    const inputAmountWei = parseEther(String(activeQuote.input_amount));
+    approvePAWN({
+      address: PAWN_TOKEN_ADDRESS,
+      abi: IERC20_ABI,
+      functionName: 'approve',
+      args: [BUYOUT_CONTRACT_ADDRESS, inputAmountWei],
+    });
+  }, [activeQuote, dealOffer, sellerAddress, approvePAWN]);
+
+  const handleAcceptDeal = useCallback(() => {
+    if (!dealOffer || !sellerAddress) return;
+    setChainError(null);
+    setSellerStage('accepting');
+    const dealId: bigint = BigInt(dealOffer.chain_deal_id);
+    acceptDeal({
+      address: BUYOUT_CONTRACT_ADDRESS,
+      abi: BUYOUT_SETTLEMENT_ABI,
+      functionName: 'acceptOffer',
+      args: [dealId],
+    });
+  }, [dealOffer, sellerAddress, acceptDeal]);
 
   const handleCounter = useCallback(() => {
     setCounterMode(true);
@@ -483,14 +662,98 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
               </div>
             )}
 
-            {/* Completion banner — shown after settlement */}
-            {executionRecord && !activeQuote && (
+            {/* Completion banner — shown after settlement (stub/simulated mode) */}
+            {executionRecord && !activeQuote && sellerStage === 'idle' && (
               <div className="rounded-panel border px-4 py-3 my-3 text-center"
                 style={{ borderColor: 'rgba(52,211,153,0.5)', background: 'rgba(52,211,153,0.1)' }}>
                 <p className="text-emerald-300 font-bold uppercase tracking-widest text-sm">✓ Terms Sealed</p>
                 <p className="text-xs mt-1" style={{ color: 'rgba(216,202,163,0.75)' }}>
                   Settlement submitted. Payout: {formatWeiDisplay(executionRecord.payout_sent_wei)}
                 </p>
+                <p className="text-xs mt-1" style={{ color: 'rgba(216,202,163,0.5)' }}>
+                  Submit tx: {executionRecord.tx_hash ? `${executionRecord.tx_hash.slice(0,12)}…` : 'pending'}
+                </p>
+                {executionRecord.input_tx_hash && (
+                  <p className="text-xs" style={{ color: 'rgba(216,202,163,0.5)' }}>
+                    Accept tx: {executionRecord.input_tx_hash.slice(0,12)}…
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* On-chain seller acceptance panel — shown after merchant submits offer */}
+            {executionRecord && dealOffer && sellerAddress && (
+              <div className="rounded-panel border px-4 py-3 my-3 space-y-3"
+                style={{ borderColor: 'rgba(52,211,153,0.4)', background: 'rgba(18,14,5,0.6)' }}>
+                <p className="text-emerald-300 font-bold uppercase tracking-widest text-sm">⚓ On-Chain Settlement</p>
+                <dl className="space-y-1">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-xs tavern-muted">Submit offer tx</dt>
+                    <dd className="max-w-[12rem] truncate text-xs text-onSurface">{executionRecord.tx_hash ?? 'pending'}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-xs tavern-muted">Deal ID</dt>
+                    <dd className="max-w-[12rem] truncate text-xs text-onSurface">{dealOffer.chain_deal_id}</dd>
+                  </div>
+                </dl>
+                {sellerStage === 'idle' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSellerStage('approving')}
+                      className="flex-1 rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
+                      style={{ borderColor: 'rgba(251,191,36,0.5)', background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
+                    >
+                      ⚡ Approve PAWN
+                    </button>
+                  </div>
+                )}
+                {sellerStage === 'approving' && (
+                  <div className="space-y-2">
+                    <p className="text-xs tavern-muted">Step 1 — Approve PAWN tokens to settlement contract</p>
+                    <button
+                      onClick={handleApprovePAWN}
+                      disabled={isApproving || isApproveConfirmed}
+                      className="w-full rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
+                      style={{ borderColor: 'rgba(251,191,36,0.5)', background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
+                    >
+                      {isApproving ? 'Waiting for wallet…' : isApproveConfirmed ? `Approved ✓ (${(approveTxHash ?? '').slice(0, 10)}…)` : '⚡ Approve PAWN'}
+                    </button>
+                    {chainError && <p className="text-xs text-red-300">{chainError}</p>}
+                    {isApproveConfirmed && (
+                      <button
+                        onClick={() => setSellerStage('accepting')}
+                        className="w-full rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
+                        style={{ borderColor: 'rgba(52,211,153,0.5)', background: 'rgba(52,211,153,0.15)', color: '#6ee7b7' }}
+                      >
+                        Continue to Accept Deal →
+                      </button>
+                    )}
+                  </div>
+                )}
+                {sellerStage === 'accepting' && (
+                  <div className="space-y-2">
+                    <p className="text-xs tavern-muted">Step 2 — Accept deal on-chain</p>
+                    <button
+                      onClick={handleAcceptDeal}
+                      disabled={isAccepting || isAcceptConfirmed}
+                      className="w-full rounded-panel border text-xs font-bold uppercase tracking-[0.2em] px-4 py-2"
+                      style={{ borderColor: 'rgba(52,211,153,0.5)', background: 'rgba(52,211,153,0.15)', color: '#6ee7b7' }}
+                    >
+                      {isAccepting ? 'Waiting for wallet…' : isAcceptConfirmed ? `Accepted ✓ (${(acceptTxHash ?? '').slice(0, 10)}…)` : '⚓ Accept Deal'}
+                    </button>
+                    {chainError && <p className="text-xs text-red-300">{chainError}</p>}
+                  </div>
+                )}
+                {sellerStage === 'done' && (
+                  <div className="space-y-2 text-center text-xs" style={{ color: 'rgba(216,202,163,0.7)' }}>
+                    <p>Deal accepted on-chain ✓</p>
+                    {executionRecord.input_tx_hash && (
+                      <p style={{ color: 'rgba(216,202,163,0.6)' }}>
+                        Accept tx: {executionRecord.input_tx_hash.slice(0, 12)}…
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -596,6 +859,12 @@ export default function MerchantChat({ negotiationId, shopEnsName }: MerchantCha
                   <dt className="tavern-muted">Tx</dt>
                   <dd className="max-w-[10rem] truncate text-xs text-onSurface">{executionRecord.tx_hash ?? 'pending'}</dd>
                 </div>
+                {executionRecord.input_tx_hash && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="tavern-muted">Accept tx</dt>
+                    <dd className="max-w-[10rem] truncate text-xs text-onSurface">{executionRecord.input_tx_hash}</dd>
+                  </div>
+                )}
                 <div className="flex justify-between gap-3">
                   <dt className="tavern-muted">Payout sent</dt>
                   <dd className="text-xs text-onSurface">{formatWeiDisplay(executionRecord.payout_sent_wei)}</dd>

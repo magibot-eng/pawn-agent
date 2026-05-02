@@ -388,3 +388,91 @@ async def accept_quote_and_execute(
     await db.refresh(execution)
     await db.refresh(negotiation)
     return offer, execution, negotiation
+
+
+async def poll_offer_accepted(shop_id: str, db: AsyncSession) -> list[Execution]:
+    """Poll for recent OfferAccepted events from BuyoutSettlement and update Execution records.
+
+    For each OfferAccepted event found, looks up the Execution by chain_deal_id,
+    updates its state to "executed" and stores the input_tx_hash from the event.
+
+    Returns the list of Execution records that were updated.
+    """
+    settings = get_settings()
+
+    if not settings.buyout_contract_address:
+        raise SettlementError("BUYOUT_CONTRACT_ADDRESS is not configured.")
+
+    if not settings.alchemy_api_key:
+        raise SettlementError("ALCHEMY_API_KEY is not set.")
+
+    # Connect via Alchemy
+    rpc_url = _alchemy_rpc_url()
+    w3 = Web3(Web3.HTTPProvider(rpc_url))
+    if not w3.is_connected():
+        raise SettlementError(f"Cannot connect to Alchemy RPC at {rpc_url}.")
+
+    # Load contract ABI
+    contract_address = settings.buyout_contract_address
+    abi_path = "/Users/magi/Desktop/Mira/projects/pawn-agent/contracts/out/BuyoutSettlement.sol/BuyoutSettlement.json"
+    try:
+        with open(abi_path) as f:
+            contract_data = json.load(f)
+    except Exception as exc:
+        raise SettlementError(f"Failed to load contract ABI: {exc}") from exc
+
+    contract = w3.eth.contract(address=contract_address, abi=contract_data["abi"])
+
+    # Get events from the last 100 blocks
+    try:
+        latest_block = w3.eth.block_number
+        from_block = max(0, latest_block - 100)
+        events = contract.events.OfferAccepted().get_logs(from_block=from_block, to_block="latest")
+    except Exception as exc:
+        raise SettlementError(f"Failed to fetch OfferAccepted events: {exc}") from exc
+
+    updated_executions: list[Execution] = []
+
+    for event in events:
+        try:
+            args = event["args"]
+            deal_id_hex = hex(args["dealId"]) if isinstance(args["dealId"], int) else args["dealId"]
+            input_tx_hash = event["transactionHash"].hex()
+        except Exception:
+            continue
+
+        # Find Execution by chain_deal_id
+        result = await db.execute(
+            select(Execution)
+            .join(DealOffer, Execution.deal_offer_id == DealOffer.id)
+            .where(
+                DealOffer.shop_id == shop_id,
+                DealOffer.chain_deal_id == deal_id_hex,
+            )
+        )
+        execution = result.scalar_one_or_none()
+        if execution is None:
+            continue
+
+        if execution.state == "executed":
+            continue
+
+        execution.state = "executed"
+        execution.input_tx_hash = input_tx_hash
+        execution.error_message = None
+        updated_executions.append(execution)
+
+        # Also update the associated DealOffer
+        result2 = await db.execute(
+            select(DealOffer).where(DealOffer.id == execution.deal_offer_id)
+        )
+        offer = result2.scalar_one_or_none()
+        if offer:
+            offer.state = "executed"
+
+    if updated_executions:
+        await db.flush()
+        for exec in updated_executions:
+            await db.refresh(exec)
+
+    return updated_executions

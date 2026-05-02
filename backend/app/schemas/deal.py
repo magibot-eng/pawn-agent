@@ -60,5 +60,8 @@ class ExecutionResponse(BaseModel):
     payout_sent_wei: str | None
     tokens_received: str | None
     state: str
+    input_token: str | None = None
+    input_amount: str | None = None
+    input_tx_hash: str | None = None
     error_message: str | None
     created_at: datetime

@@ -748,7 +748,12 @@ export default function OwnerPage() {
                       </div>
                       <div>
                         <p className="tavern-muted">Mode</p>
-                        <p className="mt-1 text-sm text-onSurface">{walletStatus?.provisioning_mode ?? 'stub'}</p>
+                        <p className="mt-1 text-sm text-onSurface">
+                          {(walletStatus?.wallet_provider_account_id ?? shop.wallet_provider_account_id ?? '').startsWith('alchemy_live_') ||
+                          (walletStatus?.wallet_provider_account_id ?? shop.wallet_provider_account_id ?? '').startsWith('cdpwa_live_')
+                            ? 'live'
+                            : 'stub'}
+                        </p>
                       </div>
                       <div>
                         <p className="tavern-muted">On-chain ETH</p>
