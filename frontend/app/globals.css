@@ -505,6 +505,11 @@ body {
   color: rgba(196, 168, 112, 0.4) !important;
 }
 
+.ledger-input {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ledger-select {
   background: rgba(255, 255, 255, 0.04) !important;
   border: 1px solid rgba(196, 168, 112, 0.28) !important;
@@ -518,6 +523,8 @@ body {
   width: 100% !important;
   display: block;
   cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ledger-select:focus {
@@ -1822,6 +1829,8 @@ main, [data-page-content], .page-content {
   color: #2a1a0e !important;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ledger-input:focus {
   border-color: rgba(196,152,58,0.7) !important;
@@ -1841,6 +1850,8 @@ main, [data-page-content], .page-content {
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
   cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ledger-select:focus {
   border-color: rgba(196,152,58,0.7) !important;

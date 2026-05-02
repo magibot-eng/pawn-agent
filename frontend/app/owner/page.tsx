@@ -505,13 +505,13 @@ export default function OwnerPage() {
                 Owner-administered storefront for <span className="text-onSurface">{shop.ens_name}</span>, with a separate merchant wallet for automated settlement.
               </p>
               <p className="mt-2 text-xs uppercase tracking-[0.22em]" style={{ color: 'rgba(216,202,163,0.8)' }}>{ensVerificationLabel(shop.ens_verification_status)}</p>
-              {shop.ens_verified_owner_address ? <p className="mt-2 break-all text-xs" style={{ color: 'rgba(196,168,112,0.8)' }}>Resolved owner {shop.ens_verified_owner_address}</p> : null}
-              <p className="mt-2 break-all text-xs uppercase tracking-[0.24em] tavern-muted">Owner {ownerAddress ?? shop.owner_address}</p>
+              {shop.ens_verified_owner_address ? <p className="mt-2 break-words text-xs" style={{ color: 'rgba(196,168,112,0.8)' }}>Resolved owner {shop.ens_verified_owner_address}</p> : null}
+              <p className="mt-2 break-words text-xs uppercase tracking-[0.24em] tavern-muted">Owner {ownerAddress ?? shop.owner_address}</p>
             </div>
 
             {/* Portrait */}
-            <div className="merchant-inset rounded-panel p-3 sm:min-w-[13rem]" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ width: '112px', height: '128px', position: 'relative' }}>
+            <div className="merchant-inset rounded-panel p-3 sm:min-w-[13rem] min-w-0" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ width: '112px', height: '128px', position: 'relative', overflow: 'hidden' }}>
                 <Image
                   src={selectedPortrait.imageSrc}
                   alt={selectedPortrait.name}
@@ -530,7 +530,7 @@ export default function OwnerPage() {
             </div>
 
             {/* Nav */}
-            <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end flex-shrink-0">
               <Link href={storefrontHref} className="tavern-sign-link text-center" style={{ flex: '1 1 auto', maxWidth: '12rem' }}>
                 Storefront chat
               </Link>
@@ -672,7 +672,7 @@ export default function OwnerPage() {
                   <div className="treasury-card rounded-panel p-4">
                     <p className="tavern-muted">Owner wallet</p>
                     <p className="mt-2 text-lg text-onSurface">{ownerAddress ? formatWallet(ownerAddress) : 'Unknown'}</p>
-                    <p className="mt-1 break-all text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>{ownerAddress ?? 'No owner wallet found for this shop.'}</p>
+                    <p className="mt-1 break-words text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>{ownerAddress ?? 'No owner wallet found for this shop.'}</p>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div>
                         <p className="tavern-muted">Connected browser</p>
@@ -697,7 +697,7 @@ export default function OwnerPage() {
                             ? 'Not provisioned yet'
                             : formatWallet(walletStatus?.merchant_address ?? shop.merchant_address)}
                         </p>
-                        <p className="mt-1 break-all text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>{walletStatus?.merchant_address ?? shop.merchant_address}</p>
+                        <p className="mt-1 break-words text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>{walletStatus?.merchant_address ?? shop.merchant_address}</p>
                       </div>
                       <button
                         onClick={provisionMerchantWallet}

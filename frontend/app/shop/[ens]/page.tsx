@@ -292,21 +292,21 @@ export default function ShopChatPage({ params }: { params: Promise<{ ens: string
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-8 sm:py-8" style={{ position: 'relative', zIndex: 1 }}>
         {/* ── Shop header ── */}
         <section className="shop-card rounded-panel px-5 py-5 sm:px-6 sm:py-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between min-w-0">
+            <div className="max-w-3xl min-w-0">
               <p className="tavern-muted">Pawn Agent Storefront</p>
-              <h1 className="tavern-heading mt-2 text-3xl">{headline}</h1>
-              <p className="mt-2 tavern-muted">{shop.ens_name}</p>
+              <h1 className="tavern-heading mt-2 text-3xl truncate">{headline}</h1>
+              <p className="mt-2 tavern-muted truncate">{shop.ens_name}</p>
               <p className="mt-3 text-xs uppercase tracking-[0.22em]" style={{ color: 'rgba(216,202,163,0.8)' }}>{ensVerificationLabel(shop.ens_verification_status)}</p>
-              {shop.ens_verified_owner_address ? <p className="mt-2 break-all text-xs" style={{ color: 'rgba(196,168,112,0.8)' }}>Resolved owner {shop.ens_verified_owner_address}</p> : null}
+              {shop.ens_verified_owner_address ? <p className="mt-2 break-words text-xs" style={{ color: 'rgba(196,168,112,0.8)' }}>Resolved owner {shop.ens_verified_owner_address}</p> : null}
               <p className="mt-3 tavern-body-text">
                 {shop.description || 'State your token, amount, and ask. The merchant will respond in-line.'}
               </p>
             </div>
 
             {/* Merchant portrait — using Storefront component */}
-            <div className="merchant-inset rounded-panel p-3 sm:min-w-[14rem]" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ width: '128px', height: '160px', position: 'relative' }}>
+            <div className="merchant-inset rounded-panel p-3 sm:min-w-[14rem] min-w-0" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ width: '128px', height: '160px', position: 'relative', overflow: 'hidden' }}>
                 <Image
                   src={selectedPortrait.imageSrc}
                   alt={selectedPortrait.name}
