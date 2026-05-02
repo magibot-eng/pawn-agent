@@ -25,6 +25,17 @@ class ParsedQuote(TypedDict):
     expiry: str
 
 
+def _is_valid_evm_address(value: str) -> bool:
+    """Return True if value looks like a valid EVM address (0x + 40 hex chars)."""
+    if not value.startswith("0x") or len(value) != 42:
+        return False
+    try:
+        int(value, 16)
+        return True
+    except ValueError:
+        return False
+
+
 def _normalize_chat_role(role: str) -> str:
     if role in ("system", "assistant", "user"):
         return role
@@ -55,6 +66,9 @@ def parse_quote_from_response(raw_response: str) -> tuple[str, ParsedQuote | Non
         key = key.strip().lower()
         if key in quote:
             quote[key] = val.strip()
+    # Validate token is a real EVM address, not a placeholder like "ADDRESS"
+    if quote["token"] and not _is_valid_evm_address(quote["token"]):
+        quote["token"] = ""
     if not quote["token"] and not quote["amount"]:
         return clean, None
     return clean, quote
