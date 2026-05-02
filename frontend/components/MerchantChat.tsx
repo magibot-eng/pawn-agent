@@ -21,18 +21,7 @@ const IERC20_ABI = [
   },
 ] as const;
 
-const BUYOUT_SETTLEMENT_ABI = [
-  {
-    inputs: [{ name: 'dealId', type: 'uint256' }],
-    name: 'acceptOffer',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const;
-
 const PAWN_TOKEN_ADDRESS = '0x621B62fBFe0ABEf52eD2aAfd0787Fb1DAEEed1e5' as const;
-const BUYOUT_CONTRACT_ADDRESS = '0x754e37A77c177B92873e3057e5884dc6D0c0C4CE' as const;
 
 type Message = {
   id: string;
@@ -119,6 +108,7 @@ interface QuoteCardProps {
   sellerAddress?: string | null;
   sellerStage?: 'idle' | 'approving' | 'accepting' | 'done';
   isApproveConfirmed?: boolean;
+  isApproveLoading?: boolean;
   approveTxHash?: string;
   onApprove?: () => void;
 }
@@ -134,8 +124,9 @@ function QuoteCard({
   onCounterCancel,
   disabled,
   sellerAddress,
-  sellerStage,
+  sellerStage = 'idle',
   isApproveConfirmed,
+  isApproveLoading,
   approveTxHash,
   onApprove,
 }: QuoteCardProps) {
@@ -221,6 +212,10 @@ function QuoteCard({
                 >
                   ⚡ Approve Token
                 </button>
+              ) : isApproveLoading ? (
+                <div className="flex-1 text-center py-2 text-xs" style={{ color: 'rgba(251,191,36,0.7)' }}>
+                  ⚡ Confirming…
+                </div>
               ) : (
                 <div className="flex-1 text-center py-2 text-xs" style={{ color: 'rgba(52,211,153,0.7)' }}>
                   ✓ Allowance set
@@ -250,13 +245,7 @@ function QuoteCard({
         </div>
       )}
 
-      {/* On-chain done — pending confirmation */}
-      {!counterMode && isApproveConfirmed && (
-        <div className="mt-3 text-center text-xs" style={{ color: 'rgba(216,202,163,0.7)' }}>
-          <p>Deal accepted on-chain ✓</p>
-          <p className="mt-1" style={{ color: 'rgba(216,202,163,0.5)' }}>Waiting for block confirmation…</p>
-        </div>
-      )}
+
     </div>
   );
 }
@@ -294,30 +283,18 @@ export default function MerchantChat({ negotiationId, shopEnsName, merchantAddre
     reset: resetApprove,
   } = useWriteContract();
 
-  const {
-    writeContract: acceptDeal,
-    data: acceptTxHash,
-    isPending: isAccepting,
-    error: acceptError,
-    reset: resetAccept,
-  } = useWriteContract();
 
-  const { isLoading: isApproveConfirmed } = useWaitForTransactionReceipt({ hash: approveTxHash });
-  const { isLoading: isAcceptConfirmed } = useWaitForTransactionReceipt({ hash: acceptTxHash });
+
+  const { isSuccess: isApproveConfirmed, isLoading: isApproveLoading } = useWaitForTransactionReceipt({ hash: approveTxHash });
+
 
   // Sync chain errors into the UI
   useEffect(() => {
     if (approveError) setChainError(approveError.message);
-    else if (acceptError) setChainError(acceptError.message);
     else setChainError(null);
-  }, [approveError, acceptError]);
+  }, [approveError]);
 
-  // When acceptOffer confirms, move sellerStage to done
-  useEffect(() => {
-    if (isAcceptConfirmed) {
-      setSellerStage('done');
-    }
-  }, [isAcceptConfirmed]);
+
 
   // Load chat history from backend on mount
   useEffect(() => {
@@ -509,9 +486,9 @@ export default function MerchantChat({ negotiationId, shopEnsName, merchantAddre
     }
   }, [activeQuote, connected, negotiationId]);
 
-  // Trigger the seller's on-chain PAWN approval + acceptDeal flow
+  // Trigger the seller's on-chain PAWN approval
   const handleApprovePAWN = useCallback(() => {
-    if (!activeQuote || !dealOffer || !sellerAddress) return;
+    if (!activeQuote || !sellerAddress) return;
     setChainError(null);
     setSellerStage('approving');
     const inputAmountWei = parseEther(String(activeQuote.input_amount));
@@ -523,18 +500,7 @@ export default function MerchantChat({ negotiationId, shopEnsName, merchantAddre
     });
   }, [activeQuote, sellerAddress, merchantAddress, approvePAWN]);
 
-  const handleAcceptDeal = useCallback(() => {
-    if (!dealOffer || !sellerAddress) return;
-    setChainError(null);
-    setSellerStage('accepting');
-    const dealId: bigint = BigInt(dealOffer.chain_deal_id);
-    acceptDeal({
-      address: BUYOUT_CONTRACT_ADDRESS,
-      abi: BUYOUT_SETTLEMENT_ABI,
-      functionName: 'acceptOffer',
-      args: [dealId],
-    });
-  }, [dealOffer, sellerAddress, acceptDeal]);
+
 
   const handleCounter = useCallback(() => {
     setCounterMode(true);
@@ -631,6 +597,7 @@ export default function MerchantChat({ negotiationId, shopEnsName, merchantAddre
                     disabled={typing.active}
                     sellerAddress={sellerAddress}
                     isApproveConfirmed={isApproveConfirmed}
+                    isApproveLoading={isApproveLoading}
                     approveTxHash={approveTxHash}
                     onApprove={handleApprovePAWN}
                   />

@@ -393,6 +393,8 @@ def _build_quote_response(negotiation: NegotiationSession) -> dict | None:
         "seller_ask_token": negotiation.seller_ask_token or "",
         "seller_ask_amount": negotiation.seller_ask_amount or "",
         "seller_ask_price": negotiation.seller_ask_price or "",
+        "input_token": negotiation.input_token or "",
+        "input_amount": negotiation.input_amount or "",
     }
 
 
