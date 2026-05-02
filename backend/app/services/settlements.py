@@ -26,6 +26,32 @@ from app.services.wallets import (
 )
 
 
+# Minimal ERC-20 ABI with transferFrom and allowance
+_ERC20_ABI = [
+    {
+        "inputs": [
+            {"name": "owner", "type": "address"},
+            {"name": "spender", "type": "address"},
+        ],
+        "name": "allowance",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "from", "type": "address"},
+            {"name": "to", "type": "address"},
+            {"name": "amount", "type": "uint256"},
+        ],
+        "name": "transferFrom",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+]
+
+
 # PAWN token address on Base Sepolia (curated test token deployed for Pawn Agent)
 PAWN_TOKEN_ADDRESS = "0x621b62fbfe0abef52ed2aafd0787fb1daeeed1e5"
 
@@ -117,6 +143,110 @@ def _submit_eth_settlement(shop: Shop, recipient: str, payout_amount: str) -> tu
         raise SettlementError(f"Base Sepolia settlement failed: {type(exc).__name__}: {exc}") from exc
 
     return tx_hash, state, payout_sent_wei
+
+
+def _pull_tokens_and_settle(
+    shop: Shop,
+    seller: str,
+    input_token: str,
+    input_amount_wei: int,
+    payout_amount_wei: int,
+) -> tuple[str, str, str]:
+    """
+    Step 1: Pull ERC-20 tokens from seller into merchant wallet via transferFrom.
+    Step 2: Send ETH from merchant wallet to seller.
+
+    Returns (tx_hash, execution_state, payout_sent_wei).
+    Raises SettlementError if either step fails.
+    """
+    settings = get_settings()
+
+    if not settings.cdp_wallet_live_enabled:
+        raise SettlementError("Live wallet mode must be enabled for real Base Sepolia settlement. Set CDP_WALLET_LIVE_ENABLED=true.")
+    if not settings.alchemy_api_key:
+        raise SettlementError("ALCHEMY_API_KEY is not set.")
+    if not settings.alchemy_wallet_master_seed:
+        raise SettlementError("ALCHEMY_WALLET_MASTER_SEED is not set.")
+
+    encrypted_key = shop.wallet_encrypted_key
+    if not encrypted_key:
+        raise SettlementError("Merchant wallet private key not found. Re-provision the wallet.")
+    privkey = _decrypt_privkey(encrypted_key, settings.master_encryption_key)
+
+    rpc_url = _alchemy_rpc_url()
+    w3 = Web3(Web3.HTTPProvider(rpc_url))
+    if not w3.is_connected():
+        raise SettlementError(f"Cannot connect to Alchemy RPC at {rpc_url}.")
+
+    merchant_address = shop.merchant_address
+    merchant_account = Account.from_key(privkey)
+
+    # Step 0 — Pre-flight: check merchant ETH balance for payout + gas buffer
+    balance_wei = w3.eth.get_balance(merchant_address)
+    base_fee = w3.eth.fee_history(1, "latest")["baseFeePerGas"][0]
+    max_priority_fee = w3.eth.max_priority_fee
+    max_fee = max(base_fee * 2 + max_priority_fee, max_priority_fee * 3)
+    gas_buffer_wei = 200_000 * max_fee  # rough buffer for 2 txs
+    required_wei = payout_amount_wei + gas_buffer_wei
+    if balance_wei < required_wei:
+        raise SettlementError(
+            f"Merchant wallet balance ({balance_wei} wei) insufficient. "
+            f"Need at least {required_wei} wei for payout + gas. "
+            f"Fund the wallet or reduce the payout amount."
+        )
+
+    token_contract = w3.eth.contract(address=input_token, abi=_ERC20_ABI)
+
+    # Step 1 — Pull tokens from seller into merchant wallet
+    nonce = w3.eth.get_transaction_count(merchant_address)
+    token_tx = token_contract.functions.transferFrom(
+        seller,             # from — seller must have approved merchant wallet
+        merchant_address,   # to — merchant wallet receives tokens
+        input_amount_wei,   # amount
+    ).build_transaction({
+        "nonce": nonce,
+        "maxFeePerGas": max_fee,
+        "maxPriorityFeePerGas": max_priority_fee,
+        "chainId": BASE_SEPOLIA_CHAIN_ID,
+        "from": merchant_address,
+        "gas": 150_000,
+    })
+
+    signed_token_tx = merchant_account.sign_transaction(token_tx)
+    token_tx_hash_bytes = w3.eth.send_raw_transaction(signed_token_tx.raw_transaction)
+    token_tx_hash = token_tx_hash_bytes.hex()
+    token_receipt = w3.eth.wait_for_transaction_receipt(token_tx_hash, timeout=120)
+
+    if token_receipt["status"] != 1:
+        raise SettlementError(
+            f"Token pull failed. Seller may not have approved the merchant wallet. tx: {token_tx_hash}"
+        )
+
+    # Step 2 — Send ETH payout to seller
+    nonce2 = w3.eth.get_transaction_count(merchant_address)
+    eth_tx_unsigned = {
+        "nonce": nonce2,
+        "maxFeePerGas": max_fee,
+        "maxPriorityFeePerGas": max_priority_fee,
+        "to": seller,
+        "value": payout_amount_wei,
+        "data": b"",
+        "chainId": BASE_SEPOLIA_CHAIN_ID,
+        "type": 2,
+    }
+    eth_tx_unsigned["gas"] = w3.eth.estimate_gas(eth_tx_unsigned)
+    signed_eth_tx = merchant_account.sign_transaction(eth_tx_unsigned)
+    eth_tx_hash_bytes = w3.eth.send_raw_transaction(signed_eth_tx.raw_transaction)
+    eth_tx_hash = eth_tx_hash_bytes.hex()
+    eth_receipt = w3.eth.wait_for_transaction_receipt(eth_tx_hash, timeout=120)
+
+    if eth_receipt["status"] != 1:
+        raise SettlementError(
+            f"ETH transfer failed but tokens were already pulled. "
+            f"Manual intervention required. token_tx: {token_tx_hash}, eth_tx: {eth_tx_hash}"
+        )
+
+    return eth_tx_hash, "executed", str(payout_amount_wei)
 
 
 def _simulate_eth_settlement(recipient: str, payout_amount: str, negotiation_id: str) -> tuple[str, str, str]:
@@ -344,19 +474,28 @@ async def accept_quote_and_execute(
             deal_id = nonce  # Use nonce as stand-in deal_id for simulation
             offer.chain_deal_id = _deal_id(f"{negotiation.id}:{seller}:{payout_amount}:simulated")
         else:
-            # Call submitOffer() on the BuyoutSettlement contract
-            tx_hash, deal_id = submit_offer_to_contract(
+            # Two-step direct wallet settlement: pull ERC-20 tokens, then send ETH payout
+            # Pre-flight: verify seller has approved the merchant wallet for the input token
+            if input_token != ZERO_ADDRESS.lower() and not _is_eth_payout_token(input_token):
+                rpc_url = _alchemy_rpc_url()
+                w3_check = Web3(Web3.HTTPProvider(rpc_url))
+                token_contract_check = w3_check.eth.contract(address=input_token, abi=_ERC20_ABI)
+                allowance = token_contract_check.functions.allowance(seller, shop.merchant_address).call()
+                if allowance < input_amount_wei:
+                    raise SettlementError(
+                        f"Seller has not approved the merchant wallet for this token. "
+                        f"Allowance: {allowance}, Required: {input_amount_wei}. "
+                        f"Seller must approve the token first."
+                    )
+
+            tx_hash, execution_state, payout_sent_wei = _pull_tokens_and_settle(
                 shop=shop,
                 seller=seller,
                 input_token=input_token,
                 input_amount_wei=input_amount_wei,
-                payout_amount_wei=payout_amount_wei,
-                expires_at_ts=expires_at_ts,
-                nonce=nonce,
+                payout_amount_wei=int(payout_amount_wei),
             )
-            execution_state = "submitted"
-            # Store deal_id as hex string (uint256 → hex)
-            offer.chain_deal_id = hex(deal_id)
+            offer.chain_deal_id = tx_hash  # Use ETH tx hash as the on-chain deal record
     except SettlementError as exc:
         offer.state = "failed"
         execution.state = "failed"
