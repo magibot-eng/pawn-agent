@@ -41,5 +41,13 @@ class NegotiationSessionResponse(BaseModel):
     negotiation_state: dict[str, str] | None
     agreed_payout: str | None
     error_message: str | None
+    # Quote state fields (exposed for frontend quote display)
+    quote_status: str | None = None
+    seller_ask_token: str | None = None
+    seller_ask_amount: str | None = None
+    seller_ask_price: str | None = None
+    merchant_quote_token: str | None = None
+    merchant_quote_amount: str | None = None
+    merchant_quote_expiry: str | None = None
     created_at: datetime
     updated_at: datetime
