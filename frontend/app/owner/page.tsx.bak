@@ -31,22 +31,6 @@ function formatHoldingLabel(asset: string, chain?: string | null) {
   return chain ? `${asset} • ${chain}` : asset;
 }
 
-/** Convert a hex token balance (wei-style) to a decimal string with 2 decimal places. */
-function formatTokenBalance(hexBalance: string): string {
-  if (!hexBalance || hexBalance === '0' || hexBalance === '0x0') return '0.00';
-  try {
-    const hex = hexBalance.startsWith('0x') ? hexBalance.slice(2) : hexBalance;
-    const decimals = 18;
-    const padded = hex.padStart(Math.ceil(hex.length / 16) * 16, '0');
-    const whole = BigInt('0x' + padded.slice(0, -decimals) || '0');
-    const frac = BigInt('0x' + padded.slice(-decimals) || '0');
-    const fracStr = frac.toString().padStart(decimals, '0').slice(0, 2);
-    return `${whole}.${fracStr}`;
-  } catch {
-    return hexBalance;
-  }
-}
-
 function ensVerificationLabel(status: string | null | undefined) {
   return (status ?? 'manual').toLowerCase() === 'verified' ? 'Verified ENS storefront' : 'Manual ENS route';
 }
@@ -591,12 +575,12 @@ export default function OwnerPage() {
 
           {/* Notices */}
           {walletError ? (
-            <p className="mt-4 rounded-panel border px-4 py-3 text-sm treasury-card">
+            <p className="mt-4 rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(120,53,15,0.4)', background: 'rgba(120,53,15,0.2)', color: 'rgba(216,202,163,0.9)' }}>
               {walletError}
             </p>
           ) : null}
           {notice ? (
-            <p className="mt-4 rounded-panel border px-4 py-3 text-sm treasury-card">
+            <p className="mt-4 rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(196,168,112,0.3)', background: 'rgba(18,14,5,0.8)', color: 'rgba(216,202,163,0.9)' }}>
               {notice}
             </p>
           ) : null}
@@ -784,11 +768,11 @@ export default function OwnerPage() {
                         <p className="mt-1 text-sm text-onSurface">{walletStatus?.authenticated ? `Yes${walletStatus.authenticated_email ? ` • ${walletStatus.authenticated_email}` : ''}` : 'No'}</p>
                       </div>
                     </div>
-                    <div className="mt-4 rounded-panel border px-4 py-3 text-xs treasury-card">
+                    <div className="mt-4 rounded-panel border px-4 py-3 text-xs" style={{ borderColor: 'rgba(251,191,36,0.3)', background: 'rgba(120,53,15,0.2)', color: '#fcd34d' }}>
                       Live settlement, holdings, and merchant-wallet withdrawals require a live `awal` wallet on Base Sepolia. Stub wallets are useful for flow testing only.
                     </div>
                     {walletStatusError ? (
-                      <div className="mt-4 rounded-panel border px-4 py-3 text-xs treasury-card">
+                      <div className="mt-4 rounded-panel border px-4 py-3 text-xs" style={{ borderColor: 'rgba(120,53,15,0.4)', background: 'rgba(120,53,15,0.2)', color: '#fcd34d' }}>
                         {walletStatusError}
                       </div>
                     ) : null}
@@ -796,7 +780,7 @@ export default function OwnerPage() {
                 </div>
 
                 {/* Holdings + transfers */}
-                <div className="mt-4 grid gap-4">
+                <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
                   {/* Holdings */}
                   <div className="treasury-card rounded-panel p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -811,12 +795,12 @@ export default function OwnerPage() {
                         {walletStatus.holdings.map((holding) => (
                           <div key={`${holding.asset}-${holding.chain ?? 'unknown'}`} className="treasury-holding rounded-panel px-3 py-3">
                             <p className="tavern-muted">{formatHoldingLabel(holding.asset, holding.chain)}</p>
-                            <p className="mt-1 text-base font-mono text-onSurface">{formatTokenBalance(holding.balance)}</p>
+                            <p className="mt-1 text-base text-onSurface">{holding.balance}</p>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="mt-4 rounded-panel border px-4 py-4 text-sm treasury-card">
+                      <div className="mt-4 rounded-panel border px-4 py-4 text-sm" style={{ borderColor: 'rgba(196,168,112,0.25)', background: 'rgba(18,14,5,0.8)', color: 'rgba(216,202,163,0.75)' }}>
                         No live token holdings are available yet. Authenticate `awal`, fund the merchant wallet, or let the merchant acquire assets through the settlement flow to populate this section.
                       </div>
                     )}
@@ -882,7 +866,7 @@ export default function OwnerPage() {
                     </button>
                   ) : null}
                 </div>
-                <div className="mt-3 rounded-panel border px-4 py-4 text-sm treasury-card">
+                <div className="mt-3 rounded-panel border px-4 py-4 text-sm" style={{ borderColor: 'rgba(196,168,112,0.25)', background: 'rgba(18,14,5,0.8)', color: 'rgba(244,231,199,0.9)' }}>
                   {activeKey ? (
                     <div className="space-y-2">
                       <p><span className="tavern-muted">Status:</span> Active key configured</p>
