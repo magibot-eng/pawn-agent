@@ -385,6 +385,9 @@ def _build_quote_response(negotiation: NegotiationSession) -> dict | None:
     """Build the public quote dict for ChatResponse if a quote is active."""
     if not negotiation.quote_status or negotiation.quote_status == "none":
         return None
+    # Don't surface quotes that are already settled or expired
+    if negotiation.quote_status in ("accepted", "expired"):
+        return None
     return {
         "status": negotiation.quote_status,
         "payout_token": negotiation.merchant_quote_token or "",

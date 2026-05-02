@@ -594,8 +594,8 @@ export default function MerchantChat({ negotiationId, shopEnsName, merchantAddre
               </div>
             )}
 
-            {/* Quote card — shown below the last merchant message when active */}
-            {activeQuote && !executionRecord && !typing.active && (
+            {/* Quote card — shown below the last merchant message when active and not yet settled */}
+            {activeQuote && !executionRecord && !typing.active && ['quoted', 'countered'].includes(activeQuote.status) && (
               <div className="flex justify-start">
                 <div className="max-w-[82%]">
                   <QuoteCard
@@ -721,8 +721,8 @@ export default function MerchantChat({ negotiationId, shopEnsName, merchantAddre
             </p>
           )}
 
-          {/* Quote summary in sidebar */}
-          {activeQuote && !executionRecord && (
+          {/* Quote summary in sidebar — only show for active (unsettled) quotes */}
+          {activeQuote && !executionRecord && ['quoted', 'countered'].includes(activeQuote.status) && (
             <div className="mt-6 border-t pt-4" style={{ borderColor: 'rgba(196,168,112,0.25)' }}>
               <p className="tavern-muted">Active Quote</p>
               <dl className="mt-3 space-y-2">
