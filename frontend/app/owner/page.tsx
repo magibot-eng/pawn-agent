@@ -518,8 +518,8 @@ export default function OwnerPage() {
 
       {walletMismatch ? (
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8" style={{ position: 'relative', zIndex: 1 }}>
-          <div className="rounded-panel border p-6 text-center" style={{ borderColor: 'rgba(248,113,113,0.5)', background: 'rgba(127,29,29,0.2)' }}>
-            <p className="text-red-300 font-bold uppercase tracking-widest">Access Denied</p>
+          <div className="rounded-panel border p-6 text-center" style={{ borderColor: 'rgba(120,53,15,0.5)', background: 'rgba(120,53,15,0.2)' }}>
+            <p className="font-bold uppercase tracking-widest" style={{ color: 'var(--amber)' }}>Access Denied</p>
             <p className="text-sm mt-2" style={{ color: 'rgba(216,202,163,0.75)' }}>
               This dashboard belongs to a different wallet. Switch to the correct wallet to continue.
             </p>
@@ -575,12 +575,12 @@ export default function OwnerPage() {
 
           {/* Notices */}
           {walletError ? (
-            <p className="mt-4 rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(248,113,113,0.4)', background: 'rgba(127,29,29,0.3)', color: '#fecaca' }}>
+            <p className="mt-4 rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(120,53,15,0.4)', background: 'rgba(120,53,15,0.2)', color: '#fcd34d' }}>
               {walletError}
             </p>
           ) : null}
           {notice ? (
-            <p className="mt-4 rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(52,211,153,0.4)', background: 'rgba(6,78,59,0.3)', color: '#6ee7b7' }}>
+            <p className="mt-4 rounded-panel border px-4 py-3 text-sm" style={{ borderColor: 'rgba(52,211,153,0.4)', background: 'rgba(6,78,59,0.2)', color: '#6ee7b7' }}>
               {notice}
             </p>
           ) : null}
@@ -772,7 +772,7 @@ export default function OwnerPage() {
                       Live settlement, holdings, and merchant-wallet withdrawals require a live `awal` wallet on Base Sepolia. Stub wallets are useful for flow testing only.
                     </div>
                     {walletStatusError ? (
-                      <div className="mt-4 rounded-panel border px-4 py-3 text-xs" style={{ borderColor: 'rgba(248,113,113,0.4)', background: 'rgba(127,29,29,0.3)', color: '#fecaca' }}>
+                      <div className="mt-4 rounded-panel border px-4 py-3 text-xs" style={{ borderColor: 'rgba(120,53,15,0.4)', background: 'rgba(120,53,15,0.2)', color: '#fcd34d' }}>
                         {walletStatusError}
                       </div>
                     ) : null}
@@ -790,6 +790,7 @@ export default function OwnerPage() {
                       </div>
                       <p className="tavern-muted">{walletStatus?.holdings?.length ?? 0} assets</p>
                     </div>
+                    {console.log('[DEBUG walletStatus holdings]', walletStatus?.holdings), null}
                     {walletStatus?.holdings && walletStatus.holdings.length > 0 ? (
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         {walletStatus.holdings.map((holding) => (
