@@ -198,8 +198,14 @@ def _pull_tokens_and_settle(
 
     token_contract = w3.eth.contract(address=Web3.to_checksum_address(input_token), abi=_ERC20_ABI)
 
-    # Step 1 — Pull tokens from seller into merchant wallet
-    nonce = w3.eth.get_transaction_count(merchant_address)
+    # Step 0b — Check if settlement is already complete on-chain
+    # (CDP may have already handled both steps)
+    seller_eth_before = w3.eth.get_balance(seller)
+    merchant_token_before = token_contract.functions.balanceOf(merchant_address).call()
+    
+    # Try to get a nonce for Step 1
+    nonce = w3.eth.get_transaction_count(merchant_address, 'pending')
+    
     token_tx = token_contract.functions.transferFrom(
         seller,             # from — seller must have approved merchant wallet
         merchant_address,   # to — merchant wallet receives tokens
@@ -216,99 +222,84 @@ def _pull_tokens_and_settle(
     signed_token_tx = merchant_account.sign_transaction(token_tx)
     try:
         token_tx_hash_bytes = w3.eth.send_raw_transaction(signed_token_tx.raw_transaction)
+        token_tx_hash = token_tx_hash_bytes.hex()
+        token_receipt = w3.eth.wait_for_transaction_receipt(token_tx_hash, timeout=120)
+        if token_receipt["status"] != 1:
+            raise SettlementError(f"Token pull failed. Seller may not have approved. tx: {token_tx_hash}")
     except Web3RPCError as exc:
         err_msg = str(exc.args[0].get('message', '')) if exc.args else str(exc)
         err_code = exc.args[0].get('code') if exc.args else None
-        if err_code == -32000 and ("nonce too low" in err_msg.lower() or "replacement transaction underpriced" in err_msg.lower()):
-            # Nonce conflict: CDP MCP server already submitted transferFrom.
-            # Check if tokens arrived in merchant wallet to confirm CDP won.
-            try:
-                merchant_balance_before = token_contract.functions.balanceOf(merchant_address).call()
-                # Wait a moment for CDP's tx to settle, then re-check
-                import time
-                time.sleep(2)
-                merchant_balance_after = token_contract.functions.balanceOf(merchant_address).call()
-                if merchant_balance_after >= merchant_balance_before + input_amount_wei:
-                    # CDP completed Step 1. Proceed to Step 2.
-                    cdp_won = True
-                else:
-                    cdp_won = False
-            except Exception:
-                cdp_won = False
-
-            if cdp_won:
-                # CDP handled Step 1. Proceed directly to Step 2 (ETH payout).
-                nonce2 = nonce + 1
-                eth_tx_unsigned = {
-                    "nonce": nonce2,
-                    "maxFeePerGas": max_fee,
-                    "maxPriorityFeePerGas": max_priority_fee,
-                    "to": seller,
-                    "value": payout_amount_wei,
-                    "data": b"",
-                    "chainId": BASE_SEPOLIA_CHAIN_ID,
-                    "type": 2,
-                }
-                try:
-                    eth_tx_unsigned["gas"] = w3.eth.estimate_gas(eth_tx_unsigned)
-                except Exception:
-                    eth_tx_unsigned["gas"] = 21_000
-                signed_eth_tx = merchant_account.sign_transaction(eth_tx_unsigned)
-                try:
-                    eth_tx_hash_bytes = w3.eth.send_raw_transaction(signed_eth_tx.raw_transaction)
-                    eth_tx_hash = eth_tx_hash_bytes.hex()
-                except Web3RPCError as eth_exc:
-                    eth_err_msg = str(eth_exc.args[0].get('message', '')) if eth_exc.args else str(eth_exc)
-                    eth_err_code = eth_exc.args[0].get('code') if eth_exc.args else None
-                    if eth_err_code == -32000 and ("nonce too low" in eth_err_msg.lower() or "replacement transaction underpriced" in eth_err_msg.lower()):
-                        # CDP also sent the ETH payout — CDP completed full settlement.
-                        return eth_tx_hash or f"cdp-completed-{nonce2}", "executed", str(payout_amount_wei)
-                    raise SettlementError(f"ETH send failed: {eth_exc}")
-                try:
-                    eth_receipt = w3.eth.wait_for_transaction_receipt(eth_tx_hash, timeout=120)
-                    if eth_receipt["status"] != 1:
-                        raise SettlementError(f"ETH transfer failed. token was pulled. eth_tx: {eth_tx_hash}")
-                except Exception:
-                    pass
-                return eth_tx_hash, "executed", str(payout_amount_wei)
-            else:
+        if err_code == -32000 and "replacement transaction underpriced" in err_msg.lower():
+            # Nonce conflict: CDP already has a pending transferFrom at this nonce.
+            # Wait for CDP's tx to mine, then check if settlement is done.
+            import time
+            time.sleep(3)
+            
+            # Check: were tokens already transferred?
+            merchant_token_after = token_contract.functions.balanceOf(merchant_address).call()
+            if merchant_token_after < merchant_token_before + input_amount_wei:
                 raise SettlementError(
-                    f"Nonce conflict but CDP did not complete the transfer. "
+                    f"Nonce conflict with CDP but tokens not transferred. "
                     f"Manual settlement required."
                 )
-        raise SettlementError(f"Token send failed: {exc}") from exc
-
-    token_tx_hash = token_tx_hash_bytes.hex()
-    token_receipt = w3.eth.wait_for_transaction_receipt(token_tx_hash, timeout=120)
-
-    if token_receipt["status"] != 1:
-        raise SettlementError(
-            f"Token pull failed. Seller may not have approved the merchant wallet. tx: {token_tx_hash}"
-        )
+            
+            # Tokens arrived. Now handle ETH step.
+            seller_eth_after = w3.eth.get_balance(seller)
+            if seller_eth_after >= seller_eth_before + payout_amount_wei:
+                # CDP also sent the ETH — settlement complete.
+                return f"cdp-{token_tx_hash}", "executed", str(payout_amount_wei)
+            
+            # CDP pulled tokens but didn't send ETH. Use nonce+1 for ETH.
+            nonce2 = nonce + 1
+        elif err_code == -32000 and "nonce too low" in err_msg.lower():
+            # Nonce already used — CDP's transferFrom already mined. Skip to ETH step.
+            nonce2 = nonce
+        else:
+            raise SettlementError(f"Token send failed: {exc}")
+    else:
+        # Token tx succeeded — proceed to ETH with nonce+1
+        nonce2 = nonce + 1
 
     # Step 2 — Send ETH payout to seller
-    nonce2 = w3.eth.get_transaction_count(merchant_address)
+    # Use higher gas to avoid mempool rejection
+    eth_base_fee = w3.eth.fee_history(1, "latest")["baseFeePerGas"][0]
+    eth_max_priority = w3.eth.max_priority_fee
+    eth_max_fee = int(max(eth_base_fee * 2 + eth_max_priority, eth_max_priority * 3) * 1.25)  # 25% bump
+    
     eth_tx_unsigned = {
         "nonce": nonce2,
-        "maxFeePerGas": max_fee,
-        "maxPriorityFeePerGas": max_priority_fee,
+        "maxFeePerGas": eth_max_fee,
+        "maxPriorityFeePerGas": eth_max_priority,
         "to": seller,
         "value": payout_amount_wei,
         "data": b"",
         "chainId": BASE_SEPOLIA_CHAIN_ID,
         "type": 2,
     }
-    eth_tx_unsigned["gas"] = w3.eth.estimate_gas(eth_tx_unsigned)
+    try:
+        eth_tx_unsigned["gas"] = w3.eth.estimate_gas(eth_tx_unsigned)
+    except Exception:
+        eth_tx_unsigned["gas"] = 21_000
     signed_eth_tx = merchant_account.sign_transaction(eth_tx_unsigned)
-    eth_tx_hash_bytes = w3.eth.send_raw_transaction(signed_eth_tx.raw_transaction)
-    eth_tx_hash = eth_tx_hash_bytes.hex()
-    eth_receipt = w3.eth.wait_for_transaction_receipt(eth_tx_hash, timeout=120)
-
-    if eth_receipt["status"] != 1:
-        raise SettlementError(
-            f"ETH transfer failed but tokens were already pulled. "
-            f"Manual intervention required. token_tx: {token_tx_hash}, eth_tx: {eth_tx_hash}"
-        )
+    try:
+        eth_tx_hash_bytes = w3.eth.send_raw_transaction(signed_eth_tx.raw_transaction)
+        eth_tx_hash = eth_tx_hash_bytes.hex()
+        eth_receipt = w3.eth.wait_for_transaction_receipt(eth_tx_hash, timeout=120)
+        if eth_receipt["status"] != 1:
+            raise SettlementError(f"ETH transfer failed. eth_tx: {eth_tx_hash}")
+    except Web3RPCError as eth_exc:
+        eth_err_msg = str(eth_exc.args[0].get('message', '')) if eth_exc.args else str(eth_exc)
+        eth_err_code = eth_exc.args[0].get('code') if eth_exc.args else None
+        if eth_err_code == -32000 and "replacement transaction underpriced" in eth_err_msg.lower():
+            # CDP has a pending ETH at this nonce. CDP won the ETH race too.
+            return eth_tx_hash or f"cdp-eth-{nonce2}", "executed", str(payout_amount_wei)
+        elif eth_err_code == -32000 and "nonce too low" in eth_err_msg.lower():
+            # CDP's ETH already mined. Settlement complete.
+            return f"cdp-eth-mined-{nonce2}", "executed", str(payout_amount_wei)
+        else:
+            raise SettlementError(f"ETH send failed: {eth_exc}")
+    except Exception as exc:
+        raise SettlementError(f"ETH transfer error: {exc}")
 
     return eth_tx_hash, "executed", str(payout_amount_wei)
 
