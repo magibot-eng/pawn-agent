@@ -40,8 +40,7 @@ class Settings(BaseSettings):
     ens_rpc_url: str = "https://cloudflare-eth.com"
     ens_registry_address: str = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"
 
-    # BuyoutSettlement smart contract on Base Sepolia
-    buyout_contract_address: str = ""
+
 
     # Frontend URL(s) for CORS
     frontend_url: str = "http://localhost:3000"

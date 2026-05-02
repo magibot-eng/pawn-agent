@@ -55,7 +55,7 @@ _ERC20_ABI = [
 # PAWN token address on Base Sepolia (curated test token deployed for Pawn Agent)
 PAWN_TOKEN_ADDRESS = "0x621b62fbfe0abef52ed2aafd0787fb1daeeed1e5"
 
-# BuyoutSettlement contract address (set via BUYOUT_CONTRACT_ADDRESS env)
+# BuyoutSettlement contract — no longer used (direct wallet settlement replaces contract path)
 BUYOUT_CONTRACT_ADDRESS = "0x754e37A77c177B92873e3057e5884dc6D0c0C4CE"
 
 # Base Sepolia chain ID

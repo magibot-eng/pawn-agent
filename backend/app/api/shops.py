@@ -2,7 +2,7 @@
 
 import uuid
 from typing import Annotated
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_db
-from app.models.deal import DealOffer
 from app.models.shop import Shop, ShopStatus, ShopEnsIdentity, ShopWalletStatus
 from app.schemas.shop import (
     ShopCreate,
@@ -35,7 +34,6 @@ from app.services.wallets import (
 )
 from app.config import get_settings
 
-BUYOUT_CONTRACT_ADDRESS = "0x754e37A77c177B92873e3057e5884dc6D0c0C4CE"
 BASE_SEPOLIA_CHAIN_ID = 84532
 
 router = APIRouter(prefix="/shops", tags=["shops"])
@@ -275,128 +273,32 @@ async def withdraw_shop_wallet_to_owner(
 # ---------------------------------------------------------------------------
 
 
-class FundContractRequest(BaseModel):
-    amount_eth: str | None = Field(default=None, description="Manual override ETH amount. If omitted, auto-calculates delta.")
-
-
-class FundContractResponse(BaseModel):
-    tx_hash: str | None = None  # null if no funding needed
-    contract_balance_eth: str
-    funded_delta_eth: str  # actual amount funded (0 if no tx was sent)
-    warning: str | None = None
-
-
-@router.post("/{shop_id}/fund-contract", response_model=FundContractResponse)
+# fund_contract removed — direct wallet settlement replaces contract escrow
+# Keeping the route stub so existing API clients don't break, but it now returns an error.
+# If you need wallet top-up functionality, implement a direct wallet-to-address send here.
+@router.post("/{shop_id}/fund-contract")
 async def fund_contract(
     shop_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],
-    data: FundContractRequest = FundContractRequest(),
 ):
-    """Send ETH from the merchant wallet to the BuyoutSettlement contract.
+    """DEPRECATED — contract escrow is no longer used.
 
-    The merchant wallet must be live-provisioned (alchemy_live_ mode).
-    After funding, checks if the contract balance covers all pending deal payouts
-    and returns a warning if not.
+    Settlement now uses direct CDP wallet two-step settlement.
+    Fund the merchant wallet directly via /shops/{id}/wallet/withdraw instead.
     """
-    result = await db.execute(select(Shop).where(Shop.id == shop_id))
-    shop = result.scalar_one_or_none()
-    if shop is None:
-        raise HTTPException(status_code=404, detail="Shop not found")
-
-    settings = get_settings()
-
-    if not settings.cdp_wallet_live_enabled:
-        raise HTTPException(status_code=400, detail="Live wallet mode is not enabled. Set CDP_WALLET_LIVE_ENABLED=true.")
-    if not shop.wallet_provider_account_id or not shop.wallet_provider_account_id.startswith("alchemy_live_"):
-        raise HTTPException(status_code=400, detail="Shop wallet is not live-provisioned. Provision a live wallet first.")
-    if not shop.wallet_encrypted_key:
-        raise HTTPException(status_code=400, detail="Merchant wallet private key not found. Re-provision the wallet.")
-
-    privkey = _decrypt_privkey(shop.wallet_encrypted_key, settings.master_encryption_key)
-
-    contract_address = settings.buyout_contract_address or BUYOUT_CONTRACT_ADDRESS
-    client = AlchemyClient(_alchemy_rpc_url())
-
-    # --- Auto-calculate delta vs manual override ---
-    if data.amount_eth is not None:
-        # Manual override: use the explicitly provided amount
-        try:
-            decimal_amount = Decimal(data.amount_eth)
-        except Exception:
-            raise HTTPException(status_code=400, detail=f"Invalid ETH amount: {data.amount_eth}")
-        if decimal_amount <= 0:
-            raise HTTPException(status_code=400, detail="ETH amount must be greater than zero.")
-        funded_delta_wei = int(decimal_amount * Decimal("1e18"))
-    else:
-        # Auto mode: delta = sum(pending payout_amounts) - contract balance
-        pending_result = await db.execute(
-            select(DealOffer).where(
-                DealOffer.shop_id == shop_id,
-                DealOffer.state == "pending",
-            )
-        )
-        pending_deals = pending_result.scalars().all()
-        total_pending_wei = 0
-        for d in pending_deals:
-            if d.payout_amount:
-                try:
-                    total_pending_wei += int(Decimal(d.payout_amount) * Decimal("1e18"))
-                except Exception:
-                    pass  # skip malformed amounts
-
-        contract_balance_wei, _ = client.get_eth_balance(contract_address)
-        delta_wei = total_pending_wei - int(contract_balance_wei)
-        if delta_wei <= 0:
-            # Contract already has enough — no funding needed
-            contract_balance_eth = (
-                str(Decimal(contract_balance_wei) / Decimal("1e18")) if contract_balance_wei else "0"
-            )
-            return FundContractResponse(
-                tx_hash=None,
-                contract_balance_eth=contract_balance_eth,
-                funded_delta_eth="0",
-                warning=None,
-            )
-        funded_delta_wei = delta_wei
-
-    # Send ETH to contract via AlchemyClient
-    tx_hash, _ = client.send_eth(privkey, contract_address, funded_delta_wei)
-
-    # Check contract balance after funding
-    contract_balance_wei, _ = client.get_eth_balance(contract_address)
-    contract_balance_eth = (
-        str(Decimal(contract_balance_wei) / Decimal("1e18")) if contract_balance_wei else "0"
+    raise HTTPException(
+        status_code=410,
+        detail="fund-contract is deprecated. Settlement uses direct wallet two-step. "
+               "Use /shops/{id}/wallet/withdraw to fund the merchant wallet instead."
     )
 
-    # Re-check if contract can now cover all pending deals
-    warning = None
-    pending_result = await db.execute(
-        select(DealOffer).where(
-            DealOffer.shop_id == shop_id,
-            DealOffer.state == "pending",
-        )
-    )
-    pending_deals = pending_result.scalars().all()
-    total_pending_wei = 0
-    for d in pending_deals:
-        if d.payout_amount:
-            try:
-                total_pending_wei += int(Decimal(d.payout_amount) * Decimal("1e18"))
-            except Exception:
-                pass
-    if contract_balance_wei and int(contract_balance_wei) < total_pending_wei:
-        warning = (
-            f"Contract balance ({contract_balance_eth} ETH) is still less than total pending "
-            f"payouts ({Decimal(str(total_pending_wei)) / Decimal('1e18')} ETH). "
-            "Top up the contract before executing pending deals."
-        )
 
-    return FundContractResponse(
-        tx_hash=tx_hash,
-        contract_balance_eth=contract_balance_eth,
-        funded_delta_eth=str(Decimal(funded_delta_wei) / Decimal("1e18")),
-        warning=warning,
-    )
+class FundContractRequest(BaseModel):
+    amount_eth: str | None = None
+
+
+class FundContractResponse(BaseModel):
+    pass  # unused, kept for schema compatibility
 
 
 # ---------------------------------------------------------------------------
