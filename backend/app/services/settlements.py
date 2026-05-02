@@ -475,19 +475,6 @@ async def accept_quote_and_execute(
             offer.chain_deal_id = _deal_id(f"{negotiation.id}:{seller}:{payout_amount}:simulated")
         else:
             # Two-step direct wallet settlement: pull ERC-20 tokens, then send ETH payout
-            # Pre-flight: verify seller has approved the merchant wallet for the input token
-            if input_token != ZERO_ADDRESS.lower() and not _is_eth_payout_token(input_token):
-                rpc_url = _alchemy_rpc_url()
-                w3_check = Web3(Web3.HTTPProvider(rpc_url))
-                token_contract_check = w3_check.eth.contract(address=Web3.to_checksum_address(input_token), abi=_ERC20_ABI)
-                allowance = token_contract_check.functions.allowance(seller, shop.merchant_address).call()
-                if allowance < input_amount_wei:
-                    raise SettlementError(
-                        f"Seller has not approved the merchant wallet for this token. "
-                        f"Allowance: {allowance}, Required: {input_amount_wei}. "
-                        f"Seller must approve the token first."
-                    )
-
             tx_hash, execution_state, payout_sent_wei = _pull_tokens_and_settle(
                 shop=shop,
                 seller=seller,
