@@ -144,13 +144,13 @@ async def settle_pending_deal(
     offer_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Trigger real ETH settlement for a deal stuck in pending_review_DEBG state."""
+    """Trigger real ETH settlement for a deal stuck in pending_review state."""
     result = await db.execute(select(DealOffer).where(DealOffer.id == offer_id))
     offer = result.scalar_one_or_none()
     if not offer:
         raise HTTPException(status_code=404, detail="Deal offer not found")
-    if offer.state != "pending_review_DEBG":
-        raise HTTPException(status_code=400, detail=f"Deal is {offer.state}, not pending_review_DEBG.")
+    if offer.state != "pending_review":
+        raise HTTPException(status_code=400, detail=f"Deal is {offer.state}, not pending_review.")
 
     # Look up the shop
     result2 = await db.execute(select(Shop).where(Shop.id == offer.shop_id))
