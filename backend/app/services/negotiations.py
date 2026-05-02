@@ -251,6 +251,13 @@ async def process_seller_message(
     }
 
 
+def _is_valid_evm_address(value: str) -> bool:
+    """Return True if value is a valid EVM address (0x + 40 hex chars, 42 chars total)."""
+    if not isinstance(value, str):
+        return False
+    return len(value) == 42 and value.startswith("0x") and all(c in "0123456789abcdefABCDEF" for c in value[2:])
+
+
 def _apply_negotiation_state(
     negotiation: NegotiationSession,
     seller_message: str,
@@ -265,6 +272,12 @@ def _apply_negotiation_state(
         fallback_token=negotiation.input_token,
         fallback_amount=str(negotiation.input_amount),
     )
+
+    # Guard: if parsed_token looks like a raw EVM address (42-char 0x...), use input_token instead.
+    # This catches cases where the LLM emits "address 0x4200..." in plain text and the
+    # unstructured regex extracts the address as a "token" label.
+    if _is_valid_evm_address(parsed_token):
+        parsed_token = negotiation.input_token
 
     # Seller asking price
     if seller_quote:

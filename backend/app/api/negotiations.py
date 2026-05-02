@@ -205,6 +205,16 @@ async def accept_quote(
         )
     except SettlementError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        # Graceful fallback: return JSON error with success=False instead of 500.
+        # Catches any unexpected exception (AttributeError, KeyError, network errors, etc.)
+        raise HTTPException(
+            status_code=200,
+            content={
+                "success": False,
+                "error": str(exc),
+            },
+        ) from exc
 
     return AcceptQuoteResponse(
         success=True,
