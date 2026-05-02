@@ -111,10 +111,13 @@ class AlchemyClient:
             logger.warning("[get_token_balances] Alchemy TOKEN_LIST failed: %s", exc)
 
         # Second: always check known test tokens by direct web3 contract call
+        logger.info("[get_token_balances] rpc_url=%s, address=%s", self.rpc_url, checksum_address)
         w3 = Web3(Web3.HTTPProvider(self.rpc_url))
+        logger.info("[get_token_balances] w3 connected=%s", w3.is_connected())
         for token in self.KNOWN_BASE_SEPOLIA_TOKENS:
             try:
                 token_address = Web3.to_checksum_address(token["address"])
+                logger.info("[get_token_balances] checking token %s at %s", token["symbol"], token_address)
                 contract = w3.eth.contract(address=token_address, abi=self.ERC20_ABI)
                 raw_balance: int = contract.functions.balanceOf(checksum_address).call()
                 logger.info(

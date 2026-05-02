@@ -243,6 +243,45 @@ async def get_shop_wallet_status(
     return ShopWalletStatusResponse(**details.__dict__)
 
 
+@router.get("/{shop_id}/wallet/debug")
+async def debug_wallet_balances(
+    shop_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Debug endpoint — returns raw on-chain token balances for diagnosis."""
+    import logging
+    from app.services.wallets import AlchemyClient, _alchemy_rpc_url
+    from web3 import Web3
+
+    logger = logging.getLogger(__name__)
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if shop is None:
+        raise HTTPException(status_code=404, detail="Shop not found")
+
+    PAWN = "0x621B62fBFe0ABEf52eD2aAfd0787Fb1DAEEed1e5"
+    merchant = shop.merchant_address
+
+    # Direct web3 check
+    rpc_url = _alchemy_rpc_url()
+    w3 = Web3(Web3.HTTPProvider(rpc_url))
+    contract = w3.eth.contract(
+        address=Web3.to_checksum_address(PAWN),
+        abi=[{"inputs":[{"name":"account","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"}],
+    )
+    raw_bal = contract.functions.balanceOf(Web3.to_checksum_address(merchant)).call()
+
+    return {
+        "shop_id": shop_id,
+        "merchant_address": merchant,
+        "rpc_url_prefix": rpc_url[:60] + "...",
+        "w3_connected": w3.is_connected(),
+        "pawn_raw_balance": raw_bal,
+        "pawn_tokens": raw_bal / 10**18,
+        "alchemy_client_balances": AlchemyClient(rpc_url).get_token_balances(merchant),
+    }
+
+
 @router.post("/{shop_id}/wallet/withdraw", response_model=ShopWalletTransferResponse)
 async def withdraw_shop_wallet_to_owner(
     shop_id: str,
