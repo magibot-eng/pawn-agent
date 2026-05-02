@@ -104,6 +104,9 @@ async def update_negotiation(
             )
         except SettlementError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            # Catch everything else — return the error gracefully instead of 500
+            raise HTTPException(status_code=500, detail=f"Settlement failed: {type(exc).__name__}: {exc}") from exc
         await db.refresh(negotiation)
         return negotiation
 
