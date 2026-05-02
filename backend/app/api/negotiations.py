@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from starlette.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -208,13 +209,10 @@ async def accept_quote(
     except Exception as exc:
         # Graceful fallback: return JSON error with success=False instead of 500.
         # Catches any unexpected exception (AttributeError, KeyError, network errors, etc.)
-        raise HTTPException(
+        return JSONResponse(
             status_code=200,
-            content={
-                "success": False,
-                "error": str(exc),
-            },
-        ) from exc
+            content={"success": False, "error": str(exc)},
+        )
 
     return AcceptQuoteResponse(
         success=True,
