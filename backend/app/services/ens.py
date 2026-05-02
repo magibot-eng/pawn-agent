@@ -105,8 +105,13 @@ async def _fetch_web3bio_profiles(address: str) -> list[dict[str, Any]]:
     normalized_address = address.strip().lower()
     url = f"https://api.web3.bio/profile/{normalized_address}"
     async with httpx.AsyncClient(timeout=15) as client:
-        response = await client.get(url)
-        response.raise_for_status()
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return []  # No profile found for this address — not an error
+            raise
         payload = response.json()
 
     if not isinstance(payload, list):

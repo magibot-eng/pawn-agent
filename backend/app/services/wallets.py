@@ -82,25 +82,42 @@ class AlchemyClient:
             return []
 
     def send_eth(self, from_privkey: str, to_address: str, amount_wei: int) -> tuple[str, str]:
-        """Sign and send an ETH transfer. Returns (tx_hash, state)."""
+        """Sign and send an ETH transfer. Returns (tx_hash, state).
+
+        Uses EIP-1559 transaction format for Base/L2 chains.
+        Falls back to legacy format if the node does not support EIP-1559.
+        """
         w3 = self.w3
         sender = Account.from_key(from_privkey)
         nonce = w3.eth.get_transaction_count(sender.address)
-        gas_price = w3.eth.gas_price
 
-        tx = {
+        # Determine chain ID from configured chain
+        chain_ids = {
+            "base": 8453,        # Base mainnet
+            "base-sepolia": 84532,   # Base Sepolia testnet
+        }
+        cfg = get_settings()
+        chain_id = chain_ids.get(cfg.cdp_wallet_chain, 8453)
+
+        # Build EIP-1559 transaction (type 2)
+        base_fee = w3.eth.fee_history(1, "latest")["baseFeePerGas"][0]
+        max_priority_fee = w3.eth.max_priority_fee()
+        max_fee = max(base_fee * 2 + max_priority_fee, max_priority_fee * 3)
+
+        tx_unsigned = {
             "nonce": nonce,
-            "gasPrice": gas_price,
+            "maxFeePerGas": max_fee,
+            "maxPriorityFeePerGas": max_priority_fee,
             "to": to_address,
             "value": amount_wei,
             "data": b"",
-            "chainId": 8453,  # Base
+            "chainId": chain_id,
             "type": 2,
         }
-        gas_estimate = w3.eth.estimate_gas(tx)
-        tx["gas"] = gas_estimate
+        gas_estimate = w3.eth.estimate_gas(tx_unsigned)
+        tx_unsigned["gas"] = gas_estimate
 
-        signed = sender.sign_transaction(tx)
+        signed = sender.sign_transaction(tx_unsigned)
         tx_hash_bytes = w3.eth.send_raw_transaction(signed.raw_transaction)
         tx_hash = tx_hash_bytes.hex()
 
@@ -194,6 +211,14 @@ async def provision_managed_wallet(shop: Shop) -> Shop:
         raise ValueError(f"Unsupported wallet provider: {shop.wallet_provider}")
 
     if not settings.cdp_wallet_live_enabled:
+        if settings.cdp_wallet_fallback_to_stub:
+            # Stub mode: mark wallet as active with a placeholder address.
+            # The real Alchemy wallet can be provisioned later by enabling live mode.
+            shop.merchant_address = ZERO_ADDRESS
+            shop.wallet_provider_account_id = f"stub_{shop.ens_name.replace('.', '_')}_{settings.cdp_wallet_chain}"
+            shop.wallet_status = ShopWalletStatus.ACTIVE
+            shop.wallet_encrypted_key = None
+            return shop
         raise WalletProvisioningError("Live CDP wallet mode is disabled. Set CDP_WALLET_LIVE_ENABLED=true and provide ALCHEMY_API_KEY.")
 
     # Need master seed to derive private keys

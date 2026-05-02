@@ -312,10 +312,20 @@ def _apply_negotiation_state(
     }
 
 
-def _build_negotiation_state(negotiation: NegotiationSession, seller_quote: dict | None) -> dict:
+def _build_negotiation_state(negotiation: NegotiationSession, seller_quote: dict | None) -> dict | None:
     """Build the public NegotiationState dict from model fields."""
-    if negotiation.negotiation_state:
-        return negotiation.negotiation_state
+    raw = negotiation.negotiation_state
+    # Handle: dict (already parsed), JSON string, or None
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            return json.loads(raw)
+        except Exception:
+            return None
+    return None
 
     return {
         "token": seller_quote["token"] if seller_quote else (

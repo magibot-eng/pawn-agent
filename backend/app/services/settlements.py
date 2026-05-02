@@ -112,10 +112,15 @@ async def accept_quote_and_execute(
     if shop is None:
         raise SettlementError(f"Shop {negotiation.shop_id} not found")
 
+    # Allow stub wallets (merchant_address = ZERO_ADDRESS but wallet_provider_account_id starts with 'stub_')
+    is_stub_wallet = (
+        shop.wallet_provider_account_id is not None
+        and shop.wallet_provider_account_id.startswith("stub_")
+    )
     if (
         shop.wallet_status != ShopWalletStatus.ACTIVE
         or not shop.merchant_address
-        or shop.merchant_address == ZERO_ADDRESS
+        or (shop.merchant_address == ZERO_ADDRESS and not is_stub_wallet)
     ):
         raise SettlementError("Merchant wallet is not active. Provision the merchant wallet before accepting quotes.")
 
