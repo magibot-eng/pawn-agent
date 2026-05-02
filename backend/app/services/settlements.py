@@ -213,7 +213,66 @@ def _pull_tokens_and_settle(
     })
 
     signed_token_tx = merchant_account.sign_transaction(token_tx)
-    token_tx_hash_bytes = w3.eth.send_raw_transaction(signed_token_tx.raw_transaction)
+    try:
+        token_tx_hash_bytes = w3.eth.send_raw_transaction(signed_token_tx.raw_transaction)
+    except ValueError as exc:
+        # Nonce conflict: CDP MCP server already submitted this transaction.
+        # Check if the token was already transferred (CDP won the nonce race).
+        token_tx_hash = "unknown-cdp"
+        if "nonce too low" in str(exc).lower() or "replacement transaction underpriced" in str(exc).lower():
+            # CDP already sent the transferFrom. Check token balances to confirm.
+            try:
+                seller_balance = token_contract.functions.balanceOf(seller).call({"from": merchant_address})
+                merchant_balance = token_contract.functions.balanceOf(merchant_address).call()
+                if seller_balance < input_amount_wei or merchant_balance >= input_amount_wei:
+                    # Tokens were already moved by CDP — CDP won the nonce race.
+                    # Use nonce+1 for ETH payout (CDP consumed nonce).
+                    nonce_confirmed = True
+                    token_tx_hash = f"cdp-conflict-{nonce}"
+                else:
+                    nonce_confirmed = False
+            except Exception:
+                nonce_confirmed = False
+
+            if nonce_confirmed:
+                # CDP handled Step 1. Proceed directly to Step 2 (ETH payout).
+                nonce2 = nonce + 1
+                eth_tx_unsigned = {
+                    "nonce": nonce2,
+                    "maxFeePerGas": max_fee,
+                    "maxPriorityFeePerGas": max_priority_fee,
+                    "to": seller,
+                    "value": payout_amount_wei,
+                    "data": b"",
+                    "chainId": BASE_SEPOLIA_CHAIN_ID,
+                    "type": 2,
+                }
+                try:
+                    eth_tx_unsigned["gas"] = w3.eth.estimate_gas(eth_tx_unsigned)
+                except Exception:
+                    eth_tx_unsigned["gas"] = 21_000
+                signed_eth_tx = merchant_account.sign_transaction(eth_tx_unsigned)
+                eth_tx_hash_bytes = w3.eth.send_raw_transaction(signed_eth_tx.raw_transaction)
+                eth_tx_hash = eth_tx_hash_bytes.hex()
+                try:
+                    eth_receipt = w3.eth.wait_for_transaction_receipt(eth_tx_hash, timeout=120)
+                    if eth_receipt["status"] != 1:
+                        raise SettlementError(
+                            f"CDP race resolved but ETH transfer failed. token_tx: {token_tx_hash}, eth_tx: {eth_tx_hash}"
+                        )
+                except ValueError as eth_exc:
+                    if "nonce too low" in str(eth_exc).lower() or "replacement transaction underpriced" in str(eth_exc).lower():
+                        # CDP also sent the ETH payout — CDP completed the full settlement.
+                        return eth_tx_hash or f"cdp-completed-{nonce2}", "executed", str(payout_amount_wei)
+                    raise SettlementError(f"ETH send failed: {eth_exc}")
+                return eth_tx_hash, "executed", str(payout_amount_wei)
+            else:
+                raise SettlementError(
+                    f"Nonce conflict but CDP does not appear to have completed the transfer. "
+                    f"Manual settlement required. exc: {exc}"
+                )
+        raise SettlementError(f"Token send failed: {exc}") from exc
+
     token_tx_hash = token_tx_hash_bytes.hex()
     token_receipt = w3.eth.wait_for_transaction_receipt(token_tx_hash, timeout=120)
 
