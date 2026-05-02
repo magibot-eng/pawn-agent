@@ -491,7 +491,20 @@ export default function MerchantChat({ negotiationId, shopEnsName, merchantAddre
     if (!activeQuote || !sellerAddress) return;
     setChainError(null);
     setSellerStage('approving');
-    const inputAmountWei = parseEther(String(activeQuote.input_amount));
+    const inputAmount = activeQuote.input_amount ?? '0';
+    if (!inputAmount || inputAmount === '0') {
+      setChainError('No input amount set for this quote.');
+      setSellerStage('idle');
+      return;
+    }
+    let inputAmountWei;
+    try {
+      inputAmountWei = parseEther(inputAmount);
+    } catch {
+      setChainError(`Invalid input amount: ${inputAmount}`);
+      setSellerStage('idle');
+      return;
+    }
     approvePAWN({
       address: PAWN_TOKEN_ADDRESS,
       abi: IERC20_ABI,

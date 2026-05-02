@@ -53,7 +53,7 @@ _ERC20_ABI = [
 
 
 # PAWN token address on Base Sepolia (curated test token deployed for Pawn Agent)
-PAWN_TOKEN_ADDRESS = "0x621b62fbfe0abef52ed2aafd0787fb1daeeed1e5"
+PAWN_TOKEN_ADDRESS = "0x621B62fBFe0ABEf52eD2aAfd0787Fb1DAEEed1e5"
 
 # BuyoutSettlement contract — no longer used (direct wallet settlement replaces contract path)
 BUYOUT_CONTRACT_ADDRESS = "0x754e37A77c177B92873e3057e5884dc6D0c0C4CE"
@@ -195,7 +195,7 @@ def _pull_tokens_and_settle(
             f"Fund the wallet or reduce the payout amount."
         )
 
-    token_contract = w3.eth.contract(address=input_token, abi=_ERC20_ABI)
+    token_contract = w3.eth.contract(address=Web3.to_checksum_address(input_token), abi=_ERC20_ABI)
 
     # Step 1 — Pull tokens from seller into merchant wallet
     nonce = w3.eth.get_transaction_count(merchant_address)
@@ -479,7 +479,7 @@ async def accept_quote_and_execute(
             if input_token != ZERO_ADDRESS.lower() and not _is_eth_payout_token(input_token):
                 rpc_url = _alchemy_rpc_url()
                 w3_check = Web3(Web3.HTTPProvider(rpc_url))
-                token_contract_check = w3_check.eth.contract(address=input_token, abi=_ERC20_ABI)
+                token_contract_check = w3_check.eth.contract(address=Web3.to_checksum_address(input_token), abi=_ERC20_ABI)
                 allowance = token_contract_check.functions.allowance(seller, shop.merchant_address).call()
                 if allowance < input_amount_wei:
                     raise SettlementError(
