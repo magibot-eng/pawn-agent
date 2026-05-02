@@ -301,7 +301,12 @@ async def withdraw_eth_to_owner(shop: Shop, amount_eth: str) -> WalletTransferRe
         raise WalletProvisioningError(
             "Merchant wallet private key not found. Re-provision the wallet."
         )
-    privkey = _decrypt_privkey(encrypted_key, settings.master_encryption_key)
+    try:
+        privkey = _decrypt_privkey(encrypted_key, settings.master_encryption_key)
+    except Exception as exc:
+        raise WalletProvisioningError(
+            f"Failed to decrypt wallet private key: {exc}"
+        ) from exc
 
     # Parse amount
     try:
