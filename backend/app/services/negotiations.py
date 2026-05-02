@@ -251,11 +251,32 @@ async def process_seller_message(
     }
 
 
+_KNOWN_TOKEN_SYMBOLS = {"ETH", "WETH", "USDC", "USDT", "DAI", "WBTC", "LINK", "UNI", "AAVE", "MKR", "CRV", "LDO", "SNX", "COMP", "BAT", "ZRX", "ENJ", "MANA", "SAND", "AXS", "SOL"}
+
+
 def _is_valid_evm_address(value: str) -> bool:
     """Return True if value is a valid EVM address (0x + 40 hex chars, 42 chars total)."""
     if not isinstance(value, str):
         return False
     return len(value) == 42 and value.startswith("0x") and all(c in "0123456789abcdefABCDEF" for c in value[2:])
+
+
+def _is_valid_token_symbol(value: str) -> bool:
+    """Return True if value is a recognized token symbol (2–10 uppercase letters) that is
+    NOT a raw EVM address string.
+
+    Guards against cases where the unstructured amount+token regex accidentally captures
+    English words (e.g. the "address" in "Base, address 0x...") as a token label.
+    """
+    if not isinstance(value, str):
+        return False
+    if value in _KNOWN_TOKEN_SYMBOLS:
+        return True
+    # Reject any all-uppercase string that is not a known symbol and is not an EVM address.
+    # This catches accidental captures like "ADDRESS", "BASE", "ETHER", etc.
+    if value.isupper() and value.isalpha() and len(value) <= 10:
+        return False
+    return True
 
 
 def _apply_negotiation_state(
@@ -273,10 +294,10 @@ def _apply_negotiation_state(
         fallback_amount=str(negotiation.input_amount),
     )
 
-    # Guard: if parsed_token looks like a raw EVM address (42-char 0x...), use input_token instead.
-    # This catches cases where the LLM emits "address 0x4200..." in plain text and the
-    # unstructured regex extracts the address as a "token" label.
-    if _is_valid_evm_address(parsed_token):
+    # Guard: if parsed_token looks like a raw EVM address (42-char 0x...) OR an accidental
+    # uppercase word captured by the amount+token regex (e.g. "ADDRESS" from "Base, address"),
+    # fall back to input_token.  This keeps negotiation_state.token meaningful.
+    if _is_valid_evm_address(parsed_token) or not _is_valid_token_symbol(parsed_token):
         parsed_token = negotiation.input_token
 
     # Seller asking price
