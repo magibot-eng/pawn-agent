@@ -16,6 +16,10 @@ class NegotiationSessionCreate(BaseModel):
 class NegotiationSessionUpdate(BaseModel):
     """Used to append chat messages and update outcome/settlement state."""
 
+    action: Annotated[
+        str | None,
+        Field(default=None, description="Special action: 'accept_quote' routes to accept_quote_and_execute()"),
+    ] = None
     chat_log_entry: dict | None = Field(
         default=None,
         description="A single chat log entry: {sender: 'merchant'|'seller', text: '...', timestamp: 'ISO8601'}",
@@ -25,6 +29,19 @@ class NegotiationSessionUpdate(BaseModel):
     agreed_payout: Annotated[str | None, Field(max_length=78, description="Final payout amount in wei, set on settlement")] = None
     settled: bool | None = None
     error_message: str | None = None
+    # Quote fields needed when action=accept_quote
+    payout_token: Annotated[
+        str | None,
+        Field(default=None, max_length=42, description="Merchant payout token for the accepted quote"),
+    ] = None
+    payout_amount: Annotated[
+        str | None,
+        Field(default=None, max_length=78, description="Accepted payout amount"),
+    ] = None
+    expiry: Annotated[
+        str | None,
+        Field(default=None, max_length=64, description="Quote expiry label or timestamp"),
+    ] = None
 
 
 class NegotiationSessionResponse(BaseModel):

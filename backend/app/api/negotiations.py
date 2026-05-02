@@ -72,6 +72,40 @@ async def update_negotiation(
     if negotiation is None:
         raise HTTPException(status_code=404, detail="Negotiation not found")
 
+    # Handle accept_quote action — route to the existing settlement logic
+    if data.action == "accept_quote":
+        # Reject if other fields are also being set (avoid ambiguity)
+        other_fields = [
+            data.chat_log_entry,
+            data.outcome,
+            data.agreed_payout,
+            data.settled,
+            data.error_message,
+            data.negotiation_state,
+        ]
+        if any(f is not None for f in other_fields):
+            raise HTTPException(
+                status_code=400,
+                detail="When action=accept_quote is set, no other fields may be provided.",
+            )
+        if not data.payout_token or not data.payout_amount or not data.expiry:
+            raise HTTPException(
+                status_code=400,
+                detail="action=accept_quote requires payout_token, payout_amount, and expiry.",
+            )
+        try:
+            _, _, negotiation = await accept_quote_and_execute(
+                negotiation_id=negotiation_id,
+                payout_token=data.payout_token,
+                payout_amount=data.payout_amount,
+                expiry=data.expiry,
+                db=db,
+            )
+        except SettlementError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        await db.refresh(negotiation)
+        return negotiation
+
     if data.chat_log_entry:
         log = json.loads(negotiation.chat_log or "[]")
         log.append(data.chat_log_entry)

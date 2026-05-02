@@ -24,13 +24,12 @@ class Settings(BaseSettings):
     # Chains
     base_sepolia_rpc_url: str = ""
 
-    # Merchant wallet / CDP Agentic Wallet integration
+    # Merchant wallet — live mode enabled flag (Alchemy-backed, no CDP CLI)
     cdp_wallet_live_enabled: bool = False
-    cdp_wallet_fallback_to_stub: bool = True
-    cdp_wallet_chain: str = "base-sepolia"
-    cdp_wallet_cli_command: str = "npx awal"
+    # Chain name for wallet derivation and tx signing (base-sepolia supported)
+    wallet_chain: str = "base-sepolia"
 
-    # Alchemy (replaces npx awal for live wallet mode)
+    # Alchemy — used for wallet derivation, ETH balance, and on-chain sends
     # Get a free key at https://www.alchemy.com/
     alchemy_api_key: str = ""
     # Random seed string (32+ chars) used to derive per-shop merchant private keys.

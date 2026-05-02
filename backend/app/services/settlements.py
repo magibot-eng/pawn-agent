@@ -65,9 +65,7 @@ def _submit_eth_settlement(shop: Shop, recipient: str, payout_amount: str) -> tu
     """Send ETH from the merchant wallet to the seller via Alchemy SDK."""
     settings = get_settings()
     if not settings.cdp_wallet_live_enabled:
-        raise SettlementError("Live CDP wallet mode must be enabled for real Base Sepolia settlement.")
-    if settings.cdp_wallet_chain != "base-sepolia":
-        raise SettlementError("Real settlement is currently restricted to Base Sepolia.")
+        raise SettlementError("Live wallet mode must be enabled for real Base Sepolia settlement. Set CDP_WALLET_LIVE_ENABLED=true.")
     if not settings.alchemy_api_key:
         raise SettlementError("ALCHEMY_API_KEY is not set.")
     if not settings.alchemy_wallet_master_seed:
@@ -129,7 +127,7 @@ async def accept_quote_and_execute(
     if (
         not settings.cdp_wallet_live_enabled
         or not shop.wallet_provider_account_id
-        or not shop.wallet_provider_account_id.startswith("cdpwa_live_")
+        or not shop.wallet_provider_account_id.startswith("alchemy_live_")
     ):
         simulate_only = True
 

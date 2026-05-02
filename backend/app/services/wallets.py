@@ -97,7 +97,7 @@ class AlchemyClient:
             "base-sepolia": 84532,   # Base Sepolia testnet
         }
         cfg = get_settings()
-        chain_id = chain_ids.get(cfg.cdp_wallet_chain, 8453)
+        chain_id = chain_ids.get(cfg.wallet_chain, 8453)
 
         # Build EIP-1559 transaction (type 2)
         base_fee = w3.eth.fee_history(1, "latest")["baseFeePerGas"][0]
@@ -201,7 +201,7 @@ async def provision_managed_wallet(shop: Shop) -> Shop:
     has_live_wallet = bool(
         has_active_wallet
         and shop.wallet_provider_account_id
-        and shop.wallet_provider_account_id.startswith("cdpwa_live_")
+        and shop.wallet_provider_account_id.startswith("alchemy_live_")
     )
 
     if has_live_wallet:
@@ -211,15 +211,10 @@ async def provision_managed_wallet(shop: Shop) -> Shop:
         raise ValueError(f"Unsupported wallet provider: {shop.wallet_provider}")
 
     if not settings.cdp_wallet_live_enabled:
-        if settings.cdp_wallet_fallback_to_stub:
-            # Stub mode: mark wallet as active with a placeholder address.
-            # The real Alchemy wallet can be provisioned later by enabling live mode.
-            shop.merchant_address = ZERO_ADDRESS
-            shop.wallet_provider_account_id = f"stub_{shop.ens_name.replace('.', '_')}_{settings.cdp_wallet_chain}"
-            shop.wallet_status = ShopWalletStatus.ACTIVE
-            shop.wallet_encrypted_key = None
-            return shop
-        raise WalletProvisioningError("Live CDP wallet mode is disabled. Set CDP_WALLET_LIVE_ENABLED=true and provide ALCHEMY_API_KEY.")
+        raise WalletProvisioningError(
+            "Live wallet mode is disabled. Set CDP_WALLET_LIVE_ENABLED=true and provide "
+            "ALCHEMY_API_KEY + ALCHEMY_WALLET_MASTER_SEED to provision a live wallet."
+        )
 
     # Need master seed to derive private keys
     master_seed = settings.alchemy_wallet_master_seed
@@ -236,7 +231,7 @@ async def provision_managed_wallet(shop: Shop) -> Shop:
     # It is encrypted at rest using the app's MASTER_ENCRYPTION_KEY
     encrypted_privkey = _encrypt_privkey(privkey, settings.master_encryption_key)
 
-    account_id = f"cdpwa_live_{shop.ens_name.replace('.', '_')}_{settings.cdp_wallet_chain}"
+    account_id = f"alchemy_live_{shop.ens_name.replace('.', '_')}_{settings.wallet_chain}"
 
     shop.wallet_provider_account_id = account_id
     shop.merchant_address = merchant_address
@@ -255,7 +250,7 @@ async def get_wallet_status_details(shop: Shop) -> WalletStatusDetails:
     holdings: list[dict[str, str | None]] = []
 
     if shop.wallet_provider == "cdp_agentic_wallet" and shop.merchant_address:
-        if shop.wallet_provider_account_id and shop.wallet_provider_account_id.startswith("cdpwa_live_"):
+        if shop.wallet_provider_account_id and shop.wallet_provider_account_id.startswith("alchemy_live_"):
             provisioning_mode = "live"
             if settings.alchemy_api_key and shop.merchant_address != ZERO_ADDRESS:
                 try:
@@ -289,7 +284,7 @@ async def withdraw_eth_to_owner(shop: Shop, amount_eth: str) -> WalletTransferRe
     if shop.wallet_status != ShopWalletStatus.ACTIVE or not shop.merchant_address:
         raise WalletProvisioningError("Merchant wallet is not active yet.")
 
-    if not (shop.wallet_provider_account_id or "").startswith("cdpwa_live_"):
+    if not (shop.wallet_provider_account_id or "").startswith("alchemy_live_"):
         raise WalletProvisioningError(
             "Merchant wallet is not in live mode. Re-provision the wallet first."
         )
