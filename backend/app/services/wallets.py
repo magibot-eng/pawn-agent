@@ -101,7 +101,7 @@ class AlchemyClient:
 
         # Build EIP-1559 transaction (type 2)
         base_fee = w3.eth.fee_history(1, "latest")["baseFeePerGas"][0]
-        max_priority_fee = w3.eth.max_priority_fee()
+        max_priority_fee = w3.eth.max_priority_fee  # property in web3.py 7.x (was method in v6)
         max_fee = max(base_fee * 2 + max_priority_fee, max_priority_fee * 3)
 
         tx_unsigned = {
