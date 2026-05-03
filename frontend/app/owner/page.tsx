@@ -238,7 +238,7 @@ export default function OwnerPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [connectedWallet]);  // Re-run when wallet connects/disconnects
 
   useEffect(() => {
     async function loadWalletBalances() {
