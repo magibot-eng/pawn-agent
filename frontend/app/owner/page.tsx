@@ -716,7 +716,7 @@ export default function OwnerPage() {
                 </div>
 
                 {/* Owner + Merchant wallet cards */}
-                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                <div className="mt-4 grid gap-4">
                   {/* Owner wallet */}
                   <div className="treasury-card rounded-panel p-4">
                     <p className="tavern-muted">Owner wallet</p>
