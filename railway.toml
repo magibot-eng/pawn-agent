@@ -1,6 +1,6 @@
 [build]
-builder = "NIXPACKS"
-watchPatterns = ["backend/**"]
+builder = "DOCKERFILE"
+dockerfile = "backend/Dockerfile"
 
 [deploy]
 rootDirectory = "backend"
