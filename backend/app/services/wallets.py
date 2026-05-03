@@ -194,9 +194,22 @@ def _derive_merchant_private_key(shop: Shop, master_seed: str) -> str:
 
     The derived key is a valid Ethereum private key but is NOT the shop's
     real wallet — it is a throwaway key used only within Pawn Agent.
+
+    Uses PBKDF2-SHA256 with a per-shop salt derived from shop_id and ens_name.
+    This provides:
+    - Deterministic key derivation (same inputs → same key)
+    - Per-shop salt preventing replay across different shops
+    - High iteration count (256k) for brute-force resistance
     """
-    digest = hashlib.sha256(f"{master_seed}:{shop.id}:{shop.ens_name}".encode()).digest()
-    key_hex = hex(int.from_bytes(digest, "big"))[2:].zfill(64)
+    salt = hashlib.sha256(f"{shop.id}:{shop.ens_name}".encode()).digest()
+    key_material = hashlib.pbkdf2_hmac(
+        "sha256",
+        master_seed.encode(),
+        salt,
+        iterations=256_000,
+        dklen=32,
+    )
+    key_hex = key_material.hex()
     # Validate it's a legitimate private key (non-zero, < curve order)
     if int(key_hex, 16) == 0 or int(key_hex, 16) >= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141:
         raise WalletProvisioningError("Derived key is not a valid Ethereum private key.")
