@@ -73,6 +73,7 @@ export const MOCK_SHOP: Shop = {
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   ens_identities: [],
+  custom_supported_tokens: [],
 };
 
 export const MOCK_NEGOTIATION: NegotiationSession = {
