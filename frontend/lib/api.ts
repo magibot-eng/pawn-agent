@@ -47,6 +47,7 @@ export interface Shop {
   auto_settlement_enabled: boolean;
   ens_verification_status: string;
   ens_verified_owner_address: string | null;
+  custom_supported_tokens: string[];
   created_at: string;
   updated_at: string;
   ens_identities: ShopEnsIdentity[];
@@ -136,6 +137,18 @@ export const Shops = {
       method: "POST",
       body: JSON.stringify({ amount_eth }),
     }),
+
+  addCustomToken: (id: string, tokenAddress: string) =>
+    request<{ custom_supported_tokens: string[] }>(`/shops/${id}/tokens`, {
+      method: "PATCH",
+      body: JSON.stringify({ token_address: tokenAddress }),
+    }),
+
+  removeCustomToken: (id: string, tokenAddress: string) =>
+    request<{ custom_supported_tokens: string[] }>(
+      `/shops/${id}/tokens/${encodeURIComponent(tokenAddress)}`,
+      { method: "DELETE" },
+    ),
 };
 
 export interface PrimaryEnsLookup {

@@ -4,6 +4,7 @@ import uuid
 from typing import Annotated
 from decimal import Decimal
 from pydantic import BaseModel, Field
+from web3 import Web3
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -135,6 +136,90 @@ async def list_shops(
     result = await db.execute(query)
     shops = result.scalars().all()
     return shops
+
+
+class CustomTokenAddRequest(BaseModel):
+    token_address: Annotated[str, Field(max_length=42, description="ERC-20 token contract address")]
+
+
+class CustomTokenResponse(BaseModel):
+    custom_supported_tokens: list[str]
+
+
+@router.patch("/{shop_id}/tokens", response_model=CustomTokenResponse)
+async def add_custom_token(
+    shop_id: str,
+    data: CustomTokenAddRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Add a custom ERC-20 token address to the shop's allowed token list.
+
+    Validates the address checksum and probes the contract via balanceOf to
+    ensure it is a valid ERC-20 contract on the configured chain.
+    """
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if shop is None:
+        raise HTTPException(status_code=404, detail="Shop not found")
+
+    token_address = Web3.to_checksum_address(data.token_address)
+
+    # Validate checksum
+    if not Web3.is_checksum_address(token_address):
+        raise HTTPException(status_code=400, detail="Invalid checksum on token address")
+
+    # Probe the contract with balanceOf (must not revert for a valid ERC-20)
+    try:
+        from app.services.wallets import AlchemyClient, _alchemy_rpc_url
+        client = AlchemyClient(_alchemy_rpc_url())
+        w3 = Web3(Web3.HTTPProvider(client.rpc_url))
+        erc20_abi = [
+            {
+                "inputs": [{"name": "account", "type": "address"}],
+                "name": "balanceOf",
+                "outputs": [{"name": "", "type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function",
+            },
+        ]
+        contract = w3.eth.contract(address=token_address, abi=erc20_abi)
+        contract.functions.balanceOf(shop.merchant_address).call()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Token address does not appear to be a valid ERC-20 contract: {exc}",
+        ) from exc
+
+    # Add to list (no duplicates)
+    current_tokens: list[str] = shop.custom_supported_tokens or []
+    if token_address not in current_tokens:
+        current_tokens.append(token_address)
+    shop.custom_supported_tokens = current_tokens
+    await db.flush()
+
+    return CustomTokenResponse(custom_supported_tokens=shop.custom_supported_tokens)
+
+
+@router.delete("/{shop_id}/tokens/{token_address}", response_model=CustomTokenResponse)
+async def remove_custom_token(
+    shop_id: str,
+    token_address: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Remove a custom ERC-20 token address from the shop's allowed token list."""
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if shop is None:
+        raise HTTPException(status_code=404, detail="Shop not found")
+
+    checksum_address = Web3.to_checksum_address(token_address)
+    current_tokens: list[str] = shop.custom_supported_tokens or []
+    if checksum_address in current_tokens:
+        current_tokens.remove(checksum_address)
+    shop.custom_supported_tokens = current_tokens
+    await db.flush()
+
+    return CustomTokenResponse(custom_supported_tokens=shop.custom_supported_tokens)
 
 
 @router.get("/{shop_id}", response_model=ShopResponse)

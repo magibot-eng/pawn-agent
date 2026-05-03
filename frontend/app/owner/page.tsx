@@ -128,6 +128,10 @@ export default function OwnerPage() {
   const [withdrawing, setWithdrawing] = useState(false);
   const [fundTransfer, setFundTransfer] = useState<{ tx_hash: string; amount_eth: string } | null>(null);
   const [withdrawTransfer, setWithdrawTransfer] = useState<ShopWalletTransferResponse | null>(null);
+  const [newTokenInput, setNewTokenInput] = useState('');
+  const [addingToken, setAddingToken] = useState(false);
+  const [removingToken, setRemovingToken] = useState<string | null>(null);
+  const [customTokens, setCustomTokens] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -163,8 +167,15 @@ export default function OwnerPage() {
           return;
         }
 
-        // Prevent cross-wallet access: if a browser wallet is already connected, it must match the shop owner.
-        if (connectedWallet && getAddress(owner) !== getAddress(connectedWallet)) {
+        // Require wallet to be connected to access the dashboard.
+        if (!connectedWallet) {
+          setError(`Connect your wallet (${formatWallet(owner)}) to access the dashboard.`);
+          setLoading(false);
+          return;
+        }
+
+        // Prevent cross-wallet access: wallet must match the shop owner.
+        if (getAddress(owner) !== getAddress(connectedWallet)) {
           setError(`Wrong wallet. Connect ${formatWallet(owner)} to access this dashboard.`);
           setLoading(false);
           return;
@@ -191,6 +202,7 @@ export default function OwnerPage() {
           welcome_message: activeShop.welcome_message ?? '',
           merchant_portrait: activeShop.merchant_portrait ?? DEFAULT_MERCHANT_PORTRAIT_ID,
         });
+        setCustomTokens(activeShop.custom_supported_tokens ?? []);
 
         const keys = await ProviderKeys.list(activeShop.id);
         if (!active) return;
@@ -469,6 +481,50 @@ export default function OwnerPage() {
       setError(err instanceof Error ? err.message : 'Could not provision merchant wallet.');
     } finally {
       setWalletProvisioning(false);
+    }
+  }
+
+  function isValidEthAddress(value: string) {
+    return /^0x[0-9a-fA-F]{40}$/.test(value.trim());
+  }
+
+  async function addCustomToken() {
+    if (!shop) return;
+    const address = newTokenInput.trim();
+    if (!isValidEthAddress(address)) {
+      setError('Enter a valid Ethereum address (0x followed by 40 hex characters).');
+      return;
+    }
+    try {
+      setAddingToken(true);
+      setNotice(null);
+      setError(null);
+      const result = await Shops.addCustomToken(shop.id, address);
+      setCustomTokens(result.custom_supported_tokens);
+      setNewTokenInput('');
+      setNotice(`Token ${address.slice(0, 10)}… added. Refresh holdings to see its balance.`);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Could not add custom token.');
+    } finally {
+      setAddingToken(false);
+    }
+  }
+
+  async function removeCustomToken(address: string) {
+    if (!shop) return;
+    try {
+      setRemovingToken(address);
+      setNotice(null);
+      setError(null);
+      const result = await Shops.removeCustomToken(shop.id, address);
+      setCustomTokens(result.custom_supported_tokens);
+      setNotice(`Token ${address.slice(0, 10)}… removed.`);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Could not remove custom token.');
+    } finally {
+      setRemovingToken(null);
     }
   }
 
@@ -820,6 +876,51 @@ export default function OwnerPage() {
                         No live token holdings are available yet. Authenticate `awal`, fund the merchant wallet, or let the merchant acquire assets through the settlement flow to populate this section.
                       </div>
                     )}
+
+                    {/* Custom token management */}
+                    <div className="mt-4 rounded-panel border px-4 py-4 treasury-card">
+                      <p className="tavern-muted">Custom supported tokens</p>
+                      <p className="mt-1 text-xs" style={{ color: 'rgba(240,224,192,0.7)' }}>
+                        Add ERC-20 token addresses that this shop owner has whitelisted for settlement. They will be included in wallet balance checks.
+                      </p>
+                      {customTokens.length > 0 ? (
+                        <div className="mt-3 grid gap-2">
+                          {customTokens.map((tokenAddr) => (
+                            <div key={tokenAddr} className="flex items-center justify-between gap-2 rounded-panel px-3 py-2" style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.15)' }}>
+                              <span className="font-mono text-xs text-onSurface" style={{ wordBreak: 'break-all' }}>{tokenAddr}</span>
+                              <button
+                                onClick={() => removeCustomToken(tokenAddr)}
+                                disabled={removingToken === tokenAddr}
+                                className="shrink-0 tavern-sign-link"
+                                style={{ color: '#c47f5a', minWidth: '2rem' }}
+                              >
+                                {removingToken === tokenAddr ? '…' : '✕'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-xs" style={{ color: 'rgba(240,224,192,0.6)' }}>No custom tokens added yet.</p>
+                      )}
+                      <div className="mt-3 flex gap-2">
+                        <input
+                          value={newTokenInput}
+                          onChange={(e) => setNewTokenInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomToken(); }}}
+                          placeholder="0x… token contract address"
+                          className="ledger-input flex-1"
+                          style={{ minWidth: 0 }}
+                        />
+                        <button
+                          onClick={addCustomToken}
+                          disabled={addingToken || !newTokenInput.trim()}
+                          className="brass-btn shrink-0"
+                          style={{ whiteSpace: 'nowrap' }}
+                        >
+                          {addingToken ? 'Adding…' : 'Add'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Fund / withdraw */}

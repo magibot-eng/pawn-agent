@@ -87,8 +87,11 @@ class AlchemyClient:
         },
     ]
 
-    def get_token_balances(self, address: str) -> list[dict[str, str | None]]:
-        """Return list of token holdings, including known tokens by direct ERC-20 contract call."""
+    def get_token_balances(self, address: str, custom_tokens: list[str] | None = None) -> list[dict[str, str | None]]:
+        """Return list of token holdings, including known tokens by direct ERC-20 contract call.
+
+        custom_tokens: optional list of ERC-20 addresses added by the shop owner via dashboard.
+        """
         import logging
         logger = logging.getLogger(__name__)
         holdings: list[dict[str, str | None]] = []
@@ -114,7 +117,24 @@ class AlchemyClient:
         logger.info("[get_token_balances] rpc_url=%s, address=%s", self.rpc_url, checksum_address)
         w3 = Web3(Web3.HTTPProvider(self.rpc_url))
         logger.info("[get_token_balances] w3 connected=%s", w3.is_connected())
-        for token in self.KNOWN_BASE_SEPOLIA_TOKENS:
+
+        # Merge KNOWN tokens with owner-added custom tokens
+        all_tokens = list(self.KNOWN_BASE_SEPOLIA_TOKENS)
+        if custom_tokens:
+            for token_addr in custom_tokens:
+                try:
+                    checksum_addr = Web3.to_checksum_address(token_addr)
+                    contract = w3.eth.contract(address=checksum_addr, abi=self.ERC20_ABI)
+                    raw_symbol: str = contract.functions.symbol().call()
+                    all_tokens.append({
+                        "address": checksum_addr,
+                        "symbol": raw_symbol,
+                        "decimals": 18,
+                    })
+                except Exception as exc:
+                    logger.warning("[get_token_balances] failed to resolve custom token %s: %s", token_addr, exc)
+
+        for token in all_tokens:
             try:
                 token_address = Web3.to_checksum_address(token["address"])
                 logger.info("[get_token_balances] checking token %s at %s", token["symbol"], token_address)
@@ -328,7 +348,10 @@ async def get_wallet_status_details(shop: Shop) -> WalletStatusDetails:
                 try:
                     client = AlchemyClient(_alchemy_rpc_url())
                     balance, balance_symbol = client.get_eth_balance(shop.merchant_address)
-                    holdings = client.get_token_balances(shop.merchant_address)
+                    holdings = client.get_token_balances(
+                        shop.merchant_address,
+                        custom_tokens=shop.custom_supported_tokens or [],
+                    )
                 except WalletProvisioningError:
                     pass
 

@@ -149,6 +149,7 @@ class ShopResponse(BaseModel):
     auto_settlement_enabled: bool
     ens_verification_status: str
     ens_verified_owner_address: str | None
+    custom_supported_tokens: list[str] = []
     created_at: datetime
     updated_at: datetime
     ens_identities: list[ShopEnsIdentityResponse] = []
