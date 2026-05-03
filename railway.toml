@@ -1,6 +1,6 @@
 [build]
 builder = "DOCKERFILE"
-dockerfile = "backend/Dockerfile"
+dockerfile = "Dockerfile"
 
 [deploy]
 rootDirectory = "backend"
