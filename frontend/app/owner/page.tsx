@@ -90,6 +90,7 @@ const PROVIDER_DEFAULTS: Record<CreateProviderKey['provider'], { model: string; 
 
 export default function OwnerPage() {
   const {
+    isConnected,
     walletAddress: connectedWallet,
     walletConnectorName,
     disconnectWallet,
@@ -168,14 +169,14 @@ export default function OwnerPage() {
         }
 
         // Require wallet to be connected to access the dashboard.
-        if (!connectedWallet) {
+        if (!isConnected) {
           setError(`Connect your wallet (${formatWallet(owner)}) to access the dashboard.`);
           setLoading(false);
           return;
         }
 
         // Prevent cross-wallet access: wallet must match the shop owner.
-        if (getAddress(owner) !== getAddress(connectedWallet)) {
+        if (getAddress(owner) !== getAddress(connectedWallet!)) {
           setError(`Wrong wallet. Connect ${formatWallet(owner)} to access this dashboard.`);
           setLoading(false);
           return;
