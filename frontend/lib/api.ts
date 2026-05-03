@@ -218,7 +218,6 @@ export interface NegotiationSession {
   negotiation_state: NegotiationState | null;
   agreed_payout: string | null;
   error_message: string | null;
-  has_provider_key: boolean;
   created_at: string;
   updated_at: string;
 }
