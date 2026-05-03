@@ -76,7 +76,6 @@ export const MOCK_SHOP: Shop = {
 };
 
 export const MOCK_NEGOTIATION: NegotiationSession = {
-  has_provider_key: false,
   id: 'mock-neg-1',
   shop_id: 'mock-shop-1',
   seller_address: '0xsellersellersellersellersellerseller1234',
