@@ -307,8 +307,13 @@ export default function MerchantChat({ negotiationId, shopEnsName, merchantAddre
           timestamp: string;
         }>;
         setConnected(true);
-        setRuntimeStatus({ mode: 'scripted_fallback' });
         setNegotiationState(neg.negotiation_state ?? null);
+        // Set runtime status based on whether the shop has an active provider key
+        setRuntimeStatus(
+          neg.has_provider_key
+            ? { mode: 'live_llm' }
+            : { mode: 'scripted_fallback' }
+        );
         if (log.length > 0) {
           setMessages(
             log.map((entry, i) => ({

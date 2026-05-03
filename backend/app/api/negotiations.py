@@ -56,7 +56,18 @@ async def get_negotiation(
     negotiation = result.scalar_one_or_none()
     if negotiation is None:
         raise HTTPException(status_code=404, detail="Negotiation not found")
-    return negotiation
+
+    # Check if shop has an active provider key so frontend knows at load time
+    pk_result = await db.execute(
+        select(ProviderKey)
+        .where(ProviderKey.shop_id == negotiation.shop_id, ProviderKey.is_active == True)
+        .order_by(ProviderKey.created_at.desc())
+    )
+    active_key = pk_result.scalar_one_or_none()
+
+    response = NegotiationSessionResponse.model_validate(negotiation)
+    response.has_provider_key = active_key is not None
+    return response
 
 
 @router.patch("/{negotiation_id}", response_model=NegotiationSessionResponse)
