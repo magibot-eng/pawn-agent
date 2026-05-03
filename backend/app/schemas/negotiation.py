@@ -66,7 +66,5 @@ class NegotiationSessionResponse(BaseModel):
     merchant_quote_token: str | None = None
     merchant_quote_amount: str | None = None
     merchant_quote_expiry: str | None = None
-    # Presence of an active provider key — set by GET endpoint so frontend knows at load time
-    has_provider_key: bool = False
     created_at: datetime
     updated_at: datetime
