@@ -139,6 +139,7 @@ export default function OwnerPage() {
 
     async function init() {
       try {
+        setShop(null);  // Always clear shop first — prevents dashboard showing during wallet reconnect race
         setLoading(true);
         setError(null);
 
