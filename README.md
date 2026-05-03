@@ -103,13 +103,13 @@ When a quote is accepted and the merchant wallet is funded, the settlement trans
 | **Chain** | Base Sepolia (testnet) |
 | **Payout asset** | ETH |
 | **Supported tokens** | ERC-20 |
-| **Collateral** | Not yet — MVP focuses on buyout-first flow |
+| **Collateral** | Not yet. MVP focuses on buyout-first flow |
 
 ---
 
 ## Current Status
 
-Pawn Agent is an **active MVP prototype**. The core loop — shop creation, negotiation, quote, and on-chain settlement — is functional, but the product is not yet production-complete.
+Pawn Agent is an **active MVP prototype**. The core loop (shop creation, negotiation, quote, and on-chain settlement) is functional, but the product is not yet production-complete.
 
 **What's working:**
 - ENS-tied shop identity with server-side ownership verification
