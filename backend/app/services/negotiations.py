@@ -402,9 +402,48 @@ def _build_quote_response(negotiation: NegotiationSession) -> dict | None:
 
 
 def _scripted_response(message: str, shop: Shop, negotiation: NegotiationSession) -> str:
-    """Fallback scripted responses when no provider key is configured."""
-    msg_lower = message.lower()
+    """Fallback scripted responses when no provider key is configured.
 
+    Context-aware: reads negotiation.input_token and negotiation.input_amount
+    so we don't ask for information the seller has already provided.
+    """
+    msg_lower = message.lower()
+    has_context = bool(
+        negotiation.input_token
+        and negotiation.input_token != "0x0000000000000000000000000000000000000000"
+        and negotiation.input_amount
+        and float(negotiation.input_amount or "0") > 0
+    )
+
+    # When we already know the seller's terms, acknowledge them specifically
+    if has_context:
+        token = negotiation.input_token
+        amount = negotiation.input_amount
+        # Normalize token symbol for display
+        if len(token) == 42 and token.startswith("0x"):
+            token_label = f"{token[:6]}...{token[-4:]}"
+        else:
+            token_label = token
+
+        if any(greet in msg_lower for greet in ["hello", "hi", "hey", "help"]):
+            return (
+                f"⚓ {shop.display_name} acknowledges {amount} {token_label} in hand. "
+                f"What payout are you looking for, and how soon must you settle?"
+            )
+        if "accept" in msg_lower or "deal" in msg_lower or "yes" in msg_lower:
+            return "⚓ Before I seal this — confirm your wallet is ready to receive ETH on Base Sepolia."
+        if "counter" in msg_lower or "better" in msg_lower or "more" in msg_lower:
+            return "⚓ I don't improve on rumours. Show me proof of holdings and I may move the number."
+        if "no" in msg_lower or "reject" in msg_lower or "walk" in msg_lower:
+            return (
+                f"⚓ Noted. {amount} {token_label} stays with you. "
+                f"Return when you have a different ask or the terms change."
+            )
+        return (
+            f"⚓ {amount} {token_label} noted. What's your asking price and preferred settlement speed?"
+        )
+
+    # No context — generic prototype responses
     if any(greet in msg_lower for greet in ["hello", "hi", "hey", "help"]):
         return (
             f"⚓ {shop.display_name} hears you. Bring your cargo to the counter. "
