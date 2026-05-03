@@ -241,6 +241,14 @@ export default function OwnerPage() {
     };
   }, [connectedWallet]);  // Re-run when wallet connects/disconnects
 
+  // Separate gate: if wallet ever disconnects, lock the UI immediately
+  useEffect(() => {
+    if (!isConnected) {
+      setShop(null);
+      setError(null);
+    }
+  }, [isConnected]);
+
   useEffect(() => {
     async function loadWalletBalances() {
       try {
