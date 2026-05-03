@@ -66,7 +66,7 @@ class Shop(Base):
 
     last_sync_at: Mapped[str | None] = mapped_column(String(32), nullable=True, default=None)
 
-    # Agent-controlled operational wallet address used for quoting/settlement.
+    # -- Agent-controlled operational wallet address used for quoting/settlement.
     # Zero address means the managed wallet has not been provisioned yet.
     merchant_address: Mapped[str] = mapped_column(
         String(42),
