@@ -536,7 +536,7 @@ export default function OwnerPage() {
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8" style={{ position: 'relative', zIndex: 1 }}>
           <div className="rounded-panel border p-6 text-center treasury-card">
             <p className="font-bold uppercase tracking-widest" style={{ color: 'var(--amber)' }}>Access Denied</p>
-            <p className="text-sm mt-2" style={{ color: 'rgba(216,202,163,0.75)' }}>
+            <p className="text-sm mt-2" style={{ color: 'rgba(240,224,192,0.8)' }}>
               This dashboard belongs to a different wallet. Switch to the correct wallet to continue.
             </p>
           </div>
@@ -553,8 +553,8 @@ export default function OwnerPage() {
               <p className="mt-2 max-w-2xl break-words tavern-body-text leading-6">
                 Owner-administered storefront for <span className="text-onSurface">{shop.ens_name}</span>, with a separate merchant wallet for automated settlement.
               </p>
-              <p className="mt-2 text-xs uppercase tracking-[0.22em]" style={{ color: 'rgba(216,202,163,0.8)' }}>{ensVerificationLabel(shop.ens_verification_status)}</p>
-              {shop.ens_verified_owner_address ? <p className="mt-2 break-words text-xs" style={{ color: 'rgba(196,168,112,0.8)' }}>Resolved owner {shop.ens_verified_owner_address}</p> : null}
+              <p className="mt-2 text-xs uppercase tracking-[0.22em]" style={{ color: 'rgba(240,224,192,0.8)' }}>{ensVerificationLabel(shop.ens_verification_status)}</p>
+              {shop.ens_verified_owner_address ? <p className="mt-2 break-words text-xs" style={{ color: 'rgba(240,224,192,0.8)' }}>Resolved owner {shop.ens_verified_owner_address}</p> : null}
               <p className="mt-2 break-words text-xs uppercase tracking-[0.24em] tavern-muted">Owner {ownerAddress ?? shop.owner_address}</p>
             </div>
 
@@ -575,7 +575,7 @@ export default function OwnerPage() {
                 />
               </div>
               <p className="mt-3 text-center text-sm text-onSurface">{selectedPortrait.name}</p>
-              <p className="mt-1 text-center text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>{selectedPortrait.vibe}</p>
+              <p className="mt-1 text-center text-xs" style={{ color: 'rgba(240,224,192,0.8)' }}>{selectedPortrait.vibe}</p>
             </div>
 
             {/* Nav */}
@@ -647,7 +647,7 @@ export default function OwnerPage() {
                             />
                           </div>
                           <p className="mt-3 break-words text-sm text-onSurface">{portrait.name}</p>
-                          <p className="mt-1 break-words text-xs leading-5" style={{ color: 'rgba(216,202,163,0.75)' }}>{portrait.vibe}</p>
+                          <p className="mt-1 break-words text-xs leading-5" style={{ color: 'rgba(240,224,192,0.8)' }}>{portrait.vibe}</p>
                         </button>
                       );
                     })}
@@ -664,7 +664,7 @@ export default function OwnerPage() {
                   { key: 'refusal_rules' as const, label: 'When to refuse', rows: 3 },
                   { key: 'welcome_message' as const, label: 'Welcome line' },
                 ].map(({ key, label: fieldLabel, rows }) => (
-                  <label key={key} className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                  <label key={key} className="grid gap-2 text-sm" style={{ color: 'rgba(240,224,192,0.9)' }}>
                     <span className="tavern-muted">{fieldLabel}</span>
                     {rows ? (
                       <textarea
@@ -721,17 +721,17 @@ export default function OwnerPage() {
                   <div className="treasury-card rounded-panel p-4">
                     <p className="tavern-muted">Owner wallet</p>
                     <p className="mt-2 text-lg text-onSurface">{ownerAddress ? formatWallet(ownerAddress) : 'Unknown'}</p>
-                    <p className="mt-1 break-words text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>{ownerAddress ?? 'No owner wallet found for this shop.'}</p>
+                    <p className="mt-1 break-words text-xs" style={{ color: 'rgba(240,224,192,0.8)' }}>{ownerAddress ?? 'No owner wallet found for this shop.'}</p>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div>
                         <p className="tavern-muted">Connected browser</p>
                         <p className="mt-1 text-sm text-onSurface">{connectedWallet ? formatWallet(connectedWallet) : 'Not connected'}</p>
-                        <p className="mt-1 text-xs" style={{ color: 'rgba(205,185,141,0.8)' }}>{connectedWallet ? (walletConnectorName ?? 'Wallet connected') : 'Choose a wallet above to fund from this browser.'}</p>
+                        <p className="mt-1 text-xs" style={{ color: 'rgba(240,224,192,0.8)' }}>{connectedWallet ? (walletConnectorName ?? 'Wallet connected') : 'Choose a wallet above to fund from this browser.'}</p>
                       </div>
                       <div>
                         <p className="tavern-muted">Base Sepolia ETH</p>
                         <p className="mt-1 text-sm text-onSurface">{formatBalanceLine(ownerWalletBalance, 'ETH')}</p>
-                        <p className="mt-1 text-xs" style={{ color: 'rgba(205,185,141,0.8)' }}>Read directly from the owner wallet address on-chain.</p>
+                        <p className="mt-1 text-xs" style={{ color: 'rgba(240,224,192,0.8)' }}>Read directly from the owner wallet address on-chain.</p>
                       </div>
                     </div>
                   </div>
@@ -746,7 +746,7 @@ export default function OwnerPage() {
                             ? 'Not provisioned yet'
                             : formatWallet(walletStatus?.merchant_address ?? shop.merchant_address)}
                         </p>
-                        <p className="mt-1 break-words text-xs" style={{ color: 'rgba(216,202,163,0.75)' }}>{walletStatus?.merchant_address ?? shop.merchant_address}</p>
+                        <p className="mt-1 break-words text-xs" style={{ color: 'rgba(240,224,192,0.8)' }}>{walletStatus?.merchant_address ?? shop.merchant_address}</p>
                       </div>
                       <button
                         onClick={provisionMerchantWallet}
@@ -828,7 +828,7 @@ export default function OwnerPage() {
                     <div className="treasury-card rounded-panel p-4">
                       <p className="tavern-muted">Owner → Merchant</p>
                       <p className="mt-2 text-sm tavern-body-text">Use the connected browser owner wallet to top up the merchant wallet with Base Sepolia ETH.</p>
-                      <label className="mt-3 grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                      <label className="mt-3 grid gap-2 text-sm" style={{ color: 'rgba(240,224,192,0.9)' }}>
                         <span className="tavern-muted">Amount (ETH)</span>
                         <input value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} className="ledger-input" />
                       </label>
@@ -841,7 +841,7 @@ export default function OwnerPage() {
                         {funding ? 'Funding…' : 'Fund merchant wallet'}
                       </button>
                       {fundTransfer ? (
-                        <p className="mt-3 text-xs" style={{ color: '#6ee7b7' }}>Submitted {fundTransfer.amount_eth} ETH. Tx: {fundTransfer.tx_hash}</p>
+                        <p className="mt-3 text-xs" style={{ color: 'rgba(240,224,192,0.85)' }}>Submitted {fundTransfer.amount_eth} ETH. Tx: {fundTransfer.tx_hash}</p>
                       ) : null}
                     </div>
 
@@ -849,7 +849,7 @@ export default function OwnerPage() {
                     <div className="treasury-card rounded-panel p-4">
                       <p className="tavern-muted">Merchant → Owner</p>
                       <p className="mt-2 text-sm tavern-body-text">Use the live merchant wallet to withdraw Base Sepolia ETH back to the owner wallet.</p>
-                      <label className="mt-3 grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                      <label className="mt-3 grid gap-2 text-sm" style={{ color: 'rgba(240,224,192,0.9)' }}>
                         <span className="tavern-muted">Amount (ETH)</span>
                         <input value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="ledger-input" />
                       </label>
@@ -862,7 +862,7 @@ export default function OwnerPage() {
                         {withdrawing ? 'Withdrawing…' : 'Withdraw to owner wallet'}
                       </button>
                       {withdrawTransfer ? (
-                        <p className="mt-3 text-xs" style={{ color: '#6ee7b7' }}>Submitted {withdrawTransfer.amount_eth} ETH back to {formatWallet(withdrawTransfer.recipient_address)}. Tx: {withdrawTransfer.tx_hash}</p>
+                        <p className="mt-3 text-xs" style={{ color: 'rgba(240,224,192,0.85)' }}>Submitted {withdrawTransfer.amount_eth} ETH back to {formatWallet(withdrawTransfer.recipient_address)}. Tx: {withdrawTransfer.tx_hash}</p>
                       ) : null}
                     </div>
                   </div>
@@ -915,7 +915,7 @@ export default function OwnerPage() {
               <section className="merchant-inset rounded-panel p-4 sm:p-5">
                 <p className="tavern-muted">Add provider key</p>
                 <form onSubmit={saveProviderKey} className="mt-4 grid gap-3">
-                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(240,224,192,0.9)' }}>
                     <span className="tavern-muted">Provider</span>
                     <select
                       value={provider}
@@ -928,18 +928,18 @@ export default function OwnerPage() {
                     </select>
                   </label>
 
-                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(240,224,192,0.9)' }}>
                     <span className="tavern-muted">Model</span>
                     <input value={model} onChange={(e) => setModel(e.target.value)} className="ledger-input" />
-                    <span className="text-xs" style={{ color: 'rgba(216,202,163,0.7)' }}>{PROVIDER_DEFAULTS[provider].help}</span>
+                    <span className="text-xs" style={{ color: 'rgba(240,224,192,0.7)' }}>{PROVIDER_DEFAULTS[provider].help}</span>
                   </label>
 
-                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(240,224,192,0.9)' }}>
                     <span className="tavern-muted">Label</span>
                     <input value={label} onChange={(e) => setLabel(e.target.value)} className="ledger-input" />
                   </label>
 
-                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(244,231,199,0.9)' }}>
+                  <label className="grid gap-2 text-sm" style={{ color: 'rgba(240,224,192,0.9)' }}>
                     <span className="tavern-muted">API key</span>
                     <input
                       type="password"
@@ -948,7 +948,7 @@ export default function OwnerPage() {
                       placeholder={activeKey ? '************' : 'Paste provider API key'}
                       className="ledger-input"
                     />
-                    {activeKey ? <span className="text-xs" style={{ color: 'rgba(216,202,163,0.7)' }}>A key is already stored for this shop. Enter a new one only if you want to replace it.</span> : null}
+                    {activeKey ? <span className="text-xs" style={{ color: 'rgba(240,224,192,0.7)' }}>A key is already stored for this shop. Enter a new one only if you want to replace it.</span> : null}
                   </label>
 
                   <button
