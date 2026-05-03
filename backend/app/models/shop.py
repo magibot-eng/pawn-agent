@@ -63,6 +63,9 @@ class Shop(Base):
     # Custom ERC-20 token addresses this shop owner has explicitly whitelisted.
     # These are merged into KNOWN_BASE_SEPOLIA_TOKENS when checking wallet balances.
     custom_supported_tokens: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+
+    last_sync_at: Mapped[str | None] = mapped_column(String(32), nullable=True, default=None)
+
     # Agent-controlled operational wallet address used for quoting/settlement.
     # Zero address means the managed wallet has not been provisioned yet.
     merchant_address: Mapped[str] = mapped_column(
